@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medguard360-prod
+  labels:
+    name: medguard360-prod
+    compliance.medguard360/hipaa: "yes"
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medguard360-staging
+  labels:
+    name: medguard360-staging
+    compliance.medguard360/hipaa: "yes"
+    environment: staging
+---
+# Default deny-all NetworkPolicy — every service must explicitly allow ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: medguard360-prod
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  # Explicit egress to DNS + Kafka + Postgres + Redis + AWS APIs
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }]
+    - to: [{ podSelector: { matchLabels: { app: postgres } } }]
+      ports: [{ protocol: TCP, port: 5432 }, { protocol: TCP, port: 6432 }]
+    - to: [{ podSelector: { matchLabels: { app: kafka } } }]
+      ports: [{ protocol: TCP, port: 9092 }]
+    - to: [{ podSelector: { matchLabels: { app: redis } } }]
+      ports: [{ protocol: TCP, port: 6379 }]
+    - to: [{ podSelector: { matchLabels: { app: minio } } }]
+      ports: [{ protocol: TCP, port: 9000 }]
+    # External: vendor APIs, Clerk, Twilio, SES
+    - to: []
+      ports: [{ protocol: TCP, port: 443 }]

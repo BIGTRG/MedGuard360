@@ -1,0 +1,18 @@
+# Next.js 14 portal app.
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY frontend/portals/package.json ./
+RUN npm install --no-audit --no-fund
+COPY frontend/portals/. .
+RUN npm run build
+
+FROM node:22-alpine
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public 2>/dev/null || true
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/next.config.mjs ./
+EXPOSE 3000
+CMD ["npx", "next", "start", "-p", "3000"]

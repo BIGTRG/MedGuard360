@@ -1,0 +1,75 @@
+global:
+  registry: ghcr.io/medguard360
+  tag: latest
+  pullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: ghcr-credentials
+
+  # Pulled by external-secrets from Vault / AWS Secrets Manager.
+  secrets:
+    refreshInterval: 1h
+    backend: aws-secrets-manager
+    secretStoreRef: medguard360-secret-store
+
+  # Postgres / Redis / Kafka / MinIO are deployed by operators; services
+  # reach them through these in-cluster DNS names.
+  postgres: { host: medguard360-postgres-rw, port: 5432, database: medguard360, user: medguard }
+  pgbouncer: { host: medguard360-pgbouncer,   port: 6432, database: medguard360, user: medguard }
+  redis:     { host: medguard360-redis,        port: 6379 }
+  kafka:     { brokers: medguard360-kafka-bootstrap:9092 }
+  minio:     { endpoint: medguard360-minio.medguard360-prod.svc:9000, useSSL: false }
+
+  resources:
+    nodeService:  { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 1000m, memory: 1Gi  } }
+    pythonEngine: { requests: { cpu: 250m, memory: 512Mi }, limits: { cpu: 2000m, memory: 4Gi  } }
+
+# Per-service overrides (replicas, custom resources) keyed by service name
+services:
+  auth-service:           { port: 3001, replicas: 3 }
+  provider-service:       { port: 3002, replicas: 2 }
+  credentialing-service:  { port: 3003, replicas: 2 }
+  patient-service:        { port: 3004, replicas: 3 }
+  eligibility-service:    { port: 3005, replicas: 3 }
+  prior-auth-service:     { port: 3006, replicas: 3 }
+  clinical-doc-service:   { port: 3007, replicas: 3 }
+  claims-service:         { port: 3008, replicas: 4 }   # higher load
+  fraud-engine-service:   { port: 3009, replicas: 3 }
+  denial-service:         { port: 3010, replicas: 2 }
+  pharmacy-service:       { port: 3011, replicas: 2 }
+  dme-service:            { port: 3012, replicas: 2 }
+  nemt-service:           { port: 3013, replicas: 2 }
+  crisis-service:         { port: 3014, replicas: 2 }
+  hub-service:            { port: 3015, replicas: 2 }
+  reporting-service:      { port: 3016, replicas: 2 }
+  notification-service:   { port: 3017, replicas: 2 }
+  state-config-service:   { port: 3018, replicas: 2 }
+  audit-log-service:      { port: 3019, replicas: 3 }   # HIPAA durability
+  hie-service:            { port: 3020, replicas: 2 }
+
+engines:
+  speech-to-text:    { port: 8001, replicas: 2, resources: { limits: { cpu: 4000m, memory: 8Gi, nvidia.com/gpu: 1 } } }
+  clinical-nlp:      { port: 8002, replicas: 2 }
+  ocr-engine:        { port: 8003, replicas: 2 }
+  fraud-detection:   { port: 8004, replicas: 3 }
+  fraud-ring-gnn:    { port: 8005, replicas: 1 }
+  pa-nlp-matcher:    { port: 8006, replicas: 2, resources: { limits: { cpu: 2000m, memory: 4Gi } } }
+  denial-predictor:  { port: 8007, replicas: 2 }
+  provider-monitor:  { port: 8008, replicas: 1 }
+  crisis-detector:   { port: 8009, replicas: 2 }
+  eligibility-intel: { port: 8010, replicas: 1 }
+
+portals:
+  replicas: 3
+  port: 3000
+  domain: portal.medguard360.com
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  tls:
+    - hosts: [portal.medguard360.com, api.medguard360.com]
+      secretName: medguard360-tls

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: medguard360
+description: Unified Medicaid + Medicare fraud-prevention and billing platform
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [medicaid, medicare, fraud, healthcare]
+maintainers:
+  - name: TRG TechLink
+    email: info@geniuseye.ai

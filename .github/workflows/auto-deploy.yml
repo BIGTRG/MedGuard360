@@ -1,0 +1,45 @@
+name: Auto-deploy to genius-eye-main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:     # also let you trigger manually from GitHub UI
+
+# Once you've enabled this:
+#   1. SSH to your server fixed (fail2ban whitelisted)
+#   2. Add three secrets to the repo:
+#        Settings → Secrets and variables → Actions → New repository secret
+#        - SSH_HOST       = 178.105.21.227
+#        - SSH_USER       = root
+#        - SSH_PRIVATE_KEY = (paste contents of ~/.ssh/id_ed25519 from your Mac)
+#   3. Every git push to main → server runs ./deploy/update.sh automatically
+#
+# Until SSH is fixed, you can run this workflow MANUALLY from the GitHub UI
+# (workflow_dispatch above), but it'll still hit the same SSH wall.
+# For now, just run `./deploy/update.sh` from the Hetzner web console after
+# each push and you're set.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Run update on server
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              'cd /opt/medguard360 && ./deploy/update.sh'
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deploy to genius-eye-main failed. Check the server logs."
+          # If you want Slack/email/Telegram alerts, hook them up here.

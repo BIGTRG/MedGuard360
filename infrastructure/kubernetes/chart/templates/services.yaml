@@ -1,0 +1,81 @@
+{{- range $name, $cfg := .Values.services -}}
+{{- $ctx := dict "name" $name "port" $cfg.port "kind" "service" "Release" $.Release "Values" $.Values -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels: {{- include "medguard360.labels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas | default 1 }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: {{ $name }} }
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: {{- include "medguard360.labels" $ctx | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ $cfg.port }}"
+        prometheus.io/path: "/metrics"
+    spec:
+      imagePullSecrets: {{ toYaml $.Values.global.imagePullSecrets | nindent 8 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.global.registry }}/{{ $name }}:{{ $.Values.global.tag }}"
+          imagePullPolicy: {{ $.Values.global.pullPolicy }}
+          ports: [{ name: http, containerPort: {{ $cfg.port }} }]
+          {{ include "medguard360.serviceEnv" $ctx | nindent 10 }}
+          livenessProbe:  { httpGet: { path: /health, port: http }, initialDelaySeconds: 15, periodSeconds: 20 }
+          readinessProbe: { httpGet: { path: /ready,  port: http }, initialDelaySeconds: 5,  periodSeconds: 5 }
+          resources: {{ toYaml ($cfg.resources | default $.Values.global.resources.nodeService) | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 100Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels: {{- include "medguard360.labels" $ctx | nindent 4 }}
+spec:
+  ports: [{ name: http, port: {{ $cfg.port }}, targetPort: http }]
+  selector: { app.kubernetes.io/name: {{ $name }} }
+---
+# Auto-scale on CPU + custom Kafka-lag metric
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $cfg.replicas | default 2 }}
+  maxReplicas: {{ mul ($cfg.replicas | default 2) 4 }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+---
+# PodDisruptionBudget — never drop below half during voluntary disruptions
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels: { app.kubernetes.io/name: {{ $name }} }
+{{- end -}}

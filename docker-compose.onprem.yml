@@ -1,0 +1,193 @@
+# MedGuard360 — on-prem deployment.
+#
+# Designed for a server already running other services. The default
+# docker-compose.yml binds ~35 host ports; this variant binds ONLY ONE
+# (the gateway nginx on 8090), so it co-exists cleanly with your existing
+# infrastructure.
+#
+# Your existing nginx/Caddy/Traefik reverse-proxies to 127.0.0.1:8090.
+# Internally, all 30 services + 10 AI engines talk to each other over the
+# Docker bridge network.
+#
+# Boot:
+#   ./deploy/onprem.sh
+#
+# Reverse-proxy snippets: see infrastructure/docker/reverse-proxy-snippets/
+
+x-node-build: &node-build
+  context: .
+  dockerfile: infrastructure/docker/Dockerfile.node
+
+x-py-build: &py-build
+  context: .
+  dockerfile: infrastructure/docker/Dockerfile.python
+
+x-service-env: &service-env
+  NODE_ENV: ${NODE_ENV:-production}
+  PG_HOST: postgres
+  PG_PORT: "5432"
+  PG_DATABASE: ${PG_DATABASE:-medguard360}
+  PG_USER: ${PG_USER:-medguard}
+  PG_PASSWORD: ${PG_PASSWORD}
+  PG_POOL_MAX: "20"
+  PG_SSL: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  KAFKA_BROKERS: kafka:9092
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_ISSUER: medguard360
+  JWT_AUDIENCE: medguard360-platform
+  JWT_ACCESS_TTL_SEC: "900"
+  JWT_REFRESH_TTL_SEC: "604800"
+  MINIO_ENDPOINT: minio
+  MINIO_PORT: "9000"
+  MINIO_SSL: "false"
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-medguard}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+
+x-deps: &deps
+  postgres: { condition: service_healthy }
+  redis: { condition: service_started }
+  kafka: { condition: service_started }
+
+services:
+  # ============================================================
+  # Infrastructure — NO host port bindings (internal only)
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${PG_DATABASE:-medguard360}
+      POSTGRES_USER: ${PG_USER:-medguard}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - type: bind
+        source: ${PG_DATA_DIR:-./data/postgres}
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-medguard} -d ${PG_DATABASE:-medguard360}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - type: bind
+        source: ${REDIS_DATA_DIR:-./data/redis}
+        target: /data
+    command: ["redis-server", "--appendonly", "yes"]
+
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - type: bind
+        source: ${KAFKA_DATA_DIR:-./data/kafka}
+        target: /bitnami/kafka
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-medguard}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    command: server /data
+    volumes:
+      - type: bind
+        source: ${MINIO_DATA_DIR:-./data/minio}
+        target: /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bootstrap:
+    image: alpine:3.20
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+      minio: { condition: service_healthy }
+    volumes:
+      - ./infrastructure:/work/infrastructure:ro
+      - ./infrastructure/docker/bootstrap.sh:/bootstrap.sh:ro
+    environment:
+      <<: *service-env
+      MINIO_URL: http://minio:9000
+    entrypoint: ["sh", "/bootstrap.sh"]
+
+  # ============================================================
+  # 20 Node.js services — internal only
+  # ============================================================
+  auth-service:           { build: { <<: *node-build, args: { SERVICE_NAME: auth-service } },          environment: { <<: *service-env, PORT: "3001" }, depends_on: *deps }
+  provider-service:       { build: { <<: *node-build, args: { SERVICE_NAME: provider-service } },      environment: { <<: *service-env, PORT: "3002" }, depends_on: *deps }
+  credentialing-service:  { build: { <<: *node-build, args: { SERVICE_NAME: credentialing-service } }, environment: { <<: *service-env, PORT: "3003" }, depends_on: *deps }
+  patient-service:        { build: { <<: *node-build, args: { SERVICE_NAME: patient-service } },       environment: { <<: *service-env, PORT: "3004" }, depends_on: *deps }
+  eligibility-service:    { build: { <<: *node-build, args: { SERVICE_NAME: eligibility-service } },   environment: { <<: *service-env, PORT: "3005" }, depends_on: *deps }
+  prior-auth-service:     { build: { <<: *node-build, args: { SERVICE_NAME: prior-auth-service } },    environment: { <<: *service-env, PORT: "3006" }, depends_on: *deps }
+  clinical-doc-service:   { build: { <<: *node-build, args: { SERVICE_NAME: clinical-doc-service } },  environment: { <<: *service-env, PORT: "3007" }, depends_on: *deps }
+  claims-service:         { build: { <<: *node-build, args: { SERVICE_NAME: claims-service } },        environment: { <<: *service-env, PORT: "3008" }, depends_on: *deps }
+  fraud-engine-service:   { build: { <<: *node-build, args: { SERVICE_NAME: fraud-engine-service } },  environment: { <<: *service-env, PORT: "3009" }, depends_on: *deps }
+  denial-service:         { build: { <<: *node-build, args: { SERVICE_NAME: denial-service } },        environment: { <<: *service-env, PORT: "3010" }, depends_on: *deps }
+  pharmacy-service:       { build: { <<: *node-build, args: { SERVICE_NAME: pharmacy-service } },      environment: { <<: *service-env, PORT: "3011" }, depends_on: *deps }
+  dme-service:            { build: { <<: *node-build, args: { SERVICE_NAME: dme-service } },           environment: { <<: *service-env, PORT: "3012" }, depends_on: *deps }
+  nemt-service:           { build: { <<: *node-build, args: { SERVICE_NAME: nemt-service } },          environment: { <<: *service-env, PORT: "3013" }, depends_on: *deps }
+  crisis-service:         { build: { <<: *node-build, args: { SERVICE_NAME: crisis-service } },        environment: { <<: *service-env, PORT: "3014" }, depends_on: *deps }
+  hub-service:            { build: { <<: *node-build, args: { SERVICE_NAME: hub-service } },           environment: { <<: *service-env, PORT: "3015" }, depends_on: *deps }
+  reporting-service:      { build: { <<: *node-build, args: { SERVICE_NAME: reporting-service } },     environment: { <<: *service-env, PORT: "3016" }, depends_on: *deps }
+  notification-service:   { build: { <<: *node-build, args: { SERVICE_NAME: notification-service } },  environment: { <<: *service-env, PORT: "3017" }, depends_on: *deps }
+  state-config-service:   { build: { <<: *node-build, args: { SERVICE_NAME: state-config-service } },  environment: { <<: *service-env, PORT: "3018" }, depends_on: *deps }
+  audit-log-service:      { build: { <<: *node-build, args: { SERVICE_NAME: audit-log-service } },     environment: { <<: *service-env, PORT: "3019" }, depends_on: *deps }
+  hie-service:            { build: { <<: *node-build, args: { SERVICE_NAME: hie-service } },           environment: { <<: *service-env, PORT: "3020" }, depends_on: *deps }
+
+  # ============================================================
+  # 10 AI engines — internal only
+  # ============================================================
+  speech-to-text:    { build: { <<: *py-build, args: { ENGINE_NAME: speech-to-text } },    environment: { <<: *service-env, PORT: "8001", SKIP_WARMUP: "1" } }
+  clinical-nlp:      { build: { <<: *py-build, args: { ENGINE_NAME: clinical-nlp } },      environment: { <<: *service-env, PORT: "8002", SKIP_WARMUP: "1" } }
+  ocr-engine:        { build: { <<: *py-build, args: { ENGINE_NAME: ocr-engine } },        environment: { <<: *service-env, PORT: "8003" } }
+  fraud-detection:   { build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } },   environment: { <<: *service-env, PORT: "8004", MODEL_PATH: /app/ai-engines/fraud-detection/models/fraud_v1_minimal.pkl, MODEL_KIND: minimal } }
+  fraud-ring-gnn:    { build: { <<: *py-build, args: { ENGINE_NAME: fraud-ring-gnn } },    environment: { <<: *service-env, PORT: "8005" } }
+  pa-nlp-matcher:    { build: { <<: *py-build, args: { ENGINE_NAME: pa-nlp-matcher } },    environment: { <<: *service-env, PORT: "8006", SKIP_WARMUP: "1" } }
+  denial-predictor:  { build: { <<: *py-build, args: { ENGINE_NAME: denial-predictor } },  environment: { <<: *service-env, PORT: "8007" } }
+  provider-monitor:  { build: { <<: *py-build, args: { ENGINE_NAME: provider-monitor } },  environment: { <<: *service-env, PORT: "8008" } }
+  crisis-detector:   { build: { <<: *py-build, args: { ENGINE_NAME: crisis-detector } },   environment: { <<: *service-env, PORT: "8009" } }
+  eligibility-intel: { build: { <<: *py-build, args: { ENGINE_NAME: eligibility-intel } }, environment: { <<: *service-env, PORT: "8010" } }
+
+  # ============================================================
+  # Gateway — the ONLY service exposed to the host, on :8090
+  # Your reverse proxy on the host forwards to this.
+  # ============================================================
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${MEDGUARD_GATEWAY_PORT:-8090}:80"
+    volumes:
+      - ./infrastructure/docker/nginx.demo.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - patient-service
+      - prior-auth-service
+      - claims-service
+      - fraud-engine-service
+      - state-config-service
+      - audit-log-service
+      - reporting-service
+      - portals
+
+  portals:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.portals
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE: /api
+    # No host port binding — nginx in this stack proxies to it on the docker network

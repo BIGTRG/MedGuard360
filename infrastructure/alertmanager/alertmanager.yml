@@ -1,0 +1,67 @@
+# MedGuard360 — AlertManager configuration
+# Routes Prometheus alerts to info@geniuseye.ai with severity-aware splits.
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'email-smtp.us-east-1.amazonaws.com:587'
+  smtp_from: 'alerts@medguard360.com'
+  smtp_auth_username: '${SES_SMTP_USERNAME}'
+  smtp_auth_password: '${SES_SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Route tree
+route:
+  receiver: ops
+  group_by: ['alertname', 'service', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Critical compliance violations — page immediately, no grouping
+    - matchers: ['compliance="hipaa"', 'severity="critical"']
+      receiver: compliance-pager
+      group_wait: 0s
+      repeat_interval: 30m
+
+    # Production-down alerts — paging
+    - matchers: ['severity="critical"']
+      receiver: pager
+      group_wait: 0s
+      repeat_interval: 1h
+
+    # Warning-level — ops email
+    - matchers: ['severity="warning"']
+      receiver: ops
+      group_interval: 15m
+
+receivers:
+  - name: ops
+    email_configs:
+      - to: 'info@geniuseye.ai'
+        send_resolved: true
+        headers: { Subject: '[MedGuard360 alert] {{ .GroupLabels.alertname }}' }
+
+  - name: pager
+    email_configs:
+      - to: 'info@geniuseye.ai'
+        send_resolved: true
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_KEY}'
+        severity: critical
+
+  - name: compliance-pager
+    email_configs:
+      - to: 'info@geniuseye.ai'
+        send_resolved: true
+        headers:
+          Subject: '[COMPLIANCE-CRITICAL] {{ .GroupLabels.alertname }}'
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_COMPLIANCE_KEY}'
+        severity: critical
+
+inhibit_rules:
+  # If a service is down, suppress its other warnings
+  - source_matchers: ['alertname="ServiceDown"']
+    target_matchers: ['severity=~"warning|info"']
+    equal: ['service']

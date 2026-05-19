@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "MedGuard360",
+    "slug": "medguard360",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "medguard360",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2168e3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.geniuseye.medguard360",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Used to authenticate you and unlock patient records.",
+        "NSCameraUsageDescription": "Used to capture clinical documentation.",
+        "NSMicrophoneUsageDescription": "Used to dictate clinical notes.",
+        "NSLocationWhenInUseUsageDescription": "Used to record visit location for billing."
+      }
+    },
+    "android": {
+      "package": "ai.geniuseye.medguard360",
+      "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#2168e3" },
+      "permissions": [
+        "USE_BIOMETRIC", "USE_FINGERPRINT", "CAMERA", "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-local-authentication"
+    ],
+    "extra": {
+      "apiBase": "$MEDGUARD_API_BASE"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+name: Security scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'   # Monday 6am UTC
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Audit shared package
+        run: cd packages/shared && npm audit --audit-level=high
+        continue-on-error: true   # CVEs in dev deps don't break the build
+      - name: Audit each service
+        run: |
+          for svc in $(ls services); do
+            echo "::group::$svc"
+            (cd services/$svc && npm audit --audit-level=high || true)
+            echo "::endgroup::"
+          done
+
+  semgrep:
+    name: SAST (semgrep)
+    runs-on: ubuntu-latest
+    container: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep --config=p/owasp-top-ten --config=p/typescript --config=p/python --error
+
+  trivy:
+    name: container image scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [auth-service, claims-service, fraud-engine-service, prior-auth-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/medguard360/${{ matrix.image }}:latest
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+  gitleaks:
+    name: secrets scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }

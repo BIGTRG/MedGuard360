@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag (e.g. v1.2.3)
+        required: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/medguard360
+
+jobs:
+  build-and-push:
+    name: build + push container images
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      matrix:
+        target:
+          # Node services
+          - { kind: node,    name: auth-service }
+          - { kind: node,    name: provider-service }
+          - { kind: node,    name: credentialing-service }
+          - { kind: node,    name: patient-service }
+          - { kind: node,    name: eligibility-service }
+          - { kind: node,    name: prior-auth-service }
+          - { kind: node,    name: clinical-doc-service }
+          - { kind: node,    name: claims-service }
+          - { kind: node,    name: fraud-engine-service }
+          - { kind: node,    name: denial-service }
+          - { kind: node,    name: pharmacy-service }
+          - { kind: node,    name: dme-service }
+          - { kind: node,    name: nemt-service }
+          - { kind: node,    name: crisis-service }
+          - { kind: node,    name: hub-service }
+          - { kind: node,    name: reporting-service }
+          - { kind: node,    name: notification-service }
+          - { kind: node,    name: state-config-service }
+          - { kind: node,    name: audit-log-service }
+          - { kind: node,    name: hie-service }
+          # AI engines
+          - { kind: python,  name: speech-to-text }
+          - { kind: python,  name: clinical-nlp }
+          - { kind: python,  name: ocr-engine }
+          - { kind: python,  name: fraud-detection }
+          - { kind: python,  name: fraud-ring-gnn }
+          - { kind: python,  name: pa-nlp-matcher }
+          - { kind: python,  name: denial-predictor }
+          - { kind: python,  name: provider-monitor }
+          - { kind: python,  name: crisis-detector }
+          - { kind: python,  name: eligibility-intel }
+          # Frontend
+          - { kind: portals, name: portals }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build & push (${{ matrix.target.kind }} :: ${{ matrix.target.name }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.${{ matrix.target.kind }}
+          build-args: |
+            ${{ matrix.target.kind == 'node'   && format('SERVICE_NAME={0}', matrix.target.name) || '' }}
+            ${{ matrix.target.kind == 'python' && format('ENGINE_NAME={0}',  matrix.target.name) || '' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.target.name }}:${{ steps.ver.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.target.name }}:latest
+          push: true
+          cache-from: type=gha,scope=${{ matrix.target.name }}
+          cache-to: type=gha,scope=${{ matrix.target.name }},mode=max
+
+  trigger-deploy:
+    name: bump deploy manifests (GitOps)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: ${{ github.repository_owner }}/medguard360-deploy, token: ${{ secrets.DEPLOY_REPO_TOKEN }} }
+      - name: Bump image tags
+        run: |
+          tag="${{ github.ref_name }}"
+          find manifests -name "*.yaml" -exec sed -i "s|/medguard360/\([a-z-]*\):.*|/medguard360/\1:${tag}|g" {} \;
+          git config user.name "medguard360-ci"
+          git config user.email "ci@medguard360.local"
+          git commit -am "release ${tag}" && git push

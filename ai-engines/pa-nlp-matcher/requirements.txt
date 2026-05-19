@@ -1,0 +1,17 @@
+# pa-nlp-matcher — Python 3.10+
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+prometheus-fastapi-instrumentator==7.0.0
+python-json-logger==2.0.7
+
+# ML stack — BERT semantic similarity
+torch==2.5.1
+transformers==4.46.1
+sentence-transformers==3.2.1
+numpy==2.1.3
+
+# Test
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2

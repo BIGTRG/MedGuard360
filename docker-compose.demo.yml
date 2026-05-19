@@ -1,0 +1,229 @@
+# MedGuard360 — demo subset (laptop-friendly, ~6 GB RAM)
+#
+# Includes only the services needed for the killer-demo flow:
+#   auth-service, patient-service, prior-auth-service, claims-service,
+#   fraud-engine-service, state-config-service, audit-log-service,
+#   reporting-service, denial-service, provider-service, notification-service,
+#   crisis-service
+# Plus the 2 most-impressive AI engines: fraud-detection, pa-nlp-matcher
+# Plus infra: postgres, redis, kafka, minio, nginx, portals
+#
+# Skipped (vs docker-compose.yml): pharmacy, dme, nemt, hub, hie, eligibility,
+# clinical-doc, credentialing, and 8 AI engines. They exist in code; this is
+# just a slimmer boot for demos.
+
+x-node-build: &node-build
+  context: .
+  dockerfile: infrastructure/docker/Dockerfile.node
+
+x-py-build: &py-build
+  context: .
+  dockerfile: infrastructure/docker/Dockerfile.python
+
+x-service-env: &service-env
+  NODE_ENV: ${NODE_ENV:-development}
+  PG_HOST: postgres
+  PG_PORT: "5432"
+  PG_DATABASE: medguard360
+  PG_USER: medguard
+  PG_PASSWORD: ${PG_PASSWORD:-demo-password-not-for-prod}
+  PG_POOL_MAX: "20"
+  PG_SSL: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  KAFKA_BROKERS: kafka:9092
+  JWT_SECRET: ${JWT_SECRET:-demo-jwt-secret-32-chars-minimum-rotate-me}
+  JWT_ISSUER: medguard360
+  JWT_AUDIENCE: medguard360-platform
+  JWT_ACCESS_TTL_SEC: "900"
+  JWT_REFRESH_TTL_SEC: "604800"
+  MINIO_ENDPOINT: minio
+  MINIO_PORT: "9000"
+  MINIO_SSL: "false"
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-medguard}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-medguard-demo-password}
+
+x-deps: &deps
+  postgres: { condition: service_healthy }
+  redis: { condition: service_started }
+  kafka: { condition: service_started }
+
+services:
+  # -------- Infrastructure --------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medguard360
+      POSTGRES_USER: medguard
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-demo-password-not-for-prod}
+    ports: ["5432:5432"]
+    volumes:
+      - demo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medguard -d medguard360"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  kafka:
+    image: bitnami/kafka:3.7
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+
+  minio:
+    image: minio/minio:latest
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-medguard}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-medguard-demo-password}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bootstrap:
+    image: alpine:3.20
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_started }
+      minio: { condition: service_healthy }
+    volumes:
+      - ./infrastructure:/work/infrastructure:ro
+      - ./deploy:/work/deploy:ro
+      - ./infrastructure/docker/bootstrap.sh:/bootstrap.sh:ro
+    environment:
+      <<: *service-env
+      MINIO_URL: http://minio:9000
+    entrypoint: ["sh", "-c", "/bootstrap.sh && PGPASSWORD=$$PG_PASSWORD psql -h postgres -U medguard -d medguard360 -f /work/deploy/seed-demo.sql"]
+
+  # -------- 12 demo services --------
+  auth-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: auth-service } }
+    environment: { <<: *service-env, PORT: "3001" }
+    ports: ["3001:3001"]
+    depends_on: *deps
+
+  provider-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: provider-service } }
+    environment: { <<: *service-env, PORT: "3002" }
+    ports: ["3002:3002"]
+    depends_on: *deps
+
+  patient-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: patient-service } }
+    environment: { <<: *service-env, PORT: "3004" }
+    ports: ["3004:3004"]
+    depends_on: *deps
+
+  prior-auth-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: prior-auth-service } }
+    environment: { <<: *service-env, PORT: "3006" }
+    ports: ["3006:3006"]
+    depends_on: *deps
+
+  claims-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: claims-service } }
+    environment: { <<: *service-env, PORT: "3008" }
+    ports: ["3008:3008"]
+    depends_on: *deps
+
+  fraud-engine-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: fraud-engine-service } }
+    environment: { <<: *service-env, PORT: "3009" }
+    ports: ["3009:3009"]
+    depends_on: *deps
+
+  denial-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: denial-service } }
+    environment: { <<: *service-env, PORT: "3010" }
+    ports: ["3010:3010"]
+    depends_on: *deps
+
+  crisis-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: crisis-service } }
+    environment: { <<: *service-env, PORT: "3014" }
+    ports: ["3014:3014"]
+    depends_on: *deps
+
+  reporting-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: reporting-service } }
+    environment: { <<: *service-env, PORT: "3016" }
+    ports: ["3016:3016"]
+    depends_on: *deps
+
+  notification-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: notification-service } }
+    environment: { <<: *service-env, PORT: "3017" }
+    ports: ["3017:3017"]
+    depends_on: *deps
+
+  state-config-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: state-config-service } }
+    environment: { <<: *service-env, PORT: "3018" }
+    ports: ["3018:3018"]
+    depends_on: *deps
+
+  audit-log-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: audit-log-service } }
+    environment: { <<: *service-env, PORT: "3019" }
+    ports: ["3019:3019"]
+    depends_on: *deps
+
+  # -------- 2 AI engines (demo) --------
+  fraud-detection:
+    build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } }
+    environment:
+      <<: *service-env
+      PORT: "8004"
+      # Use the trained numpy-only artifact we ship in the repo
+      MODEL_PATH: /app/ai-engines/fraud-detection/models/fraud_v1_minimal.pkl
+      MODEL_KIND: minimal
+    ports: ["8004:8004"]
+
+  pa-nlp-matcher:
+    build: { <<: *py-build, args: { ENGINE_NAME: pa-nlp-matcher } }
+    environment: { <<: *service-env, PORT: "8006", SKIP_WARMUP: "1" }
+    ports: ["8006:8006"]
+
+  # -------- Gateway + Frontend --------
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["80:80"]
+    volumes:
+      - ./infrastructure/docker/nginx.demo.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - patient-service
+      - prior-auth-service
+      - claims-service
+      - fraud-engine-service
+      - state-config-service
+      - audit-log-service
+      - reporting-service
+
+  portals:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.portals
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE: /api
+    ports: ["3000:3000"]
+    depends_on: [nginx]
+
+volumes:
+  demo-pgdata:

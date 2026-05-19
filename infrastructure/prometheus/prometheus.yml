@@ -1,0 +1,93 @@
+# MedGuard360 — Prometheus scrape config
+# Per CLAUDE.md: 15s scrape interval, /metrics endpoint on every service.
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: medguard360-prod
+    region: us-east-1
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['localhost:9093']
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # -------- Node.js microservices (ports 3001–3020) --------
+  - job_name: node-services
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - 'localhost:3001'
+          - 'localhost:3002'
+          - 'localhost:3003'
+          - 'localhost:3004'
+          - 'localhost:3005'
+          - 'localhost:3006'
+          - 'localhost:3007'
+          - 'localhost:3008'
+          - 'localhost:3009'
+          - 'localhost:3010'
+          - 'localhost:3011'
+          - 'localhost:3012'
+          - 'localhost:3013'
+          - 'localhost:3014'
+          - 'localhost:3015'
+          - 'localhost:3016'
+          - 'localhost:3017'
+          - 'localhost:3018'
+          - 'localhost:3019'
+          - 'localhost:3020'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: 'localhost:([0-9]+)'
+        target_label: port
+        replacement: '${1}'
+
+  # -------- Python AI engines (ports 8001–8010) --------
+  - job_name: ai-engines
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - 'localhost:8001'
+          - 'localhost:8002'
+          - 'localhost:8003'
+          - 'localhost:8004'
+          - 'localhost:8005'
+          - 'localhost:8006'
+          - 'localhost:8007'
+          - 'localhost:8008'
+          - 'localhost:8009'
+          - 'localhost:8010'
+
+  # -------- Infrastructure --------
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['localhost:9100']
+
+  - job_name: postgres-exporter
+    static_configs:
+      - targets:
+          - 'localhost:9187'  # primary
+          - 'localhost:9188'  # replica 1
+          - 'localhost:9189'  # replica 2
+
+  - job_name: redis-exporter
+    static_configs:
+      - targets:
+          - 'localhost:9121'  # 6379
+          - 'localhost:9122'  # 6380
+          - 'localhost:9123'  # 6381
+
+  - job_name: kafka-exporter
+    static_configs:
+      - targets: ['localhost:9308']
+
+  - job_name: nginx-exporter
+    static_configs:
+      - targets: ['localhost:9113']

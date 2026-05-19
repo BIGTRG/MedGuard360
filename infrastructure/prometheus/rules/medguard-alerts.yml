@@ -1,0 +1,52 @@
+# Alert rules — fire to AlertManager → info@geniuseye.ai
+groups:
+  - name: medguard360-availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"node-services|ai-engines"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "Service has been unreachable for 2 minutes."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(medguard_http_requests_total{status=~"5.."}[5m])) by (service)
+            / sum(rate(medguard_http_requests_total[5m])) by (service) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }} 5xx rate > 5%"
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(medguard_http_request_duration_seconds_bucket[5m])) by (service, le)) > 1.0
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }} p95 latency > 1s"
+
+  - name: medguard360-hipaa-audit
+    interval: 30s
+    rules:
+      # If PHI access metric increments but audit topic shows no events, something is BROKEN.
+      - alert: AuditLogGap
+        expr: |
+          sum(rate(medguard_phi_access_total[5m]))
+            > 1.5 * sum(rate(medguard_kafka_events_produced_total{topic="audit.event"}[5m]))
+        for: 2m
+        labels: { severity: critical, compliance: hipaa }
+        annotations:
+          summary: "PHI access not matched by audit events — compliance violation in progress"
+          description: "Investigate immediately. HIPAA requires every PHI access to be logged."
+
+  - name: medguard360-fraud-engine
+    rules:
+      - alert: FraudEngineBacklog
+        expr: kafka_consumergroup_lag{group="fraud-engine-service"} > 1000
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "fraud-engine-service consumer lag > 1000"
+          description: "Claims may be processed before fraud check completes."

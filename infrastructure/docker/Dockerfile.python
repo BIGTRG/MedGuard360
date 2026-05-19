@@ -1,0 +1,34 @@
+# Shared Dockerfile for all 10 Python AI engines.
+# Build context: project root. Pass ENGINE_NAME as a build-arg.
+#
+#   docker build -f infrastructure/docker/Dockerfile.python \
+#                --build-arg ENGINE_NAME=pa-nlp-matcher \
+#                -t medguard360/pa-nlp-matcher .
+
+FROM python:3.11-slim
+ARG ENGINE_NAME
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    SERVICE_NAME=${ENGINE_NAME} \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# OCR engine needs tesseract + poppler; speech-to-text needs ffmpeg. Install
+# everything once — image size hit beats per-engine Dockerfiles.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential curl ca-certificates \
+      tesseract-ocr poppler-utils ffmpeg libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/ai-engines/${ENGINE_NAME}
+COPY ai-engines/${ENGINE_NAME}/requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY ai-engines/${ENGINE_NAME}/app ./app
+COPY ai-engines/${ENGINE_NAME}/tests ./tests 2>/dev/null || true
+
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]

@@ -1,0 +1,39 @@
+# MedGuard360 — Caddy reverse-proxy snippet.
+# Add this block to your /etc/caddy/Caddyfile, then `systemctl reload caddy`.
+# Caddy auto-provisions Let's Encrypt certs.
+
+medguard360.geniuseye.ai {       # ← change this
+    encode gzip zstd
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options    nosniff
+        X-Frame-Options           DENY
+        Referrer-Policy           strict-origin-when-cross-origin
+        -Server
+    }
+
+    # Rate limit auth endpoints (requires caddy-ratelimit module)
+    # @auth path /api/v1/auth/*
+    # rate_limit @auth { zone auth { events 20; window 1s } }
+
+    # Body size for clinical doc uploads
+    request_body { max_size 100MB }
+
+    reverse_proxy 127.0.0.1:8090 {
+        transport http {
+            keepalive 60s
+            read_timeout 120s
+        }
+        header_up X-Forwarded-Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    log {
+        output file /var/log/caddy/medguard360.log {
+            roll_size 100mb
+            roll_keep 30
+        }
+    }
+}
