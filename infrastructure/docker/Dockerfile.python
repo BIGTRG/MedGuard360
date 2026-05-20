@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app/ai-engines/${ENGINE_NAME}
 COPY ai-engines/${ENGINE_NAME}/requirements.txt .
-RUN pip install --upgrade pip "setuptools<80" wheel && pip install -r requirements.txt
+RUN pip install --upgrade pip "setuptools<80" wheel \
+    && pip install --no-build-isolation -r requirements.txt
 
 COPY ai-engines/${ENGINE_NAME}/app ./app
 
