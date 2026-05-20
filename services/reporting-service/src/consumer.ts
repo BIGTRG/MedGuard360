@@ -6,8 +6,6 @@
 import { consumeEvents, logger, DomainEvent } from '@medguard360/shared';
 import { incrementRollup } from './reports';
 
-interface ClaimEventPayload { stateCode?: string; submittedAt?: string; totalChargeCents?: string }
-interface PaEventPayload { stateCode?: string }
 interface FraudEventPayload { stateCode?: string; recommendation?: string }
 
 function today(): string {
