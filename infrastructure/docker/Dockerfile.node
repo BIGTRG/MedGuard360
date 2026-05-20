@@ -19,7 +19,6 @@ WORKDIR /app
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/jest.config.js ./packages/shared/jest.config.js 2>/dev/null || true
 RUN cd packages/shared && npm install --no-audit --no-fund && npm run build
 
 # Then the service
