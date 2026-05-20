@@ -23,21 +23,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMPOSE="docker-compose.onprem.yml"
+COMPOSE="-f docker-compose.yml -f docker-compose.onprem.yml"
 GATEWAY_PORT="${MEDGUARD_GATEWAY_PORT:-8090}"
 DATA_DIR="${MEDGUARD_DATA_DIR:-$(pwd)/data}"
 
 case "${1:-}" in
   --teardown)
     echo "→ Stopping stack (data preserved in ./data)..."
-    docker compose -f "$COMPOSE" down
+    docker compose $COMPOSE down
     exit 0
     ;;
   --wipe)
     echo "⚠  This will DELETE all data in $DATA_DIR. Type 'yes' to continue:"
     read -r confirm
     if [[ "$confirm" != "yes" ]]; then echo "Cancelled."; exit 1; fi
-    docker compose -f "$COMPOSE" down
+    docker compose $COMPOSE down
     sudo rm -rf "$DATA_DIR"
     echo "✅ Wiped."
     exit 0
@@ -125,32 +125,32 @@ mkdir -p "$DATA_DIR"/{postgres,redis,kafka,minio}
 # ============================================================
 echo ""
 echo "→ Building images (~5-10 min first time)..."
-docker compose -f "$COMPOSE" build --quiet
+docker compose $COMPOSE build --quiet
 
 echo ""
 echo "→ Starting infrastructure..."
-docker compose -f "$COMPOSE" up -d postgres redis kafka minio
+docker compose $COMPOSE up -d postgres redis kafka minio
 
 echo "→ Waiting for Postgres..."
-until docker compose -f "$COMPOSE" exec -T postgres pg_isready -U medguard -d medguard360 >/dev/null 2>&1; do
+until docker compose $COMPOSE exec -T postgres pg_isready -U medguard -d medguard360 >/dev/null 2>&1; do
   printf '.'; sleep 1
 done
 echo " ready."
 
 echo ""
 echo "→ Running bootstrap (migrations + Kafka topics + MinIO buckets)..."
-docker compose -f "$COMPOSE" run --rm bootstrap
+docker compose $COMPOSE run --rm bootstrap
 
 if (( SEED_DEMO )); then
   echo ""
   echo "→ Seeding demo data..."
-  docker compose -f "$COMPOSE" exec -T postgres \
+  docker compose $COMPOSE exec -T postgres \
     psql -U medguard -d medguard360 < deploy/seed-demo.sql
 fi
 
 echo ""
 echo "→ Starting services..."
-docker compose -f "$COMPOSE" up -d
+docker compose $COMPOSE up -d
 
 echo "→ Waiting for gateway..."
 for i in {1..60}; do
@@ -188,7 +188,7 @@ cat <<EOF
   Demo data?       $( ((SEED_DEMO)) && echo 'Yes (demo users created)' || echo 'No — production-shaped' )
   Compose file:    $COMPOSE
 
-  Tail logs:       docker compose -f $COMPOSE logs -f <service>
+  Tail logs:       docker compose $COMPOSE logs -f <service>
   Tear down:       ./deploy/onprem.sh --teardown
 ================================================================
 EOF
