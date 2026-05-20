@@ -338,7 +338,6 @@ services:
       NEXT_PUBLIC_API_BASE: /api
       MEDGUARD_API_BASE: http://nginx/api
     ports: ["3000:3000"]
-    depends_on: [nginx]
 
 volumes:
   pgdata:
