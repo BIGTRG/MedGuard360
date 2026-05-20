@@ -25,7 +25,6 @@ COPY ai-engines/${ENGINE_NAME}/requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY ai-engines/${ENGINE_NAME}/app ./app
-COPY ai-engines/${ENGINE_NAME}/tests ./tests 2>/dev/null || true
 
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \
