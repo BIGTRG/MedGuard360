@@ -65,7 +65,6 @@ services:
       POSTGRES_DB: ${PG_DATABASE}
       POSTGRES_USER: ${PG_USER}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
-    ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -76,15 +75,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
     command: ["redis-server", "--appendonly", "yes"]
     volumes: [redisdata:/data]
 
   kafka:
     image: apache/kafka:3.7.2
-    ports:
-      - "9092:9092"
-      - "9094:9094"
     environment:
       # KRaft single-node mode (no zookeeper)
       KAFKA_NODE_ID: 1
@@ -103,9 +98,6 @@ services:
 
   minio:
     image: minio/minio:latest
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
@@ -143,121 +135,101 @@ services:
   auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: auth-service } }
     environment: { <<: *service-env, PORT: "3001" }
-    ports: ["3001:3001"]
     depends_on: *deps
 
   provider-service:
     build: { <<: *node-build, args: { SERVICE_NAME: provider-service } }
     environment: { <<: *service-env, PORT: "3002" }
-    ports: ["3002:3002"]
     depends_on: *deps
 
   credentialing-service:
     build: { <<: *node-build, args: { SERVICE_NAME: credentialing-service } }
     environment: { <<: *service-env, PORT: "3003" }
-    ports: ["3003:3003"]
     depends_on: *deps
 
   patient-service:
     build: { <<: *node-build, args: { SERVICE_NAME: patient-service } }
     environment: { <<: *service-env, PORT: "3004" }
-    ports: ["3004:3004"]
     depends_on: *deps
 
   eligibility-service:
     build: { <<: *node-build, args: { SERVICE_NAME: eligibility-service } }
     environment: { <<: *service-env, PORT: "3005" }
-    ports: ["3005:3005"]
     depends_on: *deps
 
   prior-auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: prior-auth-service } }
     environment: { <<: *service-env, PORT: "3006" }
-    ports: ["3006:3006"]
     depends_on: *deps
 
   clinical-doc-service:
     build: { <<: *node-build, args: { SERVICE_NAME: clinical-doc-service } }
     environment: { <<: *service-env, PORT: "3007" }
-    ports: ["3007:3007"]
     depends_on: *deps
 
   claims-service:
     build: { <<: *node-build, args: { SERVICE_NAME: claims-service } }
     environment: { <<: *service-env, PORT: "3008" }
-    ports: ["3008:3008"]
     depends_on: *deps
 
   fraud-engine-service:
     build: { <<: *node-build, args: { SERVICE_NAME: fraud-engine-service } }
     environment: { <<: *service-env, PORT: "3009" }
-    ports: ["3009:3009"]
     depends_on: *deps
 
   denial-service:
     build: { <<: *node-build, args: { SERVICE_NAME: denial-service } }
     environment: { <<: *service-env, PORT: "3010" }
-    ports: ["3010:3010"]
     depends_on: *deps
 
   pharmacy-service:
     build: { <<: *node-build, args: { SERVICE_NAME: pharmacy-service } }
     environment: { <<: *service-env, PORT: "3011" }
-    ports: ["3011:3011"]
     depends_on: *deps
 
   dme-service:
     build: { <<: *node-build, args: { SERVICE_NAME: dme-service } }
     environment: { <<: *service-env, PORT: "3012" }
-    ports: ["3012:3012"]
     depends_on: *deps
 
   nemt-service:
     build: { <<: *node-build, args: { SERVICE_NAME: nemt-service } }
     environment: { <<: *service-env, PORT: "3013" }
-    ports: ["3013:3013"]
     depends_on: *deps
 
   crisis-service:
     build: { <<: *node-build, args: { SERVICE_NAME: crisis-service } }
     environment: { <<: *service-env, PORT: "3014" }
-    ports: ["3014:3014"]
     depends_on: *deps
 
   hub-service:
     build: { <<: *node-build, args: { SERVICE_NAME: hub-service } }
     environment: { <<: *service-env, PORT: "3015" }
-    ports: ["3015:3015"]
     depends_on: *deps
 
   reporting-service:
     build: { <<: *node-build, args: { SERVICE_NAME: reporting-service } }
     environment: { <<: *service-env, PORT: "3016" }
-    ports: ["3016:3016"]
     depends_on: *deps
 
   notification-service:
     build: { <<: *node-build, args: { SERVICE_NAME: notification-service } }
     environment: { <<: *service-env, PORT: "3017" }
-    ports: ["3017:3017"]
     depends_on: *deps
 
   state-config-service:
     build: { <<: *node-build, args: { SERVICE_NAME: state-config-service } }
     environment: { <<: *service-env, PORT: "3018" }
-    ports: ["3018:3018"]
     depends_on: *deps
 
   audit-log-service:
     build: { <<: *node-build, args: { SERVICE_NAME: audit-log-service } }
     environment: { <<: *service-env, PORT: "3019" }
-    ports: ["3019:3019"]
     depends_on: *deps
 
   hie-service:
     build: { <<: *node-build, args: { SERVICE_NAME: hie-service } }
     environment: { <<: *service-env, PORT: "3020" }
-    ports: ["3020:3020"]
     depends_on: *deps
 
   # ============================================================
@@ -266,59 +238,48 @@ services:
   speech-to-text:
     build: { <<: *py-build, args: { ENGINE_NAME: speech-to-text } }
     environment: { <<: *service-env, PORT: "8001", SKIP_WARMUP: "1" }
-    ports: ["8001:8001"]
 
   clinical-nlp:
     build: { <<: *py-build, args: { ENGINE_NAME: clinical-nlp } }
     environment: { <<: *service-env, PORT: "8002", SKIP_WARMUP: "1" }
-    ports: ["8002:8002"]
 
   ocr-engine:
     build: { <<: *py-build, args: { ENGINE_NAME: ocr-engine } }
     environment: { <<: *service-env, PORT: "8003" }
-    ports: ["8003:8003"]
 
   fraud-detection:
     build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } }
     environment: { <<: *service-env, PORT: "8004" }
-    ports: ["8004:8004"]
 
   fraud-ring-gnn:
     build: { <<: *py-build, args: { ENGINE_NAME: fraud-ring-gnn } }
     environment: { <<: *service-env, PORT: "8005" }
-    ports: ["8005:8005"]
 
   pa-nlp-matcher:
     build: { <<: *py-build, args: { ENGINE_NAME: pa-nlp-matcher } }
     environment: { <<: *service-env, PORT: "8006", SKIP_WARMUP: "1" }
-    ports: ["8006:8006"]
 
   denial-predictor:
     build: { <<: *py-build, args: { ENGINE_NAME: denial-predictor } }
     environment: { <<: *service-env, PORT: "8007" }
-    ports: ["8007:8007"]
 
   provider-monitor:
     build: { <<: *py-build, args: { ENGINE_NAME: provider-monitor } }
     environment: { <<: *service-env, PORT: "8008" }
-    ports: ["8008:8008"]
 
   crisis-detector:
     build: { <<: *py-build, args: { ENGINE_NAME: crisis-detector } }
     environment: { <<: *service-env, PORT: "8009" }
-    ports: ["8009:8009"]
 
   eligibility-intel:
     build: { <<: *py-build, args: { ENGINE_NAME: eligibility-intel } }
     environment: { <<: *service-env, PORT: "8010" }
-    ports: ["8010:8010"]
 
   # ============================================================
   # nginx gateway — strips TLS in prod; here just routes /api/*
   # ============================================================
   nginx:
     image: nginx:1.27-alpine
-    ports: ["80:80"]
     volumes:
       - ./infrastructure/docker/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -340,7 +301,6 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE: /api
       MEDGUARD_API_BASE: http://nginx/api
-    ports: ["3000:3000"]
 
 volumes:
   pgdata:
