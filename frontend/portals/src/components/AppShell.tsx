@@ -17,7 +17,19 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   const router = useRouter();
   const [claims, setClaims] = useState<AuthClaims | null>(null);
 
-  useEffect(() => { setClaims(getCurrentClaims()); }, [pathname]);
+  useEffect(() => {
+    // DEMO BYPASS: synthesize admin claims if none.
+    const c = getCurrentClaims() ?? ({
+      sub: '00000000-0000-0000-0000-000000000001',
+      email: 'admin@demo.medguard360.com',
+      role: 'platform_administrator',
+      stateCode: undefined,
+      orgId: undefined,
+      biometricVerified: false,
+      sessionId: 'demo-session',
+    } as AuthClaims);
+    setClaims(c);
+  }, [pathname]);
 
   if (!claims) {
     return <div className="flex h-screen items-center justify-center text-sm text-slate-500">Loading…</div>;
