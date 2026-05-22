@@ -1,12 +1,13 @@
-import { createServer, startServer } from '@medguard360/shared';
+import { initConfig, createServer, startServer } from '@medguard360/shared';
 import { router } from './routes';
 
 const SERVICE_NAME = 'clinical-doc-service';
 const PORT = parseInt(process.env.PORT ?? '3007', 10);
 
+initConfig(SERVICE_NAME);
+
 async function main() {
-  const app = createServer(SERVICE_NAME);
-  app.use('/api/v1/encounters', router);
+  const app = createServer({ routes: router });
   await startServer(app, PORT, SERVICE_NAME);
 }
 
