@@ -33,8 +33,7 @@ export function issueTokens(input: IssueTokenInput): IssuedTokens {
   const sessionId = uuidv4();
   const now = Math.floor(Date.now() / 1000);
 
-  const baseClaims: AuthClaims = {
-    sub: input.userId,
+  const baseClaims = {
     email: input.email,
     role: input.role,
     stateCode: input.stateCode,
@@ -59,7 +58,7 @@ export function issueTokens(input: IssueTokenInput): IssuedTokens {
 
   const accessToken = jwt.sign(baseClaims, config.jwtSecret, accessOpts);
   const refreshToken = jwt.sign(
-    { sub: input.userId, sessionId, kind: 'refresh' },
+    { sessionId, kind: 'refresh' },
     config.jwtSecret,
     refreshOpts,
   );
