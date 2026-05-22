@@ -39,6 +39,25 @@ const PA_NAV: NavItem[] = [
   { label: 'Decided',   href: '/pa-queue/decided', icon: ClipboardDocumentCheckIcon },
 ];
 
+const ADMIN_NAV: NavItem[] = [
+  { label: 'Admin Home',    href: '/admin',         icon: Cog6ToothIcon },
+  { label: 'Provider',      href: '/provider',      icon: UsersIcon },
+  { label: 'Patient',       href: '/patient',       icon: UsersIcon },
+  { label: 'Pharmacy',      href: '/pharmacy',      icon: BeakerIcon },
+  { label: 'DME',           href: '/dme',           icon: TruckIcon },
+  { label: 'NEMT',          href: '/nemt',          icon: TruckIcon },
+  { label: 'PA Queue',      href: '/pa-queue',      icon: ClipboardDocumentCheckIcon },
+  { label: 'Credentialing', href: '/credentialing', icon: ShieldCheckIcon },
+  { label: 'Fraud',         href: '/fraud',         icon: ShieldCheckIcon },
+  { label: 'Denials',       href: '/denials',       icon: ExclamationTriangleIcon },
+  { label: 'HIE',           href: '/hie',           icon: ArrowsRightLeftIcon },
+  { label: 'School',        href: '/school',        icon: AcademicCapIcon },
+  { label: 'State',         href: '/state',         icon: ChartBarIcon },
+  { label: 'Responder',     href: '/responder',     icon: BoltIcon },
+  { label: 'Biometric',     href: '/biometric',     icon: ShieldCheckIcon },
+  { label: 'Audit Log',     href: '/audit',         icon: DocumentTextIcon },
+];
+
 export const PORTAL_TITLE: Record<UserRole, string> = {
   patient:                    'My Health',
   individual_provider:        'Provider Portal',
@@ -75,9 +94,11 @@ export function navForRole(role: UserRole): NavItem[] {
       return FRAUD_NAV;
     case 'prior_auth_specialist':
       return PA_NAV;
+    case 'platform_administrator':
+      return ADMIN_NAV;
     default:
       return [{ label: 'Home', href: '/', icon: HomeIcon }];
   }
 }
 
-void TruckIcon; void BeakerIcon; void AcademicCapIcon; void PhoneIcon; void BoltIcon; void Cog6ToothIcon;
+void PhoneIcon;
