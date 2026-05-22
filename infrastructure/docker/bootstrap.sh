@@ -8,7 +8,10 @@ set -e
 echo "MedGuard360 bootstrap starting..."
 
 # ---- 0. install tools we need ----
-apk add --no-cache postgresql-client kafka-tools mc curl >/dev/null
+apk add --no-cache postgresql-client curl >/dev/null
+# mc (MinIO client) — Alpine package was dropped; pull binary directly.
+curl -sSLo /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc
+chmod +x /usr/local/bin/mc
 
 # ---- 1. Postgres migrations ----
 echo ""
@@ -22,17 +25,13 @@ done
 echo "Migrations applied."
 
 # ---- 2. Kafka topics ----
-echo ""
-echo "== Creating Kafka topics =="
-BROKER="${KAFKA_BROKERS%%,*}"
-KT="kafka-topics.sh --bootstrap-server $BROKER"
-
+# kafka-tools isn't available in Alpine. Topics will be auto-created on first
+# publish (Kafka's auto.create.topics.enable=true default). Explicit partition
+# counts in the original create_topic calls are lost — auto-created topics use
+# num.partitions=1 by default. Run kafka-topics.sh from the kafka container
+# post-deploy if specific partition counts matter.
 create_topic() {
-  topic="$1"; partitions="${2:-3}"; replication=1; retention_ms="${3:-604800000}"
-  $KT --create --if-not-exists --topic "$topic" \
-      --partitions "$partitions" --replication-factor "$replication" \
-      --config retention.ms="$retention_ms" --config compression.type=snappy >/dev/null 2>&1 || true
-  echo "  ✓ $topic"
+  echo "  ⏭  $1 (auto-create on first publish)"
 }
 
 create_topic user.created
