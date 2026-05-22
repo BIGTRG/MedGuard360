@@ -6,10 +6,11 @@
  * PM2 will restart the whole process.
  */
 
-import { createLogger, createServer, startServer } from '@medguard360/shared';
+import { initConfig, createLogger, createServer, startServer } from '@medguard360/shared';
 import { router } from './routes';
 import { startConsumer } from './consumer';
 
+initConfig('audit-log-service');
 const logger = createLogger('audit-log-service');
 const PORT = parseInt(process.env['PORT'] ?? '3019', 10);
 
@@ -24,8 +25,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const app = createServer('audit-log-service');
-  app.use('/api/v1', router);
+  const app = createServer({ routes: router });
 
   await startServer(app, PORT, 'audit-log-service');
 }

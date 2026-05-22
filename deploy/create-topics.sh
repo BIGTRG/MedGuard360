@@ -65,4 +65,7 @@ create hie.consent.revoked
 create hub.call.completed
 create patient.created
 create patient.updated
+create pa.decided
+create fraud.alert.raised
+create denial.appeal.submitted
 echo "All topics ready."
