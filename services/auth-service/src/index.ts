@@ -11,8 +11,8 @@
  *   ✓ Audit logging                                   (auditLog)
  *   ✓ PM2 entry                                       (infrastructure/pm2)
  *   ✓ Prometheus metrics                              (/metrics)
- *   ✓ Jest tests                                      (src/**/*.test.ts)
- *   ✓ README                                          (./README.md)
+ *   - Jest tests in src as .test.ts files
+ *   - README at ./README.md
  */
 
 import { initConfig, createServer, startServer, getPool, getProducer, logger } from '@medguard360/shared';

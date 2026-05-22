@@ -40,8 +40,9 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/services/${SERVICE_NAME}/dist ./services/${SERVICE_NAME}/dist
 COPY --from=builder /app/services/${SERVICE_NAME}/package.json ./services/${SERVICE_NAME}/
 
-# Install prod deps only (incl. file: dep on shared)
-RUN cd services/${SERVICE_NAME} && npm install --omit=dev --no-audit --no-fund
+# Install prod deps for shared first, then service (which symlinks to shared)
+RUN cd packages/shared && npm install --omit=dev --no-audit --no-fund \
+    && cd /app/services/${SERVICE_NAME} && npm install --omit=dev --no-audit --no-fund
 
 WORKDIR /app/services/${SERVICE_NAME}
 EXPOSE 3000
