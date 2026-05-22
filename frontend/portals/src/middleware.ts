@@ -18,6 +18,8 @@ const PUBLIC_PATHS = new Set(['/login', '/sign-in', '/biometric', '/']);
 const PUBLIC_PREFIXES = ['/api', '/_next', '/favicon', '/assets', '/public'];
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {
+  // DEMO BYPASS: middleware disabled.
+  return NextResponse.next();
   const path = req.nextUrl.pathname;
   if (PUBLIC_PATHS.has(path)) return NextResponse.next();
   if (PUBLIC_PREFIXES.some(p => path.startsWith(p))) return NextResponse.next();
