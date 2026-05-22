@@ -9,8 +9,8 @@ export default function RootPage(): React.ReactElement {
   const router = useRouter();
 
   useEffect(() => {
-    const claims = getCurrentClaims();
-    if (claims) router.replace(homePathForRole(claims.role));
+    // DEMO BYPASS: jump straight into admin dashboard.
+    router.replace('/admin');
   }, [router]);
 
   return (
