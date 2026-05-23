@@ -41,7 +41,9 @@ const PA_NAV: NavItem[] = [
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Admin Home',    href: '/admin',         icon: Cog6ToothIcon },
+  { label: 'Admin Home',    href: '/admin',                icon: Cog6ToothIcon },
+  { label: 'Integrations',  href: '/admin/integrations',   icon: ArrowsRightLeftIcon },
+  { label: 'Pilot States',  href: '/admin/pilot-states',   icon: ChartBarIcon },
   { label: 'Provider',      href: '/provider',      icon: UsersIcon },
   { label: 'Patient',       href: '/patient',       icon: UsersIcon },
   { label: 'Pharmacy',      href: '/pharmacy',      icon: BeakerIcon },
