@@ -1,10 +1,15 @@
 /**
  * prior-auth-service routes
  *
- *   POST /api/v1/pa           — submit a PA request (provider roles)
- *   GET  /api/v1/pa           — list PA requests (specialist / billing roles)
- *   GET  /api/v1/pa/:id       — get PA request with criterion evaluations
- *   POST /api/v1/pa/:id/decide — human decision (prior_auth_specialist)
+ *   POST /api/v1/prior-auth/pa-requests             — submit a PA request (provider roles)
+ *   GET  /api/v1/prior-auth/pa-requests             — list PA requests (specialist / billing roles)
+ *   GET  /api/v1/prior-auth/pa-requests/queue       — active SLA-sorted queue (specialist)
+ *   GET  /api/v1/prior-auth/pa-requests/:id         — get PA + criterion evaluations
+ *   POST /api/v1/prior-auth/pa-requests/:id/decide  — human decision (prior_auth_specialist)
+ *
+ * Path convention: `/prior-auth/pa-requests/*`. Frontend and nginx (location
+ * `/api/v1/prior-auth/`) consistently use this prefix; routes.ts was historically
+ * mounted at `/pa` which caused a path-convention drift — unified 2026-05-22.
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -67,12 +72,12 @@ const ah = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unk
 export const router = Router();
 
 /**
- * POST /api/v1/pa
+ * POST /api/v1/prior-auth/pa-requests
  * Create a PA request, run the clinical decision engine asynchronously,
  * emit pa.submitted Kafka event, return PA with AI recommendation.
  */
 router.post(
-  '/pa',
+  '/prior-auth/pa-requests',
   requireAuth,
   requireRole(
     'individual_provider',
@@ -191,11 +196,40 @@ router.post(
 );
 
 /**
- * GET /api/v1/pa
+ * GET /api/v1/prior-auth/pa-requests/queue
+ * Active SLA-sorted queue for the specialist UI. Returns pending +
+ * needs_more_info statuses, ordered by urgency (drug → expedited → standard),
+ * then by due_at ASC. The frontend renders SLA chips off these fields.
+ *
+ * Mounted before the generic list+show routes so the literal "queue" doesn't
+ * get matched as :id.
+ */
+router.get(
+  '/prior-auth/pa-requests/queue',
+  requireAuth,
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer'),
+  ah(async (_req, res) => {
+    // Pull active items from both buckets — repo's list filters one status at a
+    // time, so concatenate and sort in-process. Volume is bounded (queue is for
+    // humans to work through), so this is fine.
+    const pending = await repo.listPaRequests({ status: 'pending',          limit: 500 });
+    const moreInfo = await repo.listPaRequests({ status: 'needs_more_info', limit: 500 });
+    const urgencyRank: Record<string, number> = { drug: 0, expedited: 1, standard: 2 };
+    const requests = [...pending, ...moreInfo].sort((a, b) => {
+      const ur = (urgencyRank[a.urgency] ?? 99) - (urgencyRank[b.urgency] ?? 99);
+      if (ur !== 0) return ur;
+      return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
+    });
+    res.json({ requests, count: requests.length });
+  }),
+);
+
+/**
+ * GET /api/v1/prior-auth/pa-requests
  * List PA requests with optional filters.
  */
 router.get(
-  '/pa',
+  '/prior-auth/pa-requests',
   requireAuth,
   requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer'),
   ah(async (req, res) => {
@@ -209,16 +243,18 @@ router.get(
       offset: query.offset,
     });
 
-    res.json({ count: rows.length, paRequests: rows });
+    // Frontend expects `requests` per convention; keep `paRequests` + `count`
+    // as legacy aliases until consumers are migrated.
+    res.json({ requests: rows, paRequests: rows, count: rows.length });
   }),
 );
 
 /**
- * GET /api/v1/pa/:id
+ * GET /api/v1/prior-auth/pa-requests/:id
  * Get PA request with criterion evaluations.
  */
 router.get(
-  '/pa/:id',
+  '/prior-auth/pa-requests/:id',
   requireAuth,
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
@@ -252,11 +288,11 @@ router.get(
 );
 
 /**
- * POST /api/v1/pa/:id/decide
+ * POST /api/v1/prior-auth/pa-requests/:id/decide
  * Human specialist makes the final decision on a PA request.
  */
 router.post(
-  '/pa/:id/decide',
+  '/prior-auth/pa-requests/:id/decide',
   requireAuth,
   requireRole('prior_auth_specialist'),
   ah(async (req, res) => {

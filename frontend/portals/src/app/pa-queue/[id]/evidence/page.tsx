@@ -8,7 +8,7 @@ import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
 import { api } from '@/lib/api-client';
 
-// ─── Types — match GET /api/v1/pa/:id ──────────────────────────────────────
+// ─── Types — match GET /api/v1/prior-auth/pa-requests/:id ──────────────────
 
 type CriterionOutcome = 'met' | 'not_met' | 'unclear';
 type ApiOutcome = 'met' | 'not_met' | 'indeterminate' | 'unclear';
@@ -86,7 +86,7 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get<PaDetailResponse>(`/v1/pa/${paId}`)
+    api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`)
       .then(setData)
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false));
@@ -117,8 +117,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
         ? explanation.trim() + '\n\n' + overrideLines.join('\n')
         : explanation.trim();
 
-      await api.post(`/v1/pa/${paId}/decide`, { decision, notes: fullNotes });
-      const refreshed = await api.get<PaDetailResponse>(`/v1/pa/${paId}`);
+      await api.post(`/v1/prior-auth/pa-requests/${paId}/decide`, { decision, notes: fullNotes });
+      const refreshed = await api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`);
       setData(refreshed);
       setDecision(null);
       setExplanation('');

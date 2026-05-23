@@ -23,9 +23,11 @@ It is NOT a form-submission gateway. It is a **clinical intelligence engine**:
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| POST   | `/api/v1/pa-requests`            | provider/pharmacy | Submit PA + get AI recommendation |
-| POST   | `/api/v1/pa-requests/:id/decide` | prior_auth_specialist | Human final decision |
-| GET    | `/api/v1/pa-requests/:id`        | any role with RLS access | Read |
+| POST   | `/api/v1/prior-auth/pa-requests`            | provider/pharmacy | Submit PA + get AI recommendation |
+| GET    | `/api/v1/prior-auth/pa-requests`            | specialist/billing/compliance | List with filters |
+| GET    | `/api/v1/prior-auth/pa-requests/queue`      | specialist/billing/compliance | Active SLA-sorted queue |
+| GET    | `/api/v1/prior-auth/pa-requests/:id`        | any role with RLS access | Read PA + criterion evaluations |
+| POST   | `/api/v1/prior-auth/pa-requests/:id/decide` | prior_auth_specialist | Human final decision |
 
 ## SLA windows (enforced via `due_at`)
 

@@ -4,7 +4,7 @@
  *
  * Usage:
  *   const cases = await api.get<FraudCaseSummary[]>('/v1/fraud/cases');
- *   await api.post('/v1/pa-requests/:id/decide', { status: 'approved', explanation });
+ *   await api.post('/v1/prior-auth/pa-requests/:id/decide', { status: 'approved', explanation });
  */
 
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from './auth';
