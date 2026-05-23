@@ -24,6 +24,7 @@ import {
   getFraudCase,
   resolveCase,
   assignCase,
+  escalateCase,
 } from './repository';
 import { fraudDetection } from './clients';
 
@@ -36,6 +37,13 @@ const ResolveSchema = z.object({
 
 const AssignSchema = z.object({
   investigatorId: z.string().uuid(),
+});
+
+const EscalateSchema = z.object({
+  /** Target Program Integrity counterparty. NC primary pilot is OCPI. */
+  target: z.enum(['OCPI', 'MFCU', 'CMS_UPIC', 'STATE_OIG']).default('OCPI'),
+  /** Notes to include in the alert packet. */
+  notes:  z.string().min(10).max(5000),
 });
 
 const OverrideSchema = z.object({
@@ -143,6 +151,49 @@ router.post(
     });
 
     res.json(resolved);
+  }),
+);
+
+/**
+ * POST /api/v1/fraud/cases/:id/escalate
+ *
+ * Hand a case upstream to a Program Integrity counterparty (OCPI / MFCU /
+ * CMS UPIC / state OIG). Sets the escalation columns on fraud_cases without
+ * resolving the case — investigator may still close it cleared / confirmed
+ * later. Emits fraud.case.escalated so notification-service can build the
+ * outbound alert packet (per `integrations/nc-enterprise/README.md §9.3`).
+ */
+router.post(
+  '/fraud/cases/:id/escalate',
+  requireAuth,
+  requireRole('fraud_investigator', 'compliance_officer'),
+  ah(async (req, res) => {
+    const id    = z.string().uuid().parse(req.params.id);
+    const input = parse(EscalateSchema, req.body);
+
+    const updated = await escalateCase(id, req.auth!.sub, input.target, input.notes);
+
+    await emitEvent(
+      'fraud.case.escalated',
+      {
+        caseId:       id,
+        claimId:      updated.claim_id,
+        target:       input.target,
+        notes:        input.notes,
+        escalatedBy:  req.auth!.sub,
+        riskScore:    updated.risk_score,
+        stateCode:    updated.state_code,
+      },
+      { actorUserId: req.auth!.sub, correlationId: req.correlationId },
+    );
+
+    await auditLog({
+      resource: 'fraud_case', resourceId: id, action: 'update',
+      actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
+      context: { escalation_target: input.target, escalation_notes: input.notes },
+    });
+
+    res.json(updated);
   }),
 );
 

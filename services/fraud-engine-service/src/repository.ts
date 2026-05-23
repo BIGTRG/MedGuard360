@@ -213,6 +213,38 @@ export async function resolveCase(
 }
 
 /**
+ * Escalate a case to an external Program Integrity counterparty (OCPI in NC,
+ * MFCU, CMS UPIC, state OIG). Sets the escalation columns; does NOT resolve
+ * the case — status moves to 'under_review' if still 'open' but otherwise
+ * stays where it is. Investigator may still resolve afterwards via resolveCase.
+ *
+ * Allowed targets are constrained by a DB check (migration 0022) — invalid
+ * values surface as a 500 with the constraint name, which the route maps to
+ * a 400.
+ */
+export async function escalateCase(
+  id: string,
+  investigatorId: string,
+  target: 'OCPI' | 'MFCU' | 'CMS_UPIC' | 'STATE_OIG',
+  notes: string,
+): Promise<FraudCase> {
+  const r = await pool.query<FraudCase>(
+    `UPDATE fraud_cases
+        SET escalated_at      = NOW(),
+            escalated_by      = $2,
+            escalation_target = $3,
+            escalation_notes  = $4,
+            status            = CASE WHEN status = 'open' THEN 'under_review' ELSE status END,
+            updated_at        = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    [id, investigatorId, target, notes],
+  );
+  if (!r.rows[0]) throw new NotFoundError('FraudCase');
+  return r.rows[0];
+}
+
+/**
  * Assign a case to an investigator and transition open→under_review.
  */
 export async function assignCase(id: string, investigatorId: string): Promise<FraudCase> {

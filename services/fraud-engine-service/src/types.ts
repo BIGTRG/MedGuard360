@@ -14,6 +14,10 @@ export interface FraudCase {
   ai_engine_unavailable: boolean;
   resolved_at: Date | null;
   resolution_notes: string | null;
+  escalated_at: Date | null;
+  escalated_by: string | null;
+  escalation_target: 'OCPI' | 'MFCU' | 'CMS_UPIC' | 'STATE_OIG' | null;
+  escalation_notes: string | null;
   created_at: Date;
   updated_at: Date;
 }
