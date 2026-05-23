@@ -1041,3 +1041,255 @@ cp .env.example .env
 ### Counts this session
 - 5 deployment artifacts (~700 lines)
 - **~25,850 total lines across the project**
+
+---
+
+## Session 14 — 2026-05-22 / 2026-05-23 — Pilot polish + the schema-drift hunt
+
+Two-day session that started as "deep-dive on NC enterprise integrations"
+and turned up two latent runtime bugs along the way. **12 commits, ~3,800
+new lines.**
+
+### Day 1 (2026-05-22, evening) — 5 commits
+
+**`9bf3b38` — ga-enterprise README align with PROCUREMENT-STATUS.md**
+
+Surgical fix only. The README's procurement section had `[Confirm]`
+placeholders that the new `PROCUREMENT-STATUS.md` snapshot now answers
+concretely (NOIA dates, protest denial dates, Open Records litigation
+status, 2026-07-01 GA CMO launch). Added a status-snapshot callout at the
+top of §2 pointing at PROCUREMENT-STATUS.md as the authoritative source.
+Resolved stale `[Confirm go-live]` markers on Humana/Molina/UHC rows.
+Cleaned up two duplicate-row leftovers in §12 (Differences-from-NC) that
+the new fact-rows superseded.
+
+**`ccb6db0` — `/admin/nc-enterprise` deep-dive page + admin home nav**
+
+New 575-line Next.js page surfacing the `integrations/nc-enterprise/`
+research as a structured UI. Sections:
+- KPI strip: enrollment, expansion, plans seeded, providers
+- State details card (from `/v1/state-config/plans` filtered to NC)
+- DHHS divisions table (9 operationally-relevant ones)
+- NCTracks scope (DOES / DOES NOT split into green/grey columns)
+- Health Plans grouped by Standard/Tailored/Specialty
+- 23-row connector inventory with expandable rows + direction arrows
+- BAA + cert readiness checklist (2 columns)
+
+Also fixed admin home discoverability: the "State Config" card pointed
+at `/admin/state-config` which never existed. Replaced with 3 working
+cards (Pilot States, NC Enterprise, Integrations) plus the existing
+Users/Audit cards. Grid bumped to `md:grid-cols-2 lg:grid-cols-3`.
+
+**`3299735` — NCTracks adapter (typed stub mode)**
+
+880-line standalone TypeScript package at `integrations/nctracks/src/`:
+- `types.ts` — full interface contract from spec.md §2 (10 type aliases,
+  6 method signatures)
+- `config.ts` — zod-style env loader with mode-specific required-field
+  validation (soap requires cert/key + URL; sftp requires host/user/key)
+- `stub.ts` — deterministic in-memory `NctracksStubAdapter`:
+    * eligibility: subscriberId last digit → outcome
+      (0–6 = active; 7 = Healthy Blue PHP; 8 = Trillium Tailored Plan;
+       9 = inactive; "999" suffix = AAA rejection)
+    * claim submit: monotonic ICN + inline 999 + 277CA acks
+    * claim status: hash(pcn+sid) % 4 → pending/paid/denied/in_process
+    * remittance: 14-day window returns synthetic 835
+    * `pollAcks` / `healthCheck` complete the contract
+- `index.ts` — `createNctracksAdapter()` factory that picks the impl based
+  on `config.mode`. `soap` + `sftp` modes throw NotImplementedError with
+  a pointer to the spec, so flipping NCTRACKS_MODE prematurely fails
+  loudly at boot rather than silently at first call.
+
+**`b42caa6` — Close the post-review punch list (5 items)**
+
+After the c6a29ad review, I'd flagged 5 issues. Closed all of them in
+one focused commit:
+1. `/admin/integrations` React Fragment key bug (`<>...</>` inside `.map()`
+   with key on a child) → `<Fragment key={a.key}>...`
+2. biometric / clearinghouse / notification rows: `'stub'` → `'partial'`
+   (they had real vendor code from Session 10; just no live credentials)
+3. `/fraud/cases/[id]`: wired to real `GET /v1/fraud/cases/:id`, timeline
+   synthesized from row fields, resolve buttons call POST `/resolve`
+   with scratchpad-aggregated notes
+4. `/pa-queue/[id]/evidence`: wired to real `GET /v1/pa/:id`, criterion
+   overrides appended to decision notes as plaintext, submit calls
+   POST `/decide`
+5. `deploy/cutover-ga-2026-07-01.sql`: idempotent transactional script
+   that flips outgoing CMOs to inactive and incoming to active on cutover
+   day. Pre-flight + post-flight sanity checks. The script promised by
+   migration 0021's header comment.
+
+Bonus: nginx.dev.conf got `/api/v1/pa/` → prior-auth-service as a temporary
+alias (later removed in 601320a).
+
+**`601320a` — PA path convention unified + missing queue endpoint**
+
+The codebase had three conventions for the same endpoints:
+- `routes.ts` defined `/pa`, `/pa/:id`, `/pa/:id/decide`
+- `README.md` documented `/pa-requests/*`
+- Frontend (5 callsites) used `/prior-auth/pa-requests/*`
+
+Made everything use the frontend's convention since nginx already routed
+`/api/v1/prior-auth/*` to the service. Renamed backend handlers
+accordingly, added the missing `GET /prior-auth/pa-requests/queue`
+endpoint (referenced by the old `/pa-queue` page since Session 8 but
+never implemented — that page had been broken at runtime). Queue
+filters to pending + needs_more_info, sorts by urgency-rank then
+due_at ASC. List response carries both `requests` and legacy
+`paRequests` aliases.
+
+### Day 2 (2026-05-23, morning) — 7 commits
+
+**`0f23f28` — audit-log-service schema mismatch fix**
+
+While surveying for the path drift, found that `audit-log-service` had
+been broken at runtime since Session 2. The repository wrote to columns
+that don't exist in the canonical `audit_log_events` schema:
+- repo inserted into: `user_id`, `resource_type`, `phi_accessed`,
+  `event_type`, `payload`, `ip_address`, `device_id`, `created_at`
+- canonical migration 0001 columns: `actor_user_id`, `resource`,
+  `outcome`, `context`, `correlation_id`, `producer`, `actor_role`,
+  `actor_state_code`, `actor_org_id`, `session_id`, `occurred_at`
+
+Every consumer write would throw a SQL error → process exits fatally
+("FATAL: audit event insert failed") → PM2 restarts in a loop.
+The `/audit` search page also 404'd because nginx forwarded `/api/v1/audit/*`
+but handlers were mounted at `/audit-log/*`.
+
+Fix touched all three layers (types.ts, repository.ts, routes.ts).
+Repository now writes to canonical columns and tolerates both canonical
+AuditEvent payload shape and flat legacy shapes; unknown fields land in
+the `context` jsonb. `phiAccessedOnly` filter now reads
+`context->>'phiAccessed'` (the column was always synthetic).
+Routes are at `/audit/search` and `/audit/:id`. No migration needed —
+the canonical schema in 0001 was always correct; bug was in service
+code.
+
+**`3678af5` — reporting-service path drift + missing `/reports` list endpoint**
+
+Same path-convention bug class as audit-log + PA. Renamed handlers from
+`/reports/*` to `/reporting/reports/*` so they match the
+`/api/v1/reporting/` nginx prefix. Added a `GET /reporting/reports`
+list endpoint with a hardcoded catalog of the 3 buildable report kinds
+(perm, fraud_summary, claims_volume) — frontend's `(dashboard)/reporting`
+menu was calling this and getting 404. Filed task #8 for the 6 named
+endpoints (dashboard/summary, perm/summary, fraud/monthly,
+pa/disposition, credentialing/pipeline, eligibility/hits) that the
+dashboard also expects but don't exist yet.
+
+**`9948822` — Escalate-to-OCPI endpoint**
+
+Closed the disabled-TODO button from the b42caa6 punch list. Migration
+0022 added `escalated_at`, `escalated_by`, `escalation_target`,
+`escalation_notes` columns to `fraud_cases` with a CHECK constraint
+on `escalation_target IN ('OCPI','MFCU','CMS_UPIC','STATE_OIG')` and a
+partial index for the OCPI handoff dashboard. Backend gets a real
+`POST /api/v1/fraud/cases/:id/escalate` that emits a
+`fraud.case.escalated` Kafka event (notification-service can build the
+outbound alert packet per `integrations/nc-enterprise/README §9.3`).
+Frontend gets an inline form with a counterparty select + notes box.
+The badge function now also handles `under_review` status (was rendering
+as `open` grey before).
+
+**`c0aea45` — Append-only `fraud_case_events` for case timeline**
+
+Replaced the synthesize-everything-from-row-fields timeline with real
+persisted events. Migration 0023 adds `fraud_case_events(id, case_id,
+occurred_at, actor_user_id, event_type, text, context)` with append-only
+DB triggers (same HIPAA pattern as `audit_log_events`). CHECK on
+`event_type IN ('note','review','assign','escalate','resolve','system')`.
+Backend got `recordEvent()` + `listEvents()` repo functions and two new
+routes: `GET /fraud/cases/:id/events` and `POST /fraud/cases/:id/events`
+for investigator note-taking. The existing `assignCase`, `escalateCase`,
+and `resolveCase` repo functions now also append an event row on success
+(best-effort, won't fail the underlying action). Frontend's
+`buildTimeline()` merges synthesized opening events (from row fields)
+with the persisted event list — assign/escalate/resolve are now sourced
+from events rather than synthesized. Note input POSTs immediately and
+shows a "Saving…" indicator; Enter key submits.
+
+**`ef888f8` — PA criterion overrides + a second schema-drift fix**
+
+Two bundled changes:
+
+*(1)* Same drift bug as audit-log, but on `pa_criterion_evaluations`.
+Migration 0004 created columns named `status`, `ai_confidence`,
+`evidence_excerpt` but the code has always written `outcome`,
+`similarity_score`, `explanation`. Every PA creation that called
+`saveCriterionEvaluations` was failing at runtime since Session 2.
+Migration 0024 renames the canonical columns to match the code
+(`DO IF EXISTS` for idempotency on re-runs). Dropped the old CHECK
+constraint and recreated it on the new column name.
+
+*(2)* Added `human_outcome`, `human_outcome_at`, `human_reviewer_id`
+columns so investigator overrides round-trip through the DB instead
+of being kept in component state and tacked onto resolution notes as
+plaintext. New `PUT /api/v1/prior-auth/pa-requests/:id/criteria/:cid/override`
+endpoint with `OverrideSchema.transform('unclear' → 'indeterminate')`
+at the boundary so the DB only ever sees canonical values. Audit log
+emits `action='override'` per CLAUDE.md AI-governance rules. Frontend's
+api-client gained a `put()` helper (it had get/post/patch/delete but
+not put). Each criterion-button click now POSTs and refetches.
+Override timestamp + status shown inline on each criterion.
+
+**`763267a` — NCTracks adapter unit tests**
+
+44 tests across 3 files exercising the stub's determinism contract:
+- `config.test.ts` (15 tests): mode/env parsing, identifier defaults,
+  SFTP/Connect:Direct block presence conditions, soap+sftp mode-specific
+  required-field validation
+- `stub.test.ts` (24 tests): eligibility outcome mapping (last digit
+  0–6 / 7 / 8 / 9 / "999"), traceId echo + deterministic fallback,
+  raw271 audit shape, monotonic ICN across submits, filename format,
+  inline 999+277CA acks, rejection conditions (empty diagnoses,
+  negative charge), claim-status hash%4 distribution + determinism,
+  paid-row field shape, remittance 14-day window, pollAcks empty
+  contract, healthCheck shape with/without CD config
+- `index.test.ts` (5 tests): factory mode dispatch + soap/sftp throw
+  with spec pointer
+
+Plus minimal `package.json` + `jest.config.js` + `tsconfig.json` so the
+package is runnable via `npm test` once dependencies are installed.
+
+### What's still pending (filed as tasks, not yet implemented)
+
+- **Task #8 — 6 named reporting endpoints the dashboard expects**:
+  `/v1/reporting/dashboard/summary`, `/v1/reporting/perm/summary`,
+  `/v1/reporting/fraud/monthly`, `/v1/reporting/pa/disposition`,
+  `/v1/reporting/credentialing/pipeline`,
+  `/v1/reporting/eligibility/hits`. Frontend calls them; they 404 today.
+  Implementation: named-query handlers on reporting-service backed by
+  the existing buildPermReport / buildFraudSummary / buildClaimsVolume
+  builders + new query funcs in repository.ts.
+
+### Counts this session
+
+- 12 commits across two days
+- 4 new migrations (0022 fraud_case_escalation, 0023 fraud_case_events,
+  0024 pa_criterion_overrides, plus 0021_ga_cmo_update from a prior session)
+- 1 new admin page (`/admin/nc-enterprise`)
+- 1 new standalone library (`integrations/nctracks/`)
+- 44 new unit tests
+- 2 latent runtime bugs surfaced and fixed (audit-log columns,
+  pa_criterion_evaluations columns)
+- 1 deployment-relevant cutover script (`deploy/cutover-ga-2026-07-01.sql`)
+- ~3,800 new lines
+
+### Lessons logged for future sessions
+
+- **Run the audit consumer + the PA creation flow at least once on a
+  fresh DB.** Both bugs were trivially-detectable schema drifts that
+  PM2's restart loop hid because `docker compose up` never showed the
+  consumer crashing in foreground logs.
+- **Frontend convention is the canonical convention.** When the frontend,
+  the README, and routes.ts disagree on a path, the frontend almost
+  always reflects what was last reviewed end-to-end. Both path-drift
+  fixes (audit, reporting, prior-auth, /pa-queue queue) involved
+  migrating backend handlers to match what the frontend already called.
+- **`createServer({ mountPath: '/api/v1' })` is the same as omitting
+  `mountPath` entirely.** The shared `ServerOptions` interface only has
+  `routes` + `readinessCheck`; the redundant `mountPath` value is
+  silently ignored. Consistent routing requires explicit nginx-prefix
+  awareness in each service's route definitions.
+
+*Last updated: 2026-05-23 — end of Session 14*
