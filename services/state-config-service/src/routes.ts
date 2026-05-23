@@ -8,7 +8,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requireAuth, requireRole, ValidationError } from '@medguard360/shared';
+import { requireAuth, requireRole, ValidationError, query } from '@medguard360/shared';
 import * as cache from './cache';
 import * as repo from './repository';
 
@@ -78,6 +78,32 @@ router.get(
     const rows = await repo.listActiveStates();
     await cache.set(KEY_LIST, rows, cache.STATE_CONFIG_TTL);
     res.json(rows);
+  }),
+);
+
+/**
+ * GET /api/v1/state-config/plans
+ * Return state_configs + their MCO/CMO plans, joined. Used by /admin/pilot-states.
+ */
+router.get(
+  '/state-config/plans',
+  requireAuth,
+  ah(async (_req, res) => {
+    const states = await query<{ state_code: string; state_name: string; mac_part_a_b: string | null; mac_dmepos: string | null; hie_name: string | null; hie_vendor: string | null; expansion_status: string | null; hub_phone_number: string | null }>(
+      'stateConfig.listPlans.states',
+      `SELECT state_code, state_name, mac_part_a_b, mac_dmepos, hie_name, hie_vendor, expansion_status, hub_phone_number
+         FROM state_configs WHERE active = TRUE ORDER BY state_code`,
+    );
+    const plans = await query<{ state_code: string; mco_name: string; plan_type: string | null; payer_id: string; launch_date: string | null; sunset_date: string | null; notes: string | null; active: boolean }>(
+      'stateConfig.listPlans.mcos',
+      `SELECT state_code, mco_name, plan_type, payer_id, launch_date, sunset_date, notes, active
+         FROM mco_registry ORDER BY state_code, plan_type, mco_name`,
+    );
+    const byState = states.rows.map(s => ({
+      ...s,
+      plans: plans.rows.filter(p => p.state_code === s.state_code),
+    }));
+    res.json({ states: byState });
   }),
 );
 
