@@ -20,9 +20,9 @@ const ADAPTERS: Adapter[] = [
   {
     key: 'nctracks', vendor: 'NCTracks (Gainwell/GDIT — NC MMIS)',
     purpose: 'Eligibility 270/271, claim submit 837P/I, claim status 276/277, remittance 835',
-    envMode: 'NCTRACKS_MODE', modes: ['stub','soap','sftp'], status: 'stub',
-    envVars: ['NCTRACKS_SOAP_URL','NCTRACKS_SUBMITTER_ID','NCTRACKS_TPID','NCTRACKS_CLIENT_CERT_PATH','NCTRACKS_CLIENT_KEY_PATH','NCTRACKS_SFTP_HOST','NCTRACKS_SFTP_USER','NCTRACKS_SFTP_KEY_PATH'],
-    spec: 'integrations/nctracks/',
+    envMode: 'NCTRACKS_MODE', modes: ['stub','soap','sftp'], status: 'partial',
+    envVars: ['NCTRACKS_REALTIME_ELIGIBILITY_URL','NCTRACKS_SUBMITTER_ID','NCTRACKS_TPID','NCTRACKS_RECEIVER_ID','NCTRACKS_CLIENT_CERT','NCTRACKS_CLIENT_KEY','NCTRACKS_BATCH_SFTP_HOST','NCTRACKS_BATCH_SFTP_USER','NCTRACKS_SFTP_PRIVATE_KEY','NCTRACKS_USAGE_INDICATOR'],
+    spec: 'integrations/nctracks/src/',
   },
   {
     key: 'mtm', vendor: 'MTM Inc (NEMT broker)',
