@@ -2,6 +2,7 @@
 
 import {
   ServerStackIcon, CpuChipIcon, UserGroupIcon, ShieldCheckIcon, MapIcon, Cog6ToothIcon,
+  CircleStackIcon, FlagIcon,
 } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
@@ -51,10 +52,12 @@ function AdminInner(): React.ReactElement {
         <p className="text-sm text-slate-500">Cross-platform admin surface for the MedGuard360 stack.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <SectionCard icon={UserGroupIcon} title="Users & Roles" subtitle="20 role types • RLS-scoped" href="/admin/users" />
-        <SectionCard icon={MapIcon}       title="State Config"  subtitle="MMIS, MCOs, PA rules per state" href="/admin/state-config" />
-        <SectionCard icon={ShieldCheckIcon} title="Audit Log"   subtitle="Append-only HIPAA event log" href="/admin/audit" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <SectionCard icon={MapIcon}         title="Pilot States"      subtitle="NC / SC / GA — live mco_registry" href="/admin/pilot-states" />
+        <SectionCard icon={FlagIcon}        title="NC Enterprise"      subtitle="Primary pilot deep dive — divisions, NCTracks, connectors, readiness" href="/admin/nc-enterprise" />
+        <SectionCard icon={CircleStackIcon} title="Integrations"       subtitle="8 vendor adapters — env mode + credential vault" href="/admin/integrations" />
+        <SectionCard icon={UserGroupIcon}   title="Users & Roles"      subtitle="20 role types • RLS-scoped" href="/admin/users" />
+        <SectionCard icon={ShieldCheckIcon} title="Audit Log"          subtitle="Append-only HIPAA event log" href="/admin/audit" />
       </div>
 
       <div className="card">
