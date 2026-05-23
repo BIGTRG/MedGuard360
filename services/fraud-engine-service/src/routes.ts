@@ -25,6 +25,8 @@ import {
   resolveCase,
   assignCase,
   escalateCase,
+  listEvents,
+  recordEvent,
 } from './repository';
 import { fraudDetection } from './clients';
 
@@ -44,6 +46,12 @@ const EscalateSchema = z.object({
   target: z.enum(['OCPI', 'MFCU', 'CMS_UPIC', 'STATE_OIG']).default('OCPI'),
   /** Notes to include in the alert packet. */
   notes:  z.string().min(10).max(5000),
+});
+
+const AddEventSchema = z.object({
+  /** Today only 'note' is investigator-authored. Other types are server-side. */
+  eventType: z.literal('note').default('note'),
+  text:      z.string().min(1).max(5000),
 });
 
 const OverrideSchema = z.object({
@@ -123,6 +131,59 @@ router.get(
     });
 
     res.json(fraudCase);
+  }),
+);
+
+/**
+ * GET /api/v1/fraud/cases/:id/events
+ * List the append-only timeline events for one case (notes + structural
+ * transitions). Ordered chronologically.
+ */
+router.get(
+  '/fraud/cases/:id/events',
+  requireAuth,
+  requireRole('fraud_investigator', 'compliance_officer', 'platform_administrator'),
+  ah(async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id);
+    // Ensure the case exists so we 404 cleanly rather than returning [] for a
+    // bogus id.
+    const fc = await getFraudCase(id);
+    if (!fc) throw new NotFoundError('FraudCase');
+    const events = await listEvents(id);
+    res.json({ events });
+  }),
+);
+
+/**
+ * POST /api/v1/fraud/cases/:id/events
+ * Investigator records a free-text note on a case. Persisted to
+ * fraud_case_events as eventType='note'.
+ */
+router.post(
+  '/fraud/cases/:id/events',
+  requireAuth,
+  requireRole('fraud_investigator', 'compliance_officer'),
+  ah(async (req, res) => {
+    const id    = z.string().uuid().parse(req.params.id);
+    const input = parse(AddEventSchema, req.body);
+
+    const fc = await getFraudCase(id);
+    if (!fc) throw new NotFoundError('FraudCase');
+
+    const event = await recordEvent({
+      caseId:      id,
+      actorUserId: req.auth!.sub,
+      eventType:   input.eventType,
+      text:        input.text,
+    });
+
+    await auditLog({
+      resource: 'fraud_case_event', resourceId: event.id, action: 'create',
+      actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
+      context: { case_id: id, event_type: input.eventType, text_length: input.text.length },
+    });
+
+    res.status(201).json(event);
   }),
 );
 

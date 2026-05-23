@@ -42,24 +42,39 @@ interface FraudCase {
 interface TimelineEvent {
   ts: string;
   who: string;
-  type: 'flag' | 'review' | 'note' | 'escalate' | 'resolve';
+  type: 'flag' | 'review' | 'note' | 'escalate' | 'resolve' | 'assign' | 'system';
   text: string;
+}
+
+/** Server row from GET /v1/fraud/cases/:id/events */
+interface ServerEvent {
+  id: string;
+  case_id: string;
+  occurred_at: string;
+  actor_user_id: string | null;
+  event_type: 'note' | 'review' | 'assign' | 'escalate' | 'resolve' | 'system';
+  text: string;
+  context: Record<string, unknown>;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Synthesize a timeline from fraud_cases fields. There's no fraud_case_events
- * table yet — adding one is a future enhancement. The timeline shows:
- *   - opened (created_at)        — system event with AI flags + score
- *   - assigned (updated_at)      — only if assigned_to is set
- *   - resolved (resolved_at)     — only if resolved_at is set
- *   - local notes (this session) — investigator scratchpad, not persisted yet
+ * Build the timeline UI list from:
+ *   - structural events synthesized from fraud_cases row fields
+ *     (case opened, AI explanation, AI-unavailable flag)
+ *   - persisted events from fraud_case_events (assign, escalate, resolve,
+ *     notes — written server-side by the repo and via POST /events)
+ *
+ * The persisted events authoritatively cover assign/escalate/resolve, so we
+ * skip synthesizing those from the row fields. Opening/AI fields are still
+ * synthesized since they live on fraud_cases and aren't currently logged as
+ * events.
  */
-function synthesizeTimeline(c: FraudCase, localNotes: TimelineEvent[]): TimelineEvent[] {
+function buildTimeline(c: FraudCase, serverEvents: ServerEvent[]): TimelineEvent[] {
   const out: TimelineEvent[] = [];
 
-  // Opening event
+  // Synthesized: case opened
   out.push({
     ts: c.created_at,
     who: 'fraud-engine-service',
@@ -84,33 +99,18 @@ function synthesizeTimeline(c: FraudCase, localNotes: TimelineEvent[]): Timeline
       text: 'AI engine was unavailable when this case opened — defaulted to manual review.',
     });
   }
-  if (c.assigned_to) {
+
+  // Persisted server events
+  for (const e of serverEvents) {
     out.push({
-      ts: c.updated_at,
-      who: 'platform',
-      type: 'review',
-      text: `Assigned to investigator ${c.assigned_to.slice(0, 8)}….`,
-    });
-  }
-  if (c.escalated_at) {
-    out.push({
-      ts: c.escalated_at,
-      who: c.escalated_by ? `investigator ${c.escalated_by.slice(0, 8)}…` : 'investigator',
-      type: 'escalate',
-      text: `Escalated to ${c.escalation_target ?? 'OCPI'}${c.escalation_notes ? ': ' + c.escalation_notes : '.'}`,
-    });
-  }
-  if (c.resolved_at && c.resolution_notes) {
-    out.push({
-      ts: c.resolved_at,
-      who: 'investigator',
-      type: 'resolve',
-      text: `Resolved as ${c.status}: ${c.resolution_notes}`,
+      ts: e.occurred_at,
+      who: e.actor_user_id ? `${e.actor_user_id.slice(0, 8)}…` : 'system',
+      type: e.event_type,
+      text: e.text,
     });
   }
 
-  // Append local (session-scoped) notes
-  return [...out, ...localNotes].sort((a, b) => a.ts.localeCompare(b.ts));
+  return out.sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
 function badge(s: FraudCase['status']): React.ReactElement {
@@ -128,9 +128,10 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Session-scoped scratchpad notes. Persisted into resolution_notes on resolve.
-  const [localNotes, setLocalNotes] = useState<TimelineEvent[]>([]);
+  // Persisted timeline events from /events
+  const [serverEvents, setServerEvents] = useState<ServerEvent[]>([]);
   const [draft, setDraft] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   // Resolve-flow state
   const [resolveStatus, setResolveStatus] = useState<'cleared' | 'confirmed_fraud' | null>(null);
@@ -143,21 +144,43 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
   const [escalating, setEscalating] = useState(false);
 
   useEffect(() => {
-    api.get<FraudCase>(`/v1/fraud/cases/${id}`)
-      .then(setFraudCase)
-      .catch(e => setErr(e.message))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    Promise.all([
+      api.get<FraudCase>(`/v1/fraud/cases/${id}`),
+      api.get<{ events: ServerEvent[] }>(`/v1/fraud/cases/${id}/events`).catch(() => ({ events: [] })),
+    ])
+      .then(([c, ev]) => {
+        if (cancelled) return;
+        setFraudCase(c);
+        setServerEvents(ev.events ?? []);
+      })
+      .catch(e => { if (!cancelled) setErr(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [id]);
 
-  function addLocalNote(): void {
-    if (!draft.trim()) return;
-    setLocalNotes([...localNotes, {
-      ts: new Date().toISOString(),
-      who: 'me (draft — not persisted)',
-      type: 'note',
-      text: draft.trim(),
-    }]);
-    setDraft('');
+  async function refreshEvents(): Promise<void> {
+    try {
+      const { events } = await api.get<{ events: ServerEvent[] }>(`/v1/fraud/cases/${id}/events`);
+      setServerEvents(events ?? []);
+    } catch {
+      // best-effort; don't surface refresh failures
+    }
+  }
+
+  async function addNote(): Promise<void> {
+    const text = draft.trim();
+    if (!text) return;
+    setSavingNote(true);
+    try {
+      await api.post(`/v1/fraud/cases/${id}/events`, { eventType: 'note', text });
+      setDraft('');
+      await refreshEvents();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSavingNote(false);
+    }
   }
 
   async function escalate(): Promise<void> {
@@ -172,7 +195,10 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
         target: escalateTarget,
         notes:  escalateNotes.trim(),
       });
-      const refreshed = await api.get<FraudCase>(`/v1/fraud/cases/${id}`);
+      const [refreshed] = await Promise.all([
+        api.get<FraudCase>(`/v1/fraud/cases/${id}`),
+        refreshEvents(),
+      ]);
       setFraudCase(refreshed);
       setShowEscalate(false);
       setEscalateNotes('');
@@ -185,10 +211,13 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
 
   async function resolve(status: 'cleared' | 'confirmed_fraud'): Promise<void> {
     if (!fraudCase) return;
-    // Aggregate local notes into the resolution payload
-    const noteText = localNotes.length
-      ? localNotes.map(n => `- ${n.text}`).join('\n')
-      : `Resolved as ${status} by investigator.`;
+    // Pull recent investigator notes from server events to build the
+    // resolution summary, so the final resolution_notes references what
+    // the investigator wrote leading up to the close.
+    const noteTexts = serverEvents.filter(e => e.event_type === 'note').map(e => `- ${e.text}`);
+    const noteText = noteTexts.length
+      ? noteTexts.join('\n')
+      : `Resolved as ${status} by investigator after review.`;
     if (noteText.length < 10) {
       alert('Need at least 10 characters of notes to resolve.');
       return;
@@ -196,10 +225,12 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
     setSubmitting(true);
     try {
       await api.post(`/v1/fraud/cases/${id}/resolve`, { status, notes: noteText });
-      // Refetch the case so the UI shows the resolved state
-      const refreshed = await api.get<FraudCase>(`/v1/fraud/cases/${id}`);
+      // Refetch case + events so the UI shows the resolved state + new event
+      const [refreshed] = await Promise.all([
+        api.get<FraudCase>(`/v1/fraud/cases/${id}`),
+        refreshEvents(),
+      ]);
       setFraudCase(refreshed);
-      setLocalNotes([]);
       setResolveStatus(null);
     } catch (e) {
       setErr((e as Error).message);
@@ -212,7 +243,7 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
   if (err) return <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-900">{err}</div>;
   if (!fraudCase) return <div className="text-sm text-slate-500">Case not found.</div>;
 
-  const events = synthesizeTimeline(fraudCase, localNotes);
+  const events = buildTimeline(fraudCase, serverEvents);
   const isResolved = fraudCase.status === 'cleared' || fraudCase.status === 'confirmed_fraud';
 
   return (
@@ -277,12 +308,24 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
 
         {!isResolved && (
           <div className="mt-4 border-t border-slate-200 pt-3">
-            <label className="text-xs font-medium text-slate-500">Add scratchpad note (aggregated into resolution)</label>
+            <label className="text-xs font-medium text-slate-500">Add note</label>
             <div className="flex gap-2 mt-1">
-              <input value={draft} onChange={e => setDraft(e.target.value)} className="flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm" placeholder="What did you find?" />
-              <button onClick={addLocalNote} className="rounded bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700">Add</button>
+              <input
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !savingNote) void addNote(); }}
+                className="flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm"
+                placeholder="What did you find?"
+                disabled={savingNote}
+              />
+              <button
+                onClick={() => void addNote()}
+                disabled={savingNote || draft.trim().length === 0}
+                className="rounded bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
+                {savingNote ? 'Saving…' : 'Add'}
+              </button>
             </div>
-            <p className="text-xs text-slate-400 mt-1 italic">Notes persist into the case only when you Mark cleared or Confirm fraud below. A dedicated fraud_case_events table is future work.</p>
+            <p className="text-xs text-slate-400 mt-1 italic">Notes are persisted to <code>fraud_case_events</code> immediately (append-only).</p>
           </div>
         )}
       </div>
@@ -311,9 +354,9 @@ function CaseInner({ id }: { id: string }): React.ReactElement {
               {fraudCase.escalated_at ? `Escalated to ${fraudCase.escalation_target}` : 'Escalate to OCPI'}
             </button>
           </div>
-          {localNotes.length > 0 && (
+          {serverEvents.filter(e => e.event_type === 'note').length > 0 && (
             <p className="text-xs text-slate-500 mt-2">
-              {localNotes.length} scratchpad note{localNotes.length === 1 ? '' : 's'} will be saved to the case on resolve.
+              {serverEvents.filter(e => e.event_type === 'note').length} note{serverEvents.filter(e => e.event_type === 'note').length === 1 ? '' : 's'} on file — included in the resolution summary if you close the case.
             </p>
           )}
 

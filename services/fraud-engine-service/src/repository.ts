@@ -209,6 +209,12 @@ export async function resolveCase(
     [id, status, notes, investigatorId],
   );
   if (!r.rows[0]) throw new NotFoundError('FraudCase');
+  // Append timeline event — best-effort, don't fail the resolve if logging fails
+  await recordEvent({
+    caseId: id, actorUserId: investigatorId, eventType: 'resolve',
+    text: `Resolved as ${status}: ${notes}`,
+    context: { status, notes_length: notes.length },
+  }).catch(() => undefined);
   return r.rows[0];
 }
 
@@ -241,6 +247,11 @@ export async function escalateCase(
     [id, investigatorId, target, notes],
   );
   if (!r.rows[0]) throw new NotFoundError('FraudCase');
+  await recordEvent({
+    caseId: id, actorUserId: investigatorId, eventType: 'escalate',
+    text: `Escalated to ${target}: ${notes}`,
+    context: { target, notes_length: notes.length },
+  }).catch(() => undefined);
   return r.rows[0];
 }
 
@@ -258,10 +269,67 @@ export async function assignCase(id: string, investigatorId: string): Promise<Fr
     [id, investigatorId],
   );
   if (!r.rows[0]) throw new NotFoundError('FraudCase');
+  await recordEvent({
+    caseId: id, actorUserId: investigatorId, eventType: 'assign',
+    text: `Assigned to investigator ${investigatorId.slice(0, 8)}…`,
+    context: { to_user_id: investigatorId },
+  }).catch(() => undefined);
   return r.rows[0];
 }
 
 // ─── Legacy helpers (used by original consumer.ts) ───────────────────────────
+
+// ─── fraud_case_events (append-only timeline) ───────────────────────────────
+
+export type FraudCaseEventType = 'note' | 'review' | 'assign' | 'escalate' | 'resolve' | 'system';
+
+export interface FraudCaseEventRow {
+  id: string;
+  case_id: string;
+  occurred_at: Date | string;
+  actor_user_id: string | null;
+  event_type: FraudCaseEventType;
+  text: string;
+  context: Record<string, unknown>;
+}
+
+export interface RecordEventInput {
+  caseId:       string;
+  actorUserId:  string | null;
+  eventType:    FraudCaseEventType;
+  text:         string;
+  context?:     Record<string, unknown>;
+}
+
+/**
+ * Append one event to fraud_case_events. The table has DB triggers blocking
+ * UPDATE/DELETE — callers must NEVER attempt to rewrite history.
+ */
+export async function recordEvent(input: RecordEventInput): Promise<FraudCaseEventRow> {
+  const r = await pool.query<FraudCaseEventRow>(
+    `INSERT INTO fraud_case_events (case_id, actor_user_id, event_type, text, context)
+     VALUES ($1, $2, $3, $4, $5::jsonb)
+     RETURNING *`,
+    [input.caseId, input.actorUserId, input.eventType, input.text, JSON.stringify(input.context ?? {})],
+  );
+  return r.rows[0];
+}
+
+/**
+ * List all events for one case, ordered by occurred_at ASC (oldest first —
+ * frontend renders chronologically). Limited to 500 entries; if a case ever
+ * exceeds that we want to paginate, which today's UI doesn't need.
+ */
+export async function listEvents(caseId: string): Promise<FraudCaseEventRow[]> {
+  const r = await pool.query<FraudCaseEventRow>(
+    `SELECT * FROM fraud_case_events
+      WHERE case_id = $1
+      ORDER BY occurred_at ASC
+      LIMIT 500`,
+    [caseId],
+  );
+  return r.rows;
+}
 
 /**
  * Backwards-compat shim: open a minimal case row when no rich data is available.
