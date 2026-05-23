@@ -29,6 +29,9 @@ export interface CriterionEvaluationRow {
   similarity_score: number | null;
   outcome: 'met' | 'not_met' | 'indeterminate';
   explanation: string | null;
+  human_outcome: 'met' | 'not_met' | 'indeterminate' | null;
+  human_outcome_at: Date | string | null;
+  human_reviewer_id: string | null;
   created_at: Date;
 }
 

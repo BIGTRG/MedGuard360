@@ -42,6 +42,9 @@ interface CriterionEvaluation {
   similarity_score: number;
   outcome: ApiOutcome;
   explanation: string;
+  human_outcome: ApiOutcome | null;
+  human_outcome_at: string | null;
+  human_reviewer_id: string | null;
   created_at: string;
 }
 
@@ -77,8 +80,10 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Human-override state — keyed by criterion id
-  const [humanOutcome, setHumanOutcome] = useState<Record<string, CriterionOutcome>>({});
+  // Per-criterion override save tracking (UUID → saving | error). The actual
+  // override values come from data.criteriaEvaluations[].human_outcome so they
+  // round-trip through the server and persist across page reloads.
+  const [savingCriterion, setSavingCriterion] = useState<Record<string, boolean>>({});
 
   // Decision form state
   const [decision, setDecision] = useState<'approved' | 'denied' | 'needs_more_info' | null>(null);
@@ -106,23 +111,15 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
     }
     setSubmitting(true);
     try {
-      // Augment the explanation with the investigator's per-criterion overrides
-      // so the audit trail captures them. (A dedicated criteria-override endpoint
-      // is future work.)
-      const overrideLines = Object.entries(humanOutcome).map(([cid, out]) => {
-        const c = data?.criteriaEvaluations.find(x => x.id === cid);
-        return c ? `[override] ${c.criterion_text}: ${out}` : null;
-      }).filter(Boolean) as string[];
-      const fullNotes = overrideLines.length
-        ? explanation.trim() + '\n\n' + overrideLines.join('\n')
-        : explanation.trim();
-
-      await api.post(`/v1/prior-auth/pa-requests/${paId}/decide`, { decision, notes: fullNotes });
+      // Per-criterion overrides are persisted live via PUT
+      // /criteria/:cid/override (migration 0024). The decision notes no
+      // longer need to carry override breadcrumbs — they're queryable
+      // from pa_criterion_evaluations.human_outcome directly.
+      await api.post(`/v1/prior-auth/pa-requests/${paId}/decide`, { decision, notes: explanation.trim() });
       const refreshed = await api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`);
       setData(refreshed);
       setDecision(null);
       setExplanation('');
-      setHumanOutcome({});
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -130,8 +127,22 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
     }
   }
 
-  function setOverride(criterionId: string, o: CriterionOutcome): void {
-    setHumanOutcome(prev => ({ ...prev, [criterionId]: o }));
+  async function setOverride(criterionId: string, o: CriterionOutcome): Promise<void> {
+    setSavingCriterion(prev => ({ ...prev, [criterionId]: true }));
+    try {
+      // 'unclear' is normalized to 'indeterminate' server-side via the
+      // OverrideSchema.transform on prior-auth-service.
+      await api.put(
+        `/v1/prior-auth/pa-requests/${paId}/criteria/${criterionId}/override`,
+        { outcome: o },
+      );
+      const refreshed = await api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`);
+      setData(refreshed);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSavingCriterion(prev => ({ ...prev, [criterionId]: false }));
+    }
   }
 
   if (loading) return <div className="text-sm text-slate-500">Loading PA {paId}…</div>;
@@ -182,7 +193,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
         )}
         {criteriaEvaluations.map(c => {
           const aiOut = normalizeOutcome(c.outcome);
-          const userOut = humanOutcome[c.id];
+          const humanOut: CriterionOutcome | null = c.human_outcome ? normalizeOutcome(c.human_outcome) : null;
+          const saving = savingCriterion[c.id] === true;
           return (
             <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-start justify-between">
@@ -190,16 +202,23 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
                   <p className="text-sm font-medium text-slate-900">{c.criterion_text}</p>
                   <p className="text-xs text-slate-600 mt-1">{c.explanation}</p>
                   <p className="text-xs text-slate-500 mt-1">AI similarity: {Math.round(c.similarity_score * 100)}%</p>
+                  {humanOut && c.human_outcome_at && (
+                    <p className="text-xs text-amber-700 mt-1">
+                      Investigator override: <strong>{humanOut}</strong>
+                      {' '}({new Date(c.human_outcome_at).toLocaleString()})
+                    </p>
+                  )}
                 </div>
                 <div className="text-right space-y-2">
                   <div>{outcomeBadge(aiOut)}</div>
                   {!alreadyDecided && (
                     <div className="flex gap-1">
-                      <button onClick={() => setOverride(c.id, 'met')}     className={'rounded border px-2 py-1 text-xs ' + (userOut === 'met' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-300 hover:bg-slate-50')}>met</button>
-                      <button onClick={() => setOverride(c.id, 'not_met')} className={'rounded border px-2 py-1 text-xs ' + (userOut === 'not_met' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-300 hover:bg-slate-50')}>not met</button>
-                      <button onClick={() => setOverride(c.id, 'unclear')} className={'rounded border px-2 py-1 text-xs ' + (userOut === 'unclear' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 hover:bg-slate-50')}>unclear</button>
+                      <button disabled={saving} onClick={() => void setOverride(c.id, 'met')}     className={'rounded border px-2 py-1 text-xs disabled:opacity-50 ' + (humanOut === 'met'     ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-300 hover:bg-slate-50')}>met</button>
+                      <button disabled={saving} onClick={() => void setOverride(c.id, 'not_met')} className={'rounded border px-2 py-1 text-xs disabled:opacity-50 ' + (humanOut === 'not_met' ? 'border-red-500 bg-red-50 text-red-700'     : 'border-slate-300 hover:bg-slate-50')}>not met</button>
+                      <button disabled={saving} onClick={() => void setOverride(c.id, 'unclear')} className={'rounded border px-2 py-1 text-xs disabled:opacity-50 ' + (humanOut === 'unclear' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 hover:bg-slate-50')}>unclear</button>
                     </div>
                   )}
+                  {saving && <div className="text-xs text-slate-400 italic">saving…</div>}
                 </div>
               </div>
             </div>
@@ -239,9 +258,9 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
             className="mt-3 rounded bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
             {submitting ? 'Submitting…' : 'Submit decision'}
           </button>
-          {Object.keys(humanOutcome).length > 0 && (
+          {criteriaEvaluations.some(c => c.human_outcome) && (
             <p className="text-xs text-slate-500 mt-2">
-              {Object.keys(humanOutcome).length} criterion override{Object.keys(humanOutcome).length === 1 ? '' : 's'} will be appended to the decision notes.
+              {criteriaEvaluations.filter(c => c.human_outcome).length} criterion override{criteriaEvaluations.filter(c => c.human_outcome).length === 1 ? '' : 's'} are persisted on this PA and visible to other reviewers.
             </p>
           )}
         </div>

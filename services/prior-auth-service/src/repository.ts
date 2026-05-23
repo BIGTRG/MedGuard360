@@ -149,3 +149,29 @@ export async function saveCriterionEvaluations(
     params,
   );
 }
+
+/**
+ * Investigator overrides one criterion's outcome. Persists into the
+ * human_outcome columns on the same row (migration 0024 added them).
+ * Idempotent — repeated calls just overwrite the latest.
+ *
+ * Returns the updated row, or null if criterionId doesn't exist or isn't
+ * attached to the given paRequestId (prevents id-stuffing across PAs).
+ */
+export async function setCriterionOverride(
+  paRequestId: string,
+  criterionId: string,
+  reviewerUserId: string,
+  outcome: 'met' | 'not_met' | 'indeterminate',
+): Promise<CriterionEvaluationRow | null> {
+  const r = await pool.query<CriterionEvaluationRow>(
+    `UPDATE pa_criterion_evaluations
+        SET human_outcome     = $3,
+            human_outcome_at  = NOW(),
+            human_reviewer_id = $4
+      WHERE id = $2 AND pa_request_id = $1
+      RETURNING *`,
+    [paRequestId, criterionId, outcome, reviewerUserId],
+  );
+  return r.rows[0] ?? null;
+}

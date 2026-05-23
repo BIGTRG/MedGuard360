@@ -54,6 +54,16 @@ const DecideSchema = z.object({
   notes: z.string().min(10).max(5_000),
 });
 
+/**
+ * Investigators send 'unclear' from the UI; the canonical DB value is
+ * 'indeterminate'. Normalize at the API boundary so the DB never sees
+ * 'unclear'.
+ */
+const OverrideSchema = z.object({
+  outcome: z.enum(['met', 'not_met', 'unclear', 'indeterminate'])
+            .transform(v => v === 'unclear' ? 'indeterminate' : v),
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function parse<T>(schema: z.ZodType<T>, input: unknown): T {
@@ -263,12 +273,13 @@ router.get(
     const paRequest = await repo.findPaRequest(id);
     if (!paRequest) throw new NotFoundError('PA request');
 
-    // Fetch criterion evaluations
+    // Fetch criterion evaluations — include override columns (added in 0024)
     const evalResult = await pool.query(
-      `SELECT id, pa_request_id, criterion_text, similarity_score, outcome, explanation, created_at
-       FROM pa_criterion_evaluations
-       WHERE pa_request_id = $1
-       ORDER BY created_at`,
+      `SELECT id, pa_request_id, criterion_text, similarity_score, outcome, explanation,
+              human_outcome, human_outcome_at, human_reviewer_id, created_at
+         FROM pa_criterion_evaluations
+        WHERE pa_request_id = $1
+        ORDER BY created_at`,
       [id],
     );
 
@@ -284,6 +295,42 @@ router.get(
       paRequest,
       criteriaEvaluations: evalResult.rows,
     });
+  }),
+);
+
+/**
+ * PUT /api/v1/prior-auth/pa-requests/:id/criteria/:cid/override
+ * Investigator records an override on one criterion's AI outcome.
+ * Persists into pa_criterion_evaluations.human_outcome (added in
+ * migration 0024). Returns the updated row.
+ *
+ * Per CLAUDE.md AI governance: every AI output routes to human approval;
+ * overrides are logged and used to retrain models quarterly. The audit
+ * trail here is the (human_reviewer_id, human_outcome_at) pair.
+ */
+router.put(
+  '/prior-auth/pa-requests/:id/criteria/:cid/override',
+  requireAuth,
+  requireRole('prior_auth_specialist', 'compliance_officer'),
+  ah(async (req, res) => {
+    const id  = z.string().uuid().parse(req.params.id);
+    const cid = z.string().uuid().parse(req.params.cid);
+    const body = parse(OverrideSchema, req.body);
+    const auth = req.auth!;
+
+    const updated = await repo.setCriterionOverride(id, cid, auth.sub, body.outcome);
+    if (!updated) throw new NotFoundError('Criterion evaluation');
+
+    await auditLog({
+      resource: 'pa_criterion_evaluation',
+      resourceId: cid,
+      action: 'override',
+      actor: auth,
+      outcome: 'success',
+      context: { pa_request_id: id, human_outcome: body.outcome },
+    });
+
+    res.json(updated);
   }),
 );
 
