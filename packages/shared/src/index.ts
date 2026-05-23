@@ -16,3 +16,4 @@ export * from './auth/jwt';
 export * from './auth/middleware';
 export * from './audit/client';
 export * from './http/server';
+export * from './adapters';

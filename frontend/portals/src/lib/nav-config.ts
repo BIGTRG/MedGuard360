@@ -16,6 +16,7 @@ const PROVIDER_NAV: NavItem[] = [
   { label: 'Overview',    href: '/provider',            icon: HomeIcon },
   { label: 'Patients',    href: '/provider/patients',   icon: UsersIcon },
   { label: 'Encounters',  href: '/provider/encounters', icon: DocumentTextIcon },
+  { label: 'Workflow',    href: '/provider/workflow',   icon: BoltIcon },
   { label: 'Claims',      href: '/provider/claims',     icon: CurrencyDollarIcon },
   { label: 'PA Requests', href: '/provider/pa',         icon: ClipboardDocumentCheckIcon },
 ];
