@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { CircleStackIcon, CheckCircleIcon, ExclamationTriangleIcon, BeakerIcon } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
@@ -55,23 +55,23 @@ const ADAPTERS: Adapter[] = [
   {
     key: 'biometric', vendor: 'Suprema / NEC (biometric)',
     purpose: 'Facial + thumbprint match for PHI export + claim submission',
-    envMode: 'BIOMETRIC_VENDOR', modes: ['stub','suprema','nec'], status: 'stub',
+    envMode: 'BIOMETRIC_VENDOR', modes: ['stub','suprema','nec'], status: 'partial',
     envVars: ['SUPREMA_API_BASE','SUPREMA_API_KEY','NEC_API_BASE','NEC_API_TOKEN','BIOMETRIC_SCORE_THRESHOLD','BIOMETRIC_LIVENESS_THRESHOLD'],
-    spec: 'CLAUDE.md',
+    spec: 'services/auth-service/src/biometric/',
   },
   {
     key: 'clearinghouse', vendor: 'Change Healthcare / Availity / TriZetto',
     purpose: '837P submission to commercial payers (non-NCTracks routes)',
-    envMode: 'CLEARINGHOUSE', modes: ['stub','change_healthcare','availity','trizetto','generic_rest'], status: 'stub',
+    envMode: 'CLEARINGHOUSE', modes: ['stub','change_healthcare','availity','trizetto','generic_rest'], status: 'partial',
     envVars: ['CHANGE_HEALTHCARE_API','CHANGE_HEALTHCARE_TOKEN','AVAILITY_API','AVAILITY_TOKEN'],
-    spec: '.env.example',
+    spec: 'services/claims-service/src/clearinghouse.ts',
   },
   {
     key: 'notification', vendor: 'AWS SES / Twilio / FCM',
     purpose: 'Email + SMS + push notifications (10 event templates)',
-    envMode: '(per channel)', modes: ['stub','ses','twilio','fcm'], status: 'stub',
+    envMode: '(per channel)', modes: ['stub','ses','twilio','fcm'], status: 'partial',
     envVars: ['SES_FROM_ADDRESS','SES_CONFIGURATION_SET','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_FROM_NUMBER','FCM_PROJECT_ID','FCM_CLIENT_EMAIL'],
-    spec: '.env.example',
+    spec: 'services/notification-service/src/vendors.ts',
   },
 ];
 
@@ -106,8 +106,8 @@ function IntegrationsInner(): React.ReactElement {
         </thead>
         <tbody className="divide-y divide-slate-100">
           {ADAPTERS.map(a => (
-            <>
-              <tr key={a.key} className="hover:bg-slate-50 cursor-pointer" onClick={() => setExpanded(expanded === a.key ? null : a.key)}>
+            <Fragment key={a.key}>
+              <tr className="hover:bg-slate-50 cursor-pointer" onClick={() => setExpanded(expanded === a.key ? null : a.key)}>
                 <td className="py-3 px-3 font-medium text-slate-900">{a.vendor}</td>
                 <td className="py-3 px-3 text-slate-700">{a.purpose}</td>
                 <td className="py-3 px-3"><code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{a.envMode}</code><br/><span className="text-xs text-slate-500">{a.modes.join(' | ')}</span></td>
@@ -115,7 +115,7 @@ function IntegrationsInner(): React.ReactElement {
                 <td className="py-3 px-3 font-mono text-xs text-brand-700">{a.spec}</td>
               </tr>
               {expanded === a.key && (
-                <tr key={`${a.key}-detail`} className="bg-slate-50">
+                <tr className="bg-slate-50">
                   <td colSpan={5} className="py-3 px-6">
                     <p className="text-xs text-slate-500 mb-1">Required env vars when leaving stub mode:</p>
                     <div className="flex flex-wrap gap-1">
@@ -124,7 +124,7 @@ function IntegrationsInner(): React.ReactElement {
                   </td>
                 </tr>
               )}
-            </>
+            </Fragment>
           ))}
         </tbody>
       </table>

@@ -1,72 +1,145 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircleIcon, XCircleIcon, QuestionMarkCircleIcon, BookOpenIcon, SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
+import { api } from '@/lib/api-client';
 
-type Outcome = 'met' | 'not_met' | 'unclear';
-interface Criterion {
+// ─── Types — match GET /api/v1/pa/:id ──────────────────────────────────────
+
+type CriterionOutcome = 'met' | 'not_met' | 'unclear';
+type ApiOutcome = 'met' | 'not_met' | 'indeterminate' | 'unclear';
+
+interface PaRequestRow {
   id: string;
-  text: string;
-  aiOutcome: Outcome;
-  aiConfidence: number;
-  aiEvidence: string;
-  humanOutcome?: Outcome;
-  humanNote?: string;
+  patient_id: string;
+  provider_user_id: string;
+  state_code: string;
+  payer_id: string;
+  procedure_code: string;
+  diagnosis_codes: string[];
+  clinical_justification: string;
+  urgency: 'standard' | 'expedited' | 'drug';
+  status: 'pending' | 'approved' | 'denied' | 'needs_more_info' | 'expired';
+  ai_recommendation: string | null;
+  ai_confidence: number | null;
+  ai_explanation: string | null;
+  human_reviewer_id: string | null;
+  human_decision: string | null;
+  human_notes: string | null;
+  due_at: string;
+  decided_at: string | null;
+  created_at: string;
 }
 
-const SAMPLE_PA = {
-  id: '70000000-0000-0000-0000-000000000001',
-  service: '70553 — MRI brain w/o contrast',
-  diagnosis: 'G44.1 (Vascular headache, NEC)',
-  payer: 'NC_MEDICAID',
-  patient: 'John Doe (NCMD00100001)',
-  ordering: 'Dr. Alice Johnson MD (1234567893)',
-  urgency: 'standard (7 days)',
-  dueAt: '2026-05-29T13:13Z',
-};
-
-const SAMPLE_CRITERIA: Criterion[] = [
-  {
-    id: 'c1', text: 'Documentation of headache present ≥ 4 weeks',
-    aiOutcome: 'met', aiConfidence: 0.92,
-    aiEvidence: 'Encounter note (2026-05-15): "patient reports daily headaches for past 6 weeks, worsening with exertion." Cited by pa-nlp-matcher v1.0.',
-  },
-  {
-    id: 'c2', text: 'Failed conservative treatment ≥ 4 weeks (NSAID + lifestyle)',
-    aiOutcome: 'unclear', aiConfidence: 0.41,
-    aiEvidence: 'Note mentions "ibuprofen 600 mg trial" but no documented duration or response.',
-  },
-  {
-    id: 'c3', text: 'Red-flag features OR neurologic exam abnormality',
-    aiOutcome: 'not_met', aiConfidence: 0.78,
-    aiEvidence: 'Neuro exam documented as normal. No red flags (no thunderclap onset, no fever, no focal deficit).',
-  },
-];
-
-function badge(o: Outcome): React.ReactElement {
-  if (o === 'met')      return <span className="badge-green"><CheckCircleIcon className="h-3.5 w-3.5 mr-1"/>met</span>;
-  if (o === 'not_met')  return <span className="badge-red"><XCircleIcon className="h-3.5 w-3.5 mr-1"/>not met</span>;
-  return <span className="badge-yellow"><QuestionMarkCircleIcon className="h-3.5 w-3.5 mr-1"/>unclear</span>;
+interface CriterionEvaluation {
+  id: string;
+  pa_request_id: string;
+  criterion_text: string;
+  similarity_score: number;
+  outcome: ApiOutcome;
+  explanation: string;
+  created_at: string;
 }
+
+interface PaDetailResponse {
+  paRequest: PaRequestRow;
+  criteriaEvaluations: CriterionEvaluation[];
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function normalizeOutcome(o: ApiOutcome): CriterionOutcome {
+  // pa-nlp-matcher emits 'indeterminate' but the UI treats unclear/indeterminate equivalently.
+  if (o === 'indeterminate') return 'unclear';
+  return o;
+}
+
+function outcomeBadge(o: CriterionOutcome): React.ReactElement {
+  if (o === 'met')     return <span className="badge-green"><CheckCircleIcon className="h-3.5 w-3.5 mr-1" />met</span>;
+  if (o === 'not_met') return <span className="badge-red"><XCircleIcon className="h-3.5 w-3.5 mr-1" />not met</span>;
+  return <span className="badge-yellow"><QuestionMarkCircleIcon className="h-3.5 w-3.5 mr-1" />unclear</span>;
+}
+
+function urgencyLabel(u: PaRequestRow['urgency']): string {
+  if (u === 'drug')      return 'drug (24h)';
+  if (u === 'expedited') return 'expedited (72h)';
+  return 'standard (7 days)';
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────
 
 function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
-  const [criteria, setCriteria] = useState<Criterion[]>(SAMPLE_CRITERIA);
-  const [decision, setDecision] = useState<'approve' | 'deny' | 'needs_more_info' | null>(null);
-  const [explanation, setExplanation] = useState('');
+  const [data, setData] = useState<PaDetailResponse | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  function setHuman(id: string, outcome: Outcome): void {
-    setCriteria(criteria.map(c => c.id === id ? { ...c, humanOutcome: outcome } : c));
+  // Human-override state — keyed by criterion id
+  const [humanOutcome, setHumanOutcome] = useState<Record<string, CriterionOutcome>>({});
+
+  // Decision form state
+  const [decision, setDecision] = useState<'approved' | 'denied' | 'needs_more_info' | null>(null);
+  const [explanation, setExplanation] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    api.get<PaDetailResponse>(`/v1/pa/${paId}`)
+      .then(setData)
+      .catch(e => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, [paId]);
+
+  const aiSummary = useMemo(() => {
+    if (!data) return '';
+    const met = data.criteriaEvaluations.filter(c => normalizeOutcome(c.outcome) === 'met').length;
+    return `${met}/${data.criteriaEvaluations.length} criteria met by AI`;
+  }, [data]);
+
+  async function submit(): Promise<void> {
+    if (!decision) return;
+    if (explanation.trim().length < 20) {
+      alert('Explanation must be at least 20 characters.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Augment the explanation with the investigator's per-criterion overrides
+      // so the audit trail captures them. (A dedicated criteria-override endpoint
+      // is future work.)
+      const overrideLines = Object.entries(humanOutcome).map(([cid, out]) => {
+        const c = data?.criteriaEvaluations.find(x => x.id === cid);
+        return c ? `[override] ${c.criterion_text}: ${out}` : null;
+      }).filter(Boolean) as string[];
+      const fullNotes = overrideLines.length
+        ? explanation.trim() + '\n\n' + overrideLines.join('\n')
+        : explanation.trim();
+
+      await api.post(`/v1/pa/${paId}/decide`, { decision, notes: fullNotes });
+      const refreshed = await api.get<PaDetailResponse>(`/v1/pa/${paId}`);
+      setData(refreshed);
+      setDecision(null);
+      setExplanation('');
+      setHumanOutcome({});
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  const aiSummary = (() => {
-    const met = criteria.filter(c => c.aiOutcome === 'met').length;
-    const total = criteria.length;
-    return `${met}/${total} criteria met by AI`;
-  })();
+  function setOverride(criterionId: string, o: CriterionOutcome): void {
+    setHumanOutcome(prev => ({ ...prev, [criterionId]: o }));
+  }
+
+  if (loading) return <div className="text-sm text-slate-500">Loading PA {paId}…</div>;
+  if (err) return <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-900">{err}</div>;
+  if (!data) return <div className="text-sm text-slate-500">PA request not found.</div>;
+
+  const { paRequest, criteriaEvaluations } = data;
+  const alreadyDecided = paRequest.decided_at !== null;
 
   return (
     <div className="space-y-4">
@@ -79,63 +152,105 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">
         <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-xs">
-          <div><dt className="text-slate-500">Service</dt><dd className="font-medium">{SAMPLE_PA.service}</dd></div>
-          <div><dt className="text-slate-500">Diagnosis</dt><dd className="font-medium">{SAMPLE_PA.diagnosis}</dd></div>
-          <div><dt className="text-slate-500">Payer</dt><dd className="font-medium">{SAMPLE_PA.payer}</dd></div>
-          <div><dt className="text-slate-500">Patient</dt><dd className="font-medium">{SAMPLE_PA.patient}</dd></div>
-          <div><dt className="text-slate-500">Ordering provider</dt><dd className="font-medium">{SAMPLE_PA.ordering}</dd></div>
-          <div><dt className="text-slate-500">Urgency / due</dt><dd className="font-medium">{SAMPLE_PA.urgency} · {new Date(SAMPLE_PA.dueAt).toLocaleString()}</dd></div>
+          <div><dt className="text-slate-500">Procedure</dt><dd className="font-medium">{paRequest.procedure_code}</dd></div>
+          <div><dt className="text-slate-500">Diagnoses</dt><dd className="font-medium">{paRequest.diagnosis_codes.join(', ')}</dd></div>
+          <div><dt className="text-slate-500">Payer</dt><dd className="font-medium">{paRequest.payer_id}</dd></div>
+          <div><dt className="text-slate-500">Patient</dt><dd className="font-medium font-mono">{paRequest.patient_id.slice(0, 8)}…</dd></div>
+          <div><dt className="text-slate-500">Ordering provider</dt><dd className="font-medium font-mono">{paRequest.provider_user_id.slice(0, 8)}…</dd></div>
+          <div><dt className="text-slate-500">Urgency / due</dt><dd className="font-medium">{urgencyLabel(paRequest.urgency)} · {new Date(paRequest.due_at).toLocaleString()}</dd></div>
         </dl>
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-700"><SparklesIcon className="inline h-4 w-4 text-brand-600 mr-1"/>AI summary: <strong>{aiSummary}</strong></div>
-        <span className="badge-yellow">pa-nlp-matcher v1.0</span>
+        <div className="text-sm text-slate-700"><SparklesIcon className="inline h-4 w-4 text-brand-600 mr-1" />AI summary: <strong>{aiSummary || 'no criteria evaluated yet'}</strong></div>
+        <span className="badge-yellow">pa-nlp-matcher · confidence {paRequest.ai_confidence !== null ? Math.round(paRequest.ai_confidence * 100) + '%' : '—'}</span>
       </div>
 
+      {paRequest.ai_explanation && (
+        <div className="rounded border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+          <strong>AI overall:</strong> {paRequest.ai_explanation}
+          {paRequest.ai_recommendation && <div className="mt-1"><strong>Recommendation:</strong> {paRequest.ai_recommendation}</div>}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {criteria.map(c => (
-          <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 pr-4">
-                <p className="text-sm font-medium text-slate-900">{c.text}</p>
-                <p className="text-xs text-slate-600 mt-1">{c.aiEvidence}</p>
-                <p className="text-xs text-slate-500 mt-1">AI confidence: {Math.round(c.aiConfidence * 100)}%</p>
-              </div>
-              <div className="text-right space-y-2">
-                <div>{badge(c.aiOutcome)}</div>
-                <div className="flex gap-1">
-                  <button onClick={() => setHuman(c.id, 'met')}     className={'rounded border px-2 py-1 text-xs ' + (c.humanOutcome === 'met' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-300 hover:bg-slate-50')}>met</button>
-                  <button onClick={() => setHuman(c.id, 'not_met')} className={'rounded border px-2 py-1 text-xs ' + (c.humanOutcome === 'not_met' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-300 hover:bg-slate-50')}>not met</button>
-                  <button onClick={() => setHuman(c.id, 'unclear')} className={'rounded border px-2 py-1 text-xs ' + (c.humanOutcome === 'unclear' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 hover:bg-slate-50')}>unclear</button>
+        {criteriaEvaluations.length === 0 && (
+          <div className="text-xs text-slate-400 italic px-4 py-3 border border-dashed border-slate-200 rounded">
+            No criterion-level evaluations attached to this PA yet. The clinical decision engine
+            may still be running, or this PA was created without a payer rule lookup. Refresh in a moment.
+          </div>
+        )}
+        {criteriaEvaluations.map(c => {
+          const aiOut = normalizeOutcome(c.outcome);
+          const userOut = humanOutcome[c.id];
+          return (
+            <div key={c.id} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 pr-4">
+                  <p className="text-sm font-medium text-slate-900">{c.criterion_text}</p>
+                  <p className="text-xs text-slate-600 mt-1">{c.explanation}</p>
+                  <p className="text-xs text-slate-500 mt-1">AI similarity: {Math.round(c.similarity_score * 100)}%</p>
+                </div>
+                <div className="text-right space-y-2">
+                  <div>{outcomeBadge(aiOut)}</div>
+                  {!alreadyDecided && (
+                    <div className="flex gap-1">
+                      <button onClick={() => setOverride(c.id, 'met')}     className={'rounded border px-2 py-1 text-xs ' + (userOut === 'met' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-300 hover:bg-slate-50')}>met</button>
+                      <button onClick={() => setOverride(c.id, 'not_met')} className={'rounded border px-2 py-1 text-xs ' + (userOut === 'not_met' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-300 hover:bg-slate-50')}>not met</button>
+                      <button onClick={() => setOverride(c.id, 'unclear')} className={'rounded border px-2 py-1 text-xs ' + (userOut === 'unclear' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 hover:bg-slate-50')}>unclear</button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-slate-900 mb-2">Decision</h3>
-        <div className="flex gap-2 mb-3">
-          <button onClick={() => setDecision('approve')}          className={'rounded border px-4 py-2 text-sm ' + (decision === 'approve' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-300 hover:bg-slate-50')}>Approve</button>
-          <button onClick={() => setDecision('deny')}             className={'rounded border px-4 py-2 text-sm ' + (decision === 'deny' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-300 hover:bg-slate-50')}>Deny</button>
-          <button onClick={() => setDecision('needs_more_info')}  className={'rounded border px-4 py-2 text-sm ' + (decision === 'needs_more_info' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 hover:bg-slate-50')}>Needs more info</button>
+      {alreadyDecided ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <h3 className="text-sm font-semibold text-slate-900 mb-2">Decision (final)</h3>
+          <dl className="text-xs space-y-1">
+            <div><dt className="inline text-slate-500">Decision:</dt> <dd className="inline font-medium">{paRequest.human_decision ?? paRequest.status}</dd></div>
+            <div><dt className="inline text-slate-500">Decided:</dt> <dd className="inline font-medium">{paRequest.decided_at && new Date(paRequest.decided_at).toLocaleString()}</dd></div>
+            <div><dt className="inline text-slate-500">Reviewer:</dt> <dd className="inline font-mono">{paRequest.human_reviewer_id?.slice(0, 8)}…</dd></div>
+            {paRequest.human_notes && <div className="mt-2"><dt className="text-slate-500 mb-0.5">Notes:</dt> <dd className="text-slate-800 whitespace-pre-wrap">{paRequest.human_notes}</dd></div>}
+          </dl>
         </div>
-        <label className="text-xs font-medium text-slate-500">Explanation to provider (required, ≥ 1 sentence)</label>
-        <textarea value={explanation} onChange={e => setExplanation(e.target.value)} rows={3}
-          className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-          placeholder="Plain language explanation of which criteria were met or missing." />
-        <button disabled={!decision || explanation.length < 20}
-          className="mt-3 rounded bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
-          Submit decision
-        </button>
-      </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-slate-900 mb-2">Decision</h3>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => setDecision('approved')}         className={'rounded border px-4 py-2 text-sm ' + (decision === 'approved' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-300 hover:bg-slate-50')}>Approve</button>
+            <button onClick={() => setDecision('denied')}           className={'rounded border px-4 py-2 text-sm ' + (decision === 'denied' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-300 hover:bg-slate-50')}>Deny</button>
+            <button onClick={() => setDecision('needs_more_info')}  className={'rounded border px-4 py-2 text-sm ' + (decision === 'needs_more_info' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-300 hover:bg-slate-50')}>Needs more info</button>
+          </div>
+          <label className="text-xs font-medium text-slate-500">Explanation to provider (required, ≥20 chars)</label>
+          <textarea
+            value={explanation}
+            onChange={e => setExplanation(e.target.value)}
+            rows={3}
+            className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Plain language explanation of which criteria were met or missing."
+          />
+          <button
+            disabled={!decision || explanation.trim().length < 20 || submitting}
+            onClick={() => void submit()}
+            className="mt-3 rounded bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+            {submitting ? 'Submitting…' : 'Submit decision'}
+          </button>
+          {Object.keys(humanOutcome).length > 0 && (
+            <p className="text-xs text-slate-500 mt-2">
+              {Object.keys(humanOutcome).length} criterion override{Object.keys(humanOutcome).length === 1 ? '' : 's'} will be appended to the decision notes.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         AI generated the criterion outcomes — <strong>human decision is required</strong> before
-        the PA is finalized. Decision emits <code>pa.approved</code> / <code>pa.denied</code> /
-        <code>pa.needs.more.info</code> to Kafka with full audit trail.
+        the PA is finalized. Decision emits <code>pa.decided.approved</code> / <code>pa.decided.denied</code> /
+        <code>pa.decided.needs_more_info</code> to Kafka with full audit trail.
       </div>
     </div>
   );
