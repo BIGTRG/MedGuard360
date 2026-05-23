@@ -79,13 +79,15 @@ Standard categories (QMB, SLMB, QI, QDWI); no MMP-style integrated demo currentl
 
 Georgia uses the term **CMO** (Care Management Organization) rather than MCO. The product brand is **Georgia Families®**; ABD members historically participate via **Georgia Families 360°** (foster care, adoption assistance, juvenile justice youth) or remain FFS.
 
+> 📍 **Procurement status snapshot (May 2026).** The 2024 Notice of Intent to Award (NOIA) has been litigated through 2025 and the **incumbents are still operating** under bridge extensions through **2026-06-30**. The new four-CMO lineup targets a **2026-07-01 launch**. For the current point-in-time picture — winners, losers, protest decisions, open-records litigation, transition mechanics — see **[`PROCUREMENT-STATUS.md`](./PROCUREMENT-STATUS.md)**. That file is re-snapshotted as facts move; this README is the stable structural reference.
+
 **Incumbent CMOs (current as of May 2026):** The Department of Community Health contracts with three CMOs to deliver services to Medicaid members ([GA Medicaid CMOs](https://medicaid.georgia.gov/programs/all-programs/georgia-families/care-management-organizations-cmo)):
 
 1. **Amerigroup Community Care of Georgia** (now operating under Elevance Health's **Wellpoint** brand in some markets)
 2. **CareSource Georgia**
 3. **Peach State Health Plan** (Centene)
 
-**2025 CMO procurement shake-up:** In January 2025, DCH announced a major contract reshuffle. Apparent procurement outcome: **CareSource** retained a contract; three newcomers — **Humana Employers Health Plan of Georgia**, **Molina Healthcare of Georgia**, and **UnitedHealthcare of Georgia** — were awarded contracts; **Amerigroup** and **Peach State** lost their bids ([NDDS Advocacy — GA CMO Shakeup Jan 2025](https://www.ndds.org/advocacy/legislative-insider/2025/01/24/georgia-department-of-community-health-announces-major-cmo-contract-shakeup), [Capitol Beat — Confusion over future of Medicaid management in GA May 2025](https://capitol-beat.org/2025/05/confusion-concern-over-the-future-of-medicaid-management-in-georgia/)). **Implementation date and final lineup `[Confirm via [DCH Network Adequacy page](https://dch.georgia.gov/medicaid-managed-care/network-adequacy)]`** — procurement was contested through 2025; member transitions, go-live and incumbent winding-down were still being settled at last verification.
+**2024–2025 CMO procurement shake-up:** DCH issued the NOIA on **2024-12-02**. Apparent procurement outcome: **CareSource** retained a contract; three newcomers — **Humana Employers Health Plan of Georgia**, **Molina Healthcare of Georgia**, and **UnitedHealthcare of Georgia** — were awarded contracts; **Amerigroup** and **Peach State** lost their bids ([NDDS Advocacy — GA CMO Shakeup Jan 2025](https://www.ndds.org/advocacy/legislative-insider/2025/01/24/georgia-department-of-community-health-announces-major-cmo-contract-shakeup), [Capitol Beat — Confusion over future of Medicaid management in GA May 2025](https://capitol-beat.org/2025/05/confusion-concern-over-the-future-of-medicaid-management-in-georgia/)). **Targeted go-live: 2026-07-01**, with incumbent bridge extensions running through **2026-06-30**. Protests by Amerigroup and Peach State were **denied by DCH on 2025-11-10** and upheld on hearing-officer review in **December 2025**; **Georgia Open Records Act litigation in Fulton County Superior Court is pending** as of this README's last verification date. See [`PROCUREMENT-STATUS.md`](./PROCUREMENT-STATUS.md) for the current detailed status.
 
 > **Note on "Wellpoint of GA":** Elevance Health has rebranded several of its government-business plans (including former Amerigroup plans) under the **Wellpoint** name. The brand mapping in GA `[Confirm via [DCH CMO list](https://medicaid.georgia.gov/programs/all-programs/georgia-families/care-management-organizations-cmo)]`.
 
@@ -181,9 +183,9 @@ Georgia uses the term **CMO** (Care Management Organization) rather than MCO. Th
 | **Amerigroup Community Care of Georgia** (incumbent; reportedly lost 2025 bid; Wellpoint brand in some markets) | Elevance Health | Statewide; operates Georgia Families 360° foster care plan |
 | **CareSource Georgia** (incumbent; **won 2025 bid**) | CareSource | Statewide |
 | **Peach State Health Plan** (incumbent; reportedly lost 2025 bid) | Centene | Physician-driven; statewide |
-| **Humana Employers Health Plan of Georgia** (new 2025 award `[Confirm go-live]`) | Humana | New entrant |
-| **Molina Healthcare of Georgia** (new 2025 award `[Confirm go-live]`) | Molina | New entrant |
-| **UnitedHealthcare of Georgia** (new 2025 award `[Confirm go-live]`) | UnitedHealth Group | New entrant |
+| **Humana Employers Health Plan of Georgia** (NOIA winner; **go-live targeted 2026-07-01**) | Humana | New entrant |
+| **Molina Healthcare of Georgia** (NOIA winner; **go-live targeted 2026-07-01**) | Molina | New entrant |
+| **UnitedHealthcare of Georgia** (NOIA winner; **go-live targeted 2026-07-01**; also takes **Georgia Families 360°** foster-care contract from Amerigroup) | UnitedHealth Group | New entrant |
 
 ([DCH CMO List](https://medicaid.georgia.gov/programs/all-programs/georgia-families/care-management-organizations-cmo), [Georgia Families overview](https://medicaid.georgia.gov/programs/all-programs/georgia-families), [GA Audits — CMO financial review](https://www.audits.ga.gov/ReportSearch/download/11870), [NDDS — Jan 2025 CMO shakeup](https://www.ndds.org/advocacy/legislative-insider/2025/01/24/georgia-department-of-community-health-announces-major-cmo-contract-shakeup), [Capitol Beat — May 2025 confusion piece](https://capitol-beat.org/2025/05/confusion-concern-over-the-future-of-medicaid-management-in-georgia/))
 
@@ -251,9 +253,9 @@ Georgia uses the term **CMO** (Care Management Organization) rather than MCO. Th
 | 6 | Amerigroup / Wellpoint of GA (incumbent) | Bi-directional | FHIR R4 + X12 | OAuth2 | Claims, PA, eligibility, encounter |
 | 7 | CareSource Georgia (incumbent + 2025 winner) | Bi-directional | FHIR R4 + X12 | OAuth2 | Claims, PA, eligibility, encounter |
 | 8 | Peach State Health Plan (incumbent) | Bi-directional | FHIR R4 + X12 | OAuth2 | Claims, PA, eligibility, encounter |
-| 9 | Humana Employers Health Plan of GA (2025 award) | Bi-directional | FHIR R4 + X12 | OAuth2 | Pending go-live |
-| 10 | Molina Healthcare of GA (2025 award) | Bi-directional | FHIR R4 + X12 | OAuth2 | Pending go-live |
-| 11 | UnitedHealthcare of GA (2025 award) | Bi-directional | FHIR R4 + X12 | OAuth2 | Pending go-live |
+| 9 | Humana Employers Health Plan of GA (NOIA winner) | Bi-directional | FHIR R4 + X12 | OAuth2 | **Activates 2026-07-01** |
+| 10 | Molina Healthcare of GA (NOIA winner) | Bi-directional | FHIR R4 + X12 | OAuth2 | **Activates 2026-07-01** |
+| 11 | UnitedHealthcare of GA (NOIA winner) | Bi-directional | FHIR R4 + X12 | OAuth2 | **Activates 2026-07-01**; also Georgia Families 360° foster-care carrier |
 | 12 | Palmetto GBA JJ (Medicare A/B for GA) | Outbound | X12 837 via EDI Gateway | Submitter ID + cert | Medicare primary for duals |
 | 13 | CGS JC (DME MAC) | Outbound | X12 837P + CMN | Submitter ID | DMEPOS |
 | 14 | GA Medicaid Pharmacy POS / PBM | Outbound | NCPDP D.0 | NCPDP BIN/PCN | Pharmacy POS |
@@ -348,11 +350,12 @@ Georgia uses the term **CMO** (Care Management Organization) rather than MCO. Th
 | Pathways FMAP | n/a | **Traditional FMAP**, NOT 90% expansion match | Lower federal share on Pathways services |
 | Single state agency | NC DHHS (DHB) | **DCH** (Department of Community Health) | Different connector endpoints, identity model |
 | Managed-care plan label | **PHP** / Standard Plan / Tailored Plan | **CMO** (Care Management Organization) | Terminology change in member-facing UI |
-| Managed care model | 5 Std PHPs + 4 Tailored Plans + CFSP + EBCI Tribal | **3 incumbent CMOs** + 2025 procurement awarding 4 (CareSource + Humana + Molina + UHC) — implementation contested `[Confirm]` | Dual-config required during transition |
+| Managed care model | 5 Std PHPs + 4 Tailored Plans + CFSP + EBCI Tribal | **3 incumbent CMOs** through 2026-06-30 → **4 new CMOs (CareSource + Humana + Molina + UHC)** from 2026-07-01 (see [`PROCUREMENT-STATUS.md`](./PROCUREMENT-STATUS.md)) | Dual-active payer-ID config required across the 2026-07-01 cutover |
+| Foster-care plan transition | CFSP — Healthy Blue Care Together (launched Dec 2025) | **Georgia Families 360°**: Amerigroup → **UnitedHealthcare** on 2026-07-01 (~27K children/youth) | Patient-service + crisis-service carrier-template swap on cutover |
+| ABD population | Mostly into Managed Care | Historically FFS; **~200K members carve in to managed care mid-2026** under the four new CMOs | Add ABD claim routing to four new CMOs after their go-live |
 | Plan brand | NC Medicaid Managed Care | **Georgia Families®** + **Georgia Families 360°** (foster care) | Different member portal branding |
 | BH carve-out | Tailored Plans (4 LME/MCOs) for SMI/SUD/IDD/TBI | **Integrated within CMOs** for routine BH; **DBHDD operates I/DD waivers (NOW/COMP) FFS via GAMMIS** | No tailored-plan claim path; waiver carve-out via DBHDD |
 | Tribal plan | EBCI Tribal Option | None comparable | No Tribal IMCE connector |
-| Foster care plan | CFSP — Healthy Blue Care Together (launched Dec 2025) | **Georgia Families 360°** (Amerigroup historic; 2025 procurement may move) | Different plan-vendor model |
 | 1115 demos | Medicaid Transformation + HOP (paused 2025) | **Pathways to Coverage + Planning for Healthy Babies (P4HB)** | Pathways activity-reporting connector required |
 | MMIS operator | Gainwell (NCTracks); Optum PDM/CVO incoming 2026 | **Gainwell Technologies (GAMMIS since 2010, succeeded HP/EDS/DXC)** | Same Gainwell heritage — substantial EDI code reuse |
 | MMIS portal | [nctracks.nc.gov](https://www.nctracks.nc.gov/) | [mmis.georgia.gov](https://www.mmis.georgia.gov/portal/Default.aspx?tabid=35) | Different endpoint URL |
@@ -363,7 +366,6 @@ Georgia uses the term **CMO** (Care Management Organization) rather than MCO. Th
 | DME MAC | CGS JC | **CGS JC** (same) | Reuse NC CGS JC connector |
 | FMAP FY2026 | ~65% | **~65–66%** `[Confirm]` | Similar |
 | Statutory citation root | NCGS Ch. 108A | **O.C.G.A. Title 49 Ch. 4 + Title 31 + Title 33** | Different statute-id mapping |
-| ABD population | Mostly into Managed Care | Historically **separate FFS**; CMOs primarily serve TANF/PeachCare children/parents/pregnant women | Different FFS routing logic for ABD claims |
 | Pharmacy POS | OptumRx (NC Medicaid PBM) | GAMMIS Medicaid POS + CMO PBMs `[Confirm current GA Medicaid PBM]` | Different NCPDP processor IDs |
 
 **Cross-state reusability:**
@@ -456,4 +458,4 @@ Georgia uses the term **CMO** (Care Management Organization) rather than MCO. Th
 
 ---
 
-*Document owner: MedGuard360 Enterprise Integrations. File: `integrations/ga-enterprise/README.md`. Cross-references: `integrations/nc-enterprise/`, `integrations/sc-enterprise/`, `integrations/PILOT-STATES-COMPARISON.md`.*
+*Document owner: MedGuard360 Enterprise Integrations. File: `integrations/ga-enterprise/README.md`. Cross-references: [`PROCUREMENT-STATUS.md`](./PROCUREMENT-STATUS.md) (current procurement snapshot — re-snapshotted as facts move), `integrations/nc-enterprise/`, `integrations/sc-enterprise/`, `integrations/PILOT-STATES-COMPARISON.md`.*
