@@ -30,8 +30,48 @@ const ah = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unk
 
 export const router = Router();
 
-// POST /reports/run — synchronous for now; spin off to a queue for heavy reports
-router.post('/reports/run',
+/**
+ * GET /api/v1/reporting/reports
+ * List the report kinds this service knows how to build. Used by the
+ * /(dashboard)/reporting menu to render the available-reports list.
+ *
+ * Today the catalog is hardcoded — three kinds matching the RunSchema enum.
+ * Future work: pull from a `report_definitions` table seeded per state.
+ */
+router.get('/reporting/reports',
+  requireAuth,
+  requireRole('state_medicaid_agency','mco_admin','compliance_officer','qa_auditor','platform_administrator','federal_cms'),
+  (_req, res) => {
+    res.json({
+      reports: [
+        {
+          id: 'perm',
+          name: 'PERM (Payment Error Rate Measurement)',
+          description: 'Federal Medicaid sampling required by CMS — payment-error rate by state.',
+          endpoint: '/api/v1/reporting/reports/run',
+          parameters: { kind: 'perm' },
+        },
+        {
+          id: 'fraud_summary',
+          name: 'Fraud Case Summary',
+          description: 'Cases opened, scores, AI-vs-human override rate. Sourced from fraud-engine-service.',
+          endpoint: '/api/v1/reporting/reports/run',
+          parameters: { kind: 'fraud_summary' },
+        },
+        {
+          id: 'claims_volume',
+          name: 'Claims Volume',
+          description: 'Submitted / paid / denied / fraud-routed claim counts by state and time window.',
+          endpoint: '/api/v1/reporting/reports/run',
+          parameters: { kind: 'claims_volume' },
+        },
+      ],
+    });
+  },
+);
+
+// POST /reporting/reports/run — synchronous for now; spin off to a queue for heavy reports
+router.post('/reporting/reports/run',
   requireAuth, requireRole('state_medicaid_agency','mco_admin','compliance_officer','qa_auditor','platform_administrator','federal_cms'),
   ah(async (req, res) => {
     const input = parse(RunSchema, req.body);
@@ -63,14 +103,14 @@ router.post('/reports/run',
   }),
 );
 
-router.get('/reports/:id', requireAuth, ah(async (req, res) => {
+router.get('/reporting/reports/:id', requireAuth, ah(async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   const job = await repo.getJob(req.auth!, id);
   res.json(job);
 }));
 
 // Dashboard endpoint — quick rollup queries for portals
-router.get('/reports/rollups',
+router.get('/reporting/reports/rollups',
   requireAuth, requireRole('state_medicaid_agency','mco_admin','compliance_officer','platform_administrator','federal_cms'),
   ah(async (req, res) => {
     const input = parse(RollupQuerySchema, req.query);
