@@ -26,6 +26,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { runClinicalDecisionEngine, computeDueAt } from './engine';
+import { getDaVinciPasAdapter } from '@medguard360/shared';
 
 const logger = createLogger('prior-auth-service:routes');
 
@@ -80,6 +81,42 @@ const ah = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unk
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const router = Router();
+
+/**
+ * POST /api/v1/prior-auth/pa-requests/crd-check
+ * Da Vinci CRD (Coverage Requirements Discovery) — ask the payer whether a
+ * specific service code requires PA, BEFORE the provider builds the PA request.
+ * Lets the EHR short-circuit unnecessary PA workflows.
+ *
+ * Body: { payerEndpoint, serviceCode, patientId, providerUserId }
+ * Returns: { priorAuthRequired, documentationRequired[], reasonText }
+ */
+router.post(
+  '/prior-auth/pa-requests/crd-check',
+  requireAuth,
+  requireRole('individual_provider', 'facility_provider', 'prior_auth_specialist'),
+  ah(async (req, res) => {
+    const schema = z.object({
+      payerEndpoint: z.string().url(),
+      serviceCode:   z.string().min(1).max(20),
+      patientId:     z.string().uuid(),
+      providerUserId:z.string().uuid(),
+    });
+    const body = schema.parse(req.body);
+    const adapter = getDaVinciPasAdapter();
+    const out = await adapter.crdCheck({
+      payerEndpoint: body.payerEndpoint,
+      serviceCode:   body.serviceCode,
+      patientFhirRef:    `Patient/${body.patientId}`,
+      practitionerFhirRef: `Practitioner/${body.providerUserId}`,
+    });
+    await auditLog({
+      resource: 'pa_crd_check', resourceId: body.serviceCode, action: 'read',
+      actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
+    });
+    res.json(out);
+  }),
+);
 
 /**
  * POST /api/v1/prior-auth/pa-requests
