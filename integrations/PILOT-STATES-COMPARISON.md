@@ -1,8 +1,8 @@
 # MedGuard360 — Pilot States Side-by-Side Comparison
 
-> Comparative reference for Phase 1 pilot states: **North Carolina, South Carolina, Georgia**.
+> Comparative reference for Phase 1 pilot states: **North Carolina, South Carolina, Georgia**, and Phase 2 expansion states: **Virginia, West Virginia, Tennessee**.
 >
-> Last verified: 2026-05-22. Companion docs: `integrations/nc-enterprise/README.md`, `integrations/sc-enterprise/README.md`, `integrations/ga-enterprise/README.md`. Where information is fluid, items are tagged `[Confirm via …]`.
+> Last verified: 2026-05-23. Companion docs: `integrations/nc-enterprise/README.md`, `integrations/sc-enterprise/README.md`, `integrations/ga-enterprise/README.md`, `integrations/va-enterprise/README.md`, `integrations/wv-enterprise/README.md`, `integrations/tn-enterprise/README.md`. Where information is fluid, items are tagged `[Confirm via …]`.
 
 ---
 
@@ -49,21 +49,72 @@
 
 ---
 
+## 1B. Phase 2 Master Comparison Table — VA / WV / TN
+
+| Axis | **Virginia (VA)** | **West Virginia (WV)** | **Tennessee (TN)** |
+|---|---|---|---|
+| **State Medicaid agency** | **DMAS** (Department of Medical Assistance Services — single state agency under HHR Secretariat) | **BMS** (Bureau for Medical Services within **DoHS**, post 1/1/2024 DHHR 3-way split) | **Division of TennCare** (within F&A — Department of Finance and Administration) |
+| **Medicaid enrollment (most recent)** | **~2.0M** Cardinal Care (Medicaid + FAMIS) `[Confirm via DMAS]` | **~500–520K** Medicaid + WVCHIP `[Confirm via BMS]` | **~1.4–1.5M** TennCare + CoverKids `[Confirm via [TennCare enrollment](https://www.tn.gov/tenncare/information-statistics/enrollment-data.html)]` |
+| **Medicaid expansion status** | **YES — full ACA expansion** effective **1/1/2019** (~750K+ enrollees) | **YES — full ACA expansion** effective **1/1/2014** (~165K+ enrollees) | **NO** — no expansion; no Pathways-style partial expansion either ([KFF Expansion Status](https://www.kff.org/medicaid/status-of-state-medicaid-expansion-decisions/)) |
+| **Managed-care brand** | **Cardinal Care Managed Care (CCMC)** + **Foster Care Specialty Plan (FCSP)** | **Mountain Health Trust (MHT)** + **Mountain Health Promise (MHP)** | **Managed Care Contractors (MCC)** + **TennCare Select** |
+| **Managed-care plan count** | **5 CCMC MCOs + 1 FCSP (Anthem) = 6 plan products** (effective 7/1/2025) | **4 MHT MCOs + 1 MHP (Aetna) = 5 plan products** | **3 statewide MCCs + 1 Select (BlueCare) = 4 plan products** |
+| **Managed-care plan names (operational, May 2026)** | Aetna Better Health of VA, Anthem HealthKeepers Plus, **Humana Healthy Horizons in VA (NEW 7/1/2025)**, Sentara Health Plans (Optima rebrand; absorbed VA Premier), UnitedHealthcare of the Mid-Atlantic. FCSP = Anthem ([July 2025 CCMC bulletin](https://vamedicaid.dmas.virginia.gov/bulletin/july-1-2025-implementation-new-cardinal-care-managed-care-contract)) | Aetna Better Health of WV, **Highmark Health Options WV (NEW 8/1/2024)**, The Health Plan of WV, Wellpoint WV (UniCare rebrand) ([BMS MHT](https://bms.wv.gov/members/mountain-health-trust-managed-care)). MHP = Aetna | BlueCare Tennessee, UnitedHealthcare Community Plan of TN *(network instability; major provider exits 1/1/2026 — [MMC notice](https://www.mmclinic.com/uhctenncarechange))*, Wellpoint TN (Amerigroup rebrand) ([Managed Care Contractors](https://www.tn.gov/tenncare/providers/managed-care-contractors.html)) |
+| **Important roster corrections vs. legacy assumptions** | Legacy 7-MCO list (Aetna/Anthem/Molina/Optima/Sentara/UHC/Virginia Premier) is **superseded**: Molina exited 6/30/2025; Humana entered 7/1/2025; Optima→Sentara; VA Premier absorbed | Legacy 3-MCO list (Aetna/THP/UniCare) is **superseded**: Highmark added 8/1/2024; UniCare→Wellpoint | **AmeriHealth Caritas TN is NOT a current MCO** despite common assumption; only BlueCare TN, UHC CP, Wellpoint (formerly Amerigroup) are contracted |
+| **BH carve-out model** | **Integrated** within CCMC MCOs (no Tailored-Plan analog) | **Integrated** within MHT for routine; SUD continuum + CSED waiver carve-outs via MHP | **Integrated** within MCCs |
+| **Foster-care plan** | **FCSP (Anthem)** statewide, launched 7/1/2025 | **Mountain Health Promise (Aetna)** | **TennCare Select (BlueCare)** `[Confirm exact scope]` |
+| **Tribal plan** | None | None | None (no federally recognized tribes in TN) |
+| **1115 waivers** | Cardinal Care 1115 (SUD ARTS, pregnancy 12mo PP, former-foster-youth) | SUD 1115 + SMI 1115 (IMD waivers) | **TennCare III** — 10-year master demo through 2030 + **Shared Savings Program** (quasi-block-grant) |
+| **HCBS waivers** | DD waivers via DBHDS (FIS, CL, BI); CCC+ adult LTSS via DMAS | IDDW (I/DD), ADW (Aged/Disabled), TBIW, CSEDW | **ECF CHOICES** (only open I/DD path); legacy DIDD waivers closed; Katie Beckett A+B |
+| **Major 2025–26 changes** | CCMC MCO rebid 7/1/2025 (Molina out, Humana in); FCSP launched 7/1/2025; Acentra ANG SSO 4/27/2026 | Highmark added 8/1/2024; UniCare→Wellpoint rebrand; WVHIN expansion | UHC TennCare network attrition (1/1/2026 provider exits); TennCare III continues through 2030 |
+| **MMIS name** | **VAMMIS (legacy) → MES (modular)** | **WV MMIS** | **TennCare MMIS** (multi-vendor modular) |
+| **MMIS operator(s)** | **Conduent** (legacy MMIS) + **Gainwell** (PRSS portal) + **Acentra** (Service Auth ANG); MES modular under MITA 3.0 | **Gainwell Technologies** (single consolidated FA) | **Multi-vendor: Gainwell (claims/capitation) + Optum (DSS) `[Confirm]` + OptumRx (PBM) + Magellan (care mgmt) `[Confirm]` + Myers & Stauffer (actuary/audit)** |
+| **MMIS portal URL** | [vamedicaid.dmas.virginia.gov](https://vamedicaid.dmas.virginia.gov/) | [wvmmis.com](https://www.wvmmis.com/) | TennCare Provider Portal + each MCC portal |
+| **FFS rail status** | Active (residual non-managed populations) | Active (waivers, duals, residual) | **Effectively none** — managed-care-only since 1994 |
+| **MFCU host** | **VA OAG Medicaid Fraud Control Unit** | **WV OAG Medicaid Fraud Control Unit** | **TN AG Medicaid Fraud and Integrity Division (MFID)** (or TBI MFCD — periodic restructuring) `[Confirm host]` |
+| **PI unit (within Medicaid agency)** | **DMAS OCIS** (Office of Compliance and Integrity Services) | **BMS OPI** (Office of Program Integrity) | **TennCare OPI (provider) + TennCare OIG (recipient) — dual-track unique** |
+| **State qui tam analog to FCA** | **VFATA — Virginia Fraud Against Taxpayers Act** (Va. Code § 8.01-216.1) | None analogous (uses W. Va. Code § 9-7-6 + criminal statutes) | **TN Medicaid False Claims Act** (Tenn. Code § 71-5-181) |
+| **FY2026 traditional FMAP** | **~51.32%** (VA is one of the lower-FMAP states near 50% floor) `[Confirm via [KFF](https://www.kff.org/medicaid/state-indicator/federal-matching-rate-and-multiplier/) / [MACPAC Exhibit 6](https://www.macpac.gov/publication/federal-medical-assistance-percentages-fmaps-and-enhanced-fmaps-e-fmaps-by-state-selected-periods/)]` | **~73.99%** (among highest) `[Confirm]` | **~65–66%** `[Confirm]` |
+| **FY2026 enhanced (CHIP) E-FMAP** | **~65.92%** `[Confirm]` | **~81.79%** `[Confirm]` | **~76%** `[Confirm]` |
+| **Expansion FMAP applicability** | YES — 90% federal on expansion population (~750K) | YES — 90% federal on expansion population (~165K) | **N/A — no expansion** |
+| **HIE name** | **VHI / ConnectVirginia HIE** (state-designated, contracted by VDH) | **WVHIN** (West Virginia Health Information Network — statutory entity under W. Va. Code § 16-29B) | **TnHIE** (statewide — rebranded etHIN) + **OnePartner HIE** (Tri-Cities regional) |
+| **HIE platform vendor / network** | VHI nonprofit operates HIE infrastructure; **intends QHIN via [eHealth Exchange](https://ehealthexchange.org/ehealth-exchange-and-virginia-health-information-announce-qhin-intentions/)** | WVHIN (independent statutory entity) | TnHIE + OnePartner (multi-HIE landscape after **HIP TN** disbanded — [Fierce Healthcare](https://www.fiercehealthcare.com/it/tennessee-hie-organization-disbands-state-opts-for-direct-project)) |
+| **HIE mandate** | None (voluntary) | None (voluntary, but WVHIN is statutory entity) | None (voluntary, multi-HIE) |
+| **Medicare A/B MAC** | **Palmetto GBA JM** (NC/SC/VA/WV) | **Palmetto GBA JM** | **Palmetto GBA JJ** (AL/GA/TN) |
+| **Medicare DME MAC** | **CGS Administrators JC** | **CGS JC** | **CGS JC** |
+| **Medicare beneficiaries** | ~1.66M; MA ~52% `[Confirm]` | ~440–460K; MA ~52–54% `[Confirm]` | ~1.4M+; MA ~58% `[Confirm]` |
+| **State statute root for Medicaid** | Va. Code Title 32.1 Ch. 10 (§ 32.1-323 et seq.) | W. Va. Code Chapter 9 (§ 9-2-1 et seq.) | Tenn. Code Title 71, Chapter 5 (§ 71-5-101 et seq.) |
+| **Medicaid PBM model** | **Magellan Rx Mgmt (FFS)** + MCO PBMs `[Confirm]` | **RDTP — Rational Drug Therapy Program** (university-affiliated FFS PBM) `[Confirm]` + MCO PBMs | **OptumRx (TennCare)** `[Confirm]` + MCC-aligned PBMs |
+| **Statewide dental admin** | **DentaQuest VA** (statewide) `[Confirm]` | DentaQuest `[Confirm]` | Per-MCC + CoverKids dental |
+| **NEMT** | **ModivCare** statewide `[Confirm]` | **ModivCare** statewide ([WV NEMT](https://bms.wv.gov/members/non-emergency-medical-transportation)) | Per-MCC contracted brokers `[Confirm]` |
+| **Pathways/work-requirement integration burden** | OBBB work-reporting phase-in CY2027 (expansion population) `[Confirm]` | OBBB work-reporting phase-in CY2027 (expansion population) `[Confirm]` | **None** — no expansion population subject to OBBB work req |
+| **MedGuard360 readiness rank** | **High** — Palmetto JM reuse ♻️ + simpler MCO topology than NC | **Highest in Phase 2** — Gainwell reuse ♻️ + smallest scale + simplest topology | **Medium-high** — Palmetto JJ reuse from GA ♻️ + Gainwell partial reuse, offset by dual-PI architecture + multi-HIE + ECF CHOICES + TennCare III Shared Savings reporting complexity |
+| **Estimated onboarding lift vs. NC primary** | **~60 person-weeks** (~30–40% lighter) | **~47 person-weeks** (~45% lighter — smallest of all pilots) | **~57 person-weeks** (~30% lighter) |
+
+---
+
 ## 2. Connector Reusability Matrix
 
-| Connector category | NC | SC | GA | Reuse potential |
-|---|---|---|---|---|
-| **Palmetto Medicare A/B MAC** | JM | JM | JJ | NC↔SC: drop-in; GA: same vendor, separate submitter ID/jurisdiction endpoint |
-| **CGS DME MAC** | JC | JC | JC | All three identical — single connector |
-| **MMIS X12 EDI (Gainwell heritage)** | NCTracks/Gainwell | SCMMIS `[Confirm]` | GAMMIS/Gainwell | Strong reuse for trading-partner code, SFTP/PGP, EDI envelopes |
-| **MMIS portal / web tools** | nctracks.nc.gov | portal.scmedicaid.com | mmis.georgia.gov | URL + auth model differ; per-state config |
-| **FHIR R4 (CMS-0057-F APIs)** | All MCO + state | All MCO + state | All CMO + state | Standard; OAuth2 client registration per plan |
-| **HIE platform** | NC HealthConnex (SAS) | SCeHA `[Confirm vendor]` | GaHIN (Velatura) | Per-state; FHIR endpoints semi-standard |
-| **MFCU referral** | NC DOJ MID | SC AG VAMPF + MRFU | GA AG MFD | Same evidence-bundle schema; endpoints differ |
-| **PI unit alert intake** | OCPI | DPISUR | DCH OIG | Same alert schema; endpoints differ |
-| **NEMT broker** | ModivCare/MTM/etc. (per plan) | ModivCare statewide `[Confirm]` | Verida/ModivCare/SE Trans regional `[Confirm]` | Per-broker contract |
-| **Pharmacy POS** | OptumRx + MCO PBMs | Per-MCO + Medicaid POS `[Confirm]` | GAMMIS POS + CMO PBMs `[Confirm]` | NCPDP D.0 standard; BIN/PCN per processor |
-| **Activity reporting (Pathways)** | N/A | N/A | Required | GA-unique |
+| Connector category | NC | SC | GA | VA | WV | TN | Reuse potential |
+|---|---|---|---|---|---|---|---|
+| **Palmetto Medicare A/B MAC** | JM | JM | JJ | **JM** | **JM** | **JJ** | **JM: NC/SC/VA/WV share — single connector ♻️.** **JJ: GA/TN share — single connector ♻️.** Two MAC stacks total across all 6 pilots |
+| **CGS DME MAC** | JC | JC | JC | **JC** | **JC** | **JC** | **All six identical — single connector** ♻️ |
+| **MMIS X12 EDI (Gainwell)** | NCTracks/Gainwell | SCMMIS `[Confirm]` | GAMMIS/Gainwell | **Conduent (legacy) + Gainwell (PRSS)** | **WV MMIS/Gainwell** | **TennCare MMIS — Gainwell module + Optum + Magellan + M&S** | Strong reuse where Gainwell present (NC, GA, WV, partial VA + TN). Conduent in VA = new pattern |
+| **MMIS portal / web tools** | nctracks.nc.gov | portal.scmedicaid.com | mmis.georgia.gov | vamedicaid.dmas.virginia.gov | wvmmis.com | TennCare + per-MCC portals | URL + auth model differ; per-state config |
+| **FFS claims rail** | Yes | Yes | Yes | Yes (limited) | Yes (waivers + duals) | **Effectively none** | **TN-unique: skip FFS connector entirely** |
+| **FHIR R4 (CMS-0057-F APIs)** | All MCO + state | All MCO + state | All CMO + state | All MCO + state | All MCO + state | All MCC + state | Standard; OAuth2 client registration per plan |
+| **HIE platform** | NC HealthConnex (SAS) | SCeHA `[Confirm vendor]` | GaHIN (Velatura) | **VHI / ConnectVirginia** | **WVHIN** | **TnHIE + OnePartner (multi-HIE)** | Least reusable layer; strategy-pattern adapter per state; TN requires multi-HIE adapter |
+| **MFCU referral** | NC DOJ MID | SC AG VAMPF + MRFU | GA AG MFD | **VA OAG MFCU** | **WV OAG MFCU** | **TN AG MFID** (or TBI MFCD `[Confirm]`) | Same evidence-bundle schema ♻️; endpoints differ |
+| **PI unit alert intake** | OCPI | DPISUR | DCH OIG | **DMAS OCIS** | **BMS OPI** | **TennCare OPI (provider) + TennCare OIG (recipient)** | Same schema for single-track states ♻️; **TN requires dual-track router** |
+| **NEMT broker** | per plan | ModivCare statewide `[Confirm]` | Verida/ModivCare/SE Trans regional `[Confirm]` | **ModivCare statewide** `[Confirm]` | **ModivCare statewide** | **per-MCC** | ModivCare connector reusable across NC/SC/VA/WV |
+| **Pharmacy POS** | OptumRx + MCO PBMs | per-MCO + Medicaid POS `[Confirm]` | GAMMIS POS + CMO PBMs | **Magellan Rx + MCO PBMs** `[Confirm]` | **RDTP + MCO PBMs** `[Confirm]` | **OptumRx + MCC PBMs** `[Confirm]` | NCPDP D.0 standard; BIN/PCN per processor; **OptumRx connector reuses across NC + TN** ♻️ |
+| **Activity reporting (Pathways)** | N/A | N/A | Required | N/A | N/A | N/A | GA-unique |
+| **OBBB work-req reporting** | Required CY2027 | N/A | partial (Pathways) | **Required CY2027** | **Required CY2027** | **N/A** | Build once; gate by state config |
+| **Foster-care plan integration** | CFSP (Healthy Blue Care Together) | Select Health foster (First Choice) | Georgia Families 360° (Amerigroup) | **FCSP (Anthem)** | **MHP (Aetna)** | **TennCare Select (BlueCare)** `[Confirm` | Same pattern, per-MCO carrier |
+| **Tribal plan** | EBCI Tribal Option | none | none | **none** | **none** | **none** | EBCI is NC-unique |
+| **BH carve-out** | Tailored Plans (4 LME/MCOs) | Integrated | Integrated | **Integrated** | **Integrated (with carve-outs)** | **Integrated** | NC is the outlier requiring 42 CFR Part 2 separate-plan handling |
+| **State qui tam (false-claims)** | NCGS Ch. 14 + 108A | SC Code §44-6-170 | O.C.G.A. § 49-4-146.1 | **VFATA § 8.01-216.1** | none analogous | **TN Medicaid FCA § 71-5-181** | Evidence-bundle template needed for VA + TN qui tam exposure |
+| **Block-grant / Shared Savings** | N/A | N/A | N/A | N/A | N/A | **TennCare III Shared Savings** | TN-unique financial reporting hook |
+| **Statewide capitated managed-care-only architecture** | No (mixed FFS + MC) | No | No | No | No | **YES** | Architectural impact: TN skips FFS connector layer entirely |
 
 ---
 
@@ -86,6 +137,16 @@
 | GA | 7/2025 | GaHIN + DBHDD launched **Social Care Integration Initiative** | [GaHIN](https://www.gahin.org/) |
 | GA | 9/25/2025 | **CMS approved Pathways to Coverage extension through 12/31/2026** with reduced reporting, retroactive coverage, parent-of-young-child as qualifying activity | [Gov. Kemp](https://gov.georgia.gov/press-releases/2025-09-25/cms-approves-georgia-pathways-coveragetm-extension-further-validates) |
 | GA | 10/1/2025 | Pathways updates effective | [DCH](https://dch.georgia.gov/announcement/2025-10-01/pathways-updates-oct12025) |
+| VA | 1/1/2023 | Cardinal Care brand launched (unified Medicaid + FAMIS) | [Cardinal Care](https://www.dmas.virginia.gov/for-providers/cardinal-care-providers/) |
+| VA | 12/30/2024 | DMAS Notice of Award restructuring CCMC (Anthem + UHC statewide) | [SFY2026 CCMC Contract](https://www.dmas.virginia.gov/media/jtujhlgt/sfy-2026-ccmc-contract-07-01-2025.pdf) |
+| VA | 7/1/2025 | **CCMC rebid effective**: Molina out, Humana Healthy Horizons in; Sentara/Anthem/Aetna/UHC continue; FCSP launched statewide via Anthem | [July 2025 Bulletin](https://vamedicaid.dmas.virginia.gov/bulletin/july-1-2025-implementation-new-cardinal-care-managed-care-contract) |
+| VA | 4/27/2026 | Acentra ANG Service Auth single sign-on requirement effective | [Winter 2026 newsletter](https://vamedicaid.dmas.virginia.gov/sites/default/files/2026-02/Winter-2026-VA-Insider-Newsletter.pdf) |
+| WV | 1/1/2024 | DHHR splits into three departments: DH, DoHS, DHF (per HB 4595) | [WV DoHS](https://dhs.wv.gov/) |
+| WV | 8/1/2024 | **Highmark Health Options WV** joins Mountain Health Trust as 4th MCO | [BMS MHT](https://bms.wv.gov/members/mountain-health-trust-managed-care) |
+| WV | 2024–2025 | UniCare rebranded to **Wellpoint** under Elevance national Medicaid consolidation `[Confirm date]` | [BMS MHT](https://bms.wv.gov/members/mountain-health-trust-managed-care) |
+| TN | 2021 (renewed) | **TennCare III** 10-year §1115 master demonstration approved through 2030; Shared Savings authority | [Medicaid.gov TN](https://www.medicaid.gov/medicaid/section-1115-demonstrations/state/tennessee/index.html) `[Confirm]` |
+| TN | 2024 | Amerigroup TN rebranded to **Wellpoint Tennessee** | [TennCare MCCs](https://www.tn.gov/tenncare/providers/managed-care-contractors.html) |
+| TN | 1/1/2026 | **UHC TennCare network attrition** — major providers terminate in-network status; UHC continuing-contract status uncertain | [MMC notice](https://www.mmclinic.com/uhctenncarechange) |
 
 ---
 
@@ -100,6 +161,14 @@
 7. **GA Pathways to Coverage is the only pilot-state program requiring a work-activity reporting connector** — unique to GA's `state-config-service` package; no NC/SC analog.
 8. **Expansion FMAP only applies to NC.** Pricing models for federally-matched MedGuard360 functions should reflect that GA Pathways services and all SC services get traditional FMAP (~65–70%), not the 90% expansion match.
 9. **MFCU recovery profile differs dramatically.** NC and GA are top-tier (8th in NC; top-4 nationally in GA for FY2025 civil recoveries). SC's smaller MFCU operates at proportional scale. The MedGuard360 fraud-engine handoff SLA should match each state's enforcement appetite — particularly tight in GA.
+10. **(Phase 2) Palmetto MAC stack consolidates further.** NC/SC/VA/WV all run **JM** — one Palmetto-JM connector serves four pilots. GA/TN run **JJ** — one Palmetto-JJ connector serves two. The CGS-JC DME connector continues to cover all six. Total Medicare-rail connector inventory across the six-state Phase 1+2 footprint: **3 connectors** (JM, JJ, JC).
+11. **(Phase 2) Gainwell MMIS pattern reuse is now the dominant economy.** NC (Gainwell), GA (Gainwell), WV (Gainwell), and TN (Gainwell-claims-module) all share Gainwell EDI/trading-partner conventions. VA is partial (Gainwell PRSS only; core MMIS remains Conduent). SC is `[Confirm]`. The MedGuard360 Gainwell-pattern X12 adapter is reusable across 4–5 of 6 pilots.
+12. **(Phase 2) TN is architecturally unique.** Managed-care-only since 1994 means **no FFS rail to integrate** — skip the FFS claims connector entirely, focus on encounter ingestion + capitation reconciliation. **Dual-track Program Integrity** (TennCare OPI for provider, TennCare OIG for recipient) requires a fraud-alert router with two endpoints. **Shared Savings reporting** under TennCare III creates a unique financial-reporting hook with no analog in other pilots.
+13. **(Phase 2) VA is the highest-revenue-density pilot.** With ~2M enrollees and a low traditional FMAP (~51%), VA's state-share burden is among the highest in the southeast — meaning VA pays a larger fraction of every MMIS-modular dollar from general fund. This **lowers** state price sensitivity to federally-matched line items (where the 75%/90% match dominates) but **raises** price sensitivity to non-matched components. Price the VA contract accordingly.
+14. **(Phase 2) WV is the lowest-onboarding-cost pilot.** ~500K enrollees, single-vendor Gainwell MMIS, 4 MHT MCOs + 1 MHP, voluntary HIE — estimated **~47 person-weeks total lift** (~45% lighter than NC primary buildout). Use WV as the proof-of-cookie-cutter for the Phase 3 (national) rollout playbook.
+15. **(Phase 2) State qui tam exposure escalates.** VA's **VFATA** (§ 8.01-216.1) and TN's **Medicaid FCA** (§ 71-5-181) create active state plaintiff-bar pipelines parallel to federal FCA. MedGuard360's audit-service WORM evidence bundle must satisfy both federal Rule 9(b) and state-specific pleading requirements; build a per-state evidence-bundle template variant.
+16. **(Phase 2) HIE landscape stratifies.** NC: mandatory-but-suspended (NCGS 90-414.4). VA/WV: voluntary with statutory anchor (W. Va. § 16-29B for WVHIN). TN: voluntary + multi-HIE (TnHIE statewide + OnePartner regional after HIP TN disbandment). The `hie-service` strategy-pattern adapter now needs a **multi-HIE router** specifically for TN — the only pilot requiring simultaneous integration with two HIEs.
+17. **(Phase 2) Expansion-FMAP economics split the six.** NC + VA + WV all collect 90% federal on expansion populations. SC, GA, TN have no 90% expansion match (GA's Pathways gets traditional FMAP only). For MedGuard360 enrollment-projection ROI modeling, expansion states front-load federal share recovery from fraud-prevented dollars — particularly NC and VA, where expansion populations are large.
 
 ---
 
@@ -108,6 +177,9 @@
 - [NC DHHS](https://www.ncdhhs.gov/) · [NC Medicaid](https://medicaid.ncdhhs.gov/) · [NCTracks](https://www.nctracks.nc.gov/)
 - [SCDHHS](https://www.scdhhs.gov/) · [SC Medicaid Portal](https://portal.scmedicaid.com/) · [SCChoices](https://www.scchoices.com/)
 - [DCH (GA)](https://dch.georgia.gov/) · [GA Medicaid](https://medicaid.georgia.gov/) · [GAMMIS](https://www.mmis.georgia.gov/portal/Default.aspx?tabid=35)
+- [DMAS (VA)](https://www.dmas.virginia.gov/) · [VA Medicaid Provider Portal](https://vamedicaid.dmas.virginia.gov/) · [SFY2026 CCMC Contract](https://www.dmas.virginia.gov/media/jtujhlgt/sfy-2026-ccmc-contract-07-01-2025.pdf) · [VHI / ConnectVirginia](https://www.vhi.org/) · [VA OAG MFCU](https://www.oag.state.va.us/programs-initiatives/medicaid-fraud-control-unit)
+- [BMS (WV)](https://bms.wv.gov/) · [WV MMIS Portal — wvmmis.com](https://www.wvmmis.com/) · [Mountain Health Trust](https://bms.wv.gov/members/mountain-health-trust-managed-care) · [Mountain Health Promise](https://bms.wv.gov/members/mountain-health-promise) · [WVHIN](https://wvhin.org/) · [WV OAG](https://ago.wv.gov/)
+- [TennCare](https://www.tn.gov/tenncare.html) · [TennCare MCCs](https://www.tn.gov/tenncare/providers/managed-care-contractors.html) · [TennCare Annual Report FY24](https://www.tn.gov/content/dam/tn/tenncare/documents/TennCareAnnualFY24.pdf) · [TennCare OIG (recipient)](https://www.tn.gov/finance/oig.html) · [TN AG MFID](https://www.tn.gov/attorneygeneral/working-for-tennessee/medicaid-fraud-and-integrity-division.html) · [TnHIE](https://tnhie.org/) · [OnePartner HIE](https://www.onepartner.com/hie/)
 - [KFF FMAP State Indicator](https://www.kff.org/medicaid/state-indicator/federal-matching-rate-and-multiplier/) · [MACPAC Exhibit 6](https://www.macpac.gov/publication/federal-medical-assistance-percentages-fmaps-and-enhanced-fmaps-e-fmaps-by-state-selected-periods/) · [FFIS FY2026 FMAPs](https://ffis.org/issue-brief/final-fy-2026-fmaps/)
 - [Federal Register FMAP FY2026](https://www.federalregister.gov/documents/2024/11/29/2024-27910/federal-financial-participation-in-state-assistance-expenditures-federal-matching-shares-for)
 - [CMS A/B MAC JM](https://www.cms.gov/Medicare/Medicare-Contracting/Medicare-Administrative-Contractors/Who-are-the-MACs-A-B-MAC-Jurisdiction-M-JM) · [CMS A/B MAC JJ](https://www.cms.gov/Medicare/Medicare-Contracting/Medicare-Administrative-Contractors/Who-are-the-MACs-A-B-MAC-Jurisdiction-J-JJ) · [CMS DME JC](https://www.cms.gov/medicare/medicare-contracting/medicare-administrative-contractors/who-are-the-macs-dme-mac-jurisdiction-c-jc)
@@ -119,4 +191,4 @@
 
 ---
 
-*Document owner: MedGuard360 Enterprise Integrations. File: `integrations/PILOT-STATES-COMPARISON.md`. Companion docs: `nc-enterprise/README.md`, `sc-enterprise/README.md`, `ga-enterprise/README.md`.*
+*Document owner: MedGuard360 Enterprise Integrations. File: `integrations/PILOT-STATES-COMPARISON.md`. Companion docs (Phase 1): `nc-enterprise/README.md`, `sc-enterprise/README.md`, `ga-enterprise/README.md`. Companion docs (Phase 2): `va-enterprise/README.md`, `wv-enterprise/README.md`, `tn-enterprise/README.md`.*

@@ -18,6 +18,7 @@ import {
 import * as repo from './repository';
 import { classifyIntent } from './classifier';
 import { generateResponse, ChatMessage } from './chatbot';
+import { tryAutoAnswer } from './liveLookup';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,12 +112,23 @@ router.post(
 
     const call = await repo.findCall(id);
     const { intent, confidence, crisisFlag } = classifyIntent(input.message);
-    const response = generateResponse({
-      intent,
-      stateCode: call.state_code,
-      message:   input.message,
-      history:   input.history as ChatMessage[],
-    });
+
+    // AI tier — if the caller's question is answerable from the DB and we have
+    // identity (medicaidId + DOB in the body), answer directly. Otherwise fall
+    // back to scripted templates and human escalation.
+    let response: string | null = null;
+    const identity = (req.body as { medicaidId?: string; dateOfBirth?: string });
+    if (identity.medicaidId && identity.dateOfBirth) {
+      response = await tryAutoAnswer(intent, { medicaidId: identity.medicaidId, dateOfBirth: identity.dateOfBirth });
+    }
+    if (!response) {
+      response = generateResponse({
+        intent,
+        stateCode: call.state_code,
+        message:   input.message,
+        history:   input.history as ChatMessage[],
+      });
+    }
 
     // Update call with AI classification and crisis flag
     const updateData: Parameters<typeof repo.updateCall>[1] = {
