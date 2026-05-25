@@ -140,3 +140,43 @@ router.post('/providers/:id/status',
     res.json(updated);
   }),
 );
+
+// ─── MA Provider Directory compliance (CMS CY2026 final rule) ─────────────
+import * as maDir from './maDirectory';
+
+// GET /providers/directory/export?stateCode=NC[&format=json|cms-json]
+router.get('/providers/directory/export',
+  requireAuth, requireRole('mco_admin','state_medicaid_agency','federal_cms','platform_administrator','compliance_officer'),
+  ah(async (req, res) => {
+    const q = z.object({
+      stateCode: z.string().length(2).toUpperCase(),
+      format: z.enum(['json','cms-json']).default('json'),
+    }).parse(req.query);
+    const entries = await maDir.exportCmsDirectory(q.stateCode);
+    if (q.format === 'cms-json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="ma-directory-${q.stateCode}-${new Date().toISOString().slice(0,10)}.json"`);
+    }
+    res.json({ generatedAt: new Date().toISOString(), stateCode: q.stateCode, count: entries.length, entries });
+  }),
+);
+
+// POST /providers/directory/attest
+router.post('/providers/directory/attest',
+  requireAuth, requireRole('mco_admin','compliance_officer','platform_administrator'),
+  ah(async (req, res) => {
+    const body = z.object({
+      mcoPayerId: z.string().min(1).max(50),
+      stateCode: z.string().length(2).toUpperCase(),
+      attestationYear: z.number().int().min(2026).max(2099),
+      accuracyPct: z.number().min(0).max(100),
+      totalProviders: z.number().int().min(0),
+      providersVerified: z.number().int().min(0),
+      providersUnableToVerify: z.number().int().min(0),
+      notes: z.string().max(2000).optional(),
+    }).parse(req.body);
+    await maDir.recordAttestation({ ...body, attestedByUserId: req.auth!.sub });
+    res.status(201).json({ message: 'Attestation recorded.' });
+  }),
+);
+
