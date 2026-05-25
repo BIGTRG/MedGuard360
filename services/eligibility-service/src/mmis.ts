@@ -23,6 +23,8 @@ export interface MmisLookupInput {
   patientLastName?: string;
   patientDateOfBirth?: string;
   medicaidId?: string;
+  /** Provider NPI initiating the check (for HETS attestation tracking). */
+  providerNpi?: string;
 }
 
 export interface MmisLookupResult {
@@ -55,6 +57,13 @@ export async function lookupMmis(input: MmisLookupInput, authHeader: string): Pr
 
 /** Submit a real 270 to a state MMIS endpoint and parse the 271 response. */
 async function submitX12(endpoint: string, input: MmisLookupInput): Promise<MmisLookupResult> {
+  // HETS Submitter UID — required in ISA06 for Medicare 270/271 since 2026-05-11.
+  // Detection: when payerId looks like a Medicare payer ('MEDICARE*' or starts with 'CMS' /
+  // CGS Medicare contractors / Palmetto etc.), populate it. For Medicaid payers it's harmless
+  // but not required.
+  const isMedicarePayer = /^(MEDICARE|CMS_|PALMETTO|CGS|NORIDIAN)/i.test(input.payerId);
+  const hetsSubmitterUid = isMedicarePayer ? process.env.HETS_SUBMITTER_UID : undefined;
+
   const payload270 = build270({
     sender:   { qualifier: 'ZZ', id: 'MEDGUARD360', name: 'MedGuard360 Clearinghouse' },
     receiver: { qualifier: 'ZZ', id: input.payerId,  name: `Payer ${input.payerId}` },
@@ -69,6 +78,7 @@ async function submitX12(endpoint: string, input: MmisLookupInput): Promise<Mmis
     subscriberFirstName: input.patientFirstName ?? 'UNKNOWN',
     subscriberMemberId: input.medicaidId ?? 'UNKNOWN',
     subscriberDateOfBirth: (input.patientDateOfBirth ?? '19700101').replace(/-/g, ''),
+    hetsSubmitterUid,
   });
 
   try {
@@ -78,6 +88,17 @@ async function submitX12(endpoint: string, input: MmisLookupInput): Promise<Mmis
       // mTLS in production: load cert from /opt/credential-vault/eligibility/<stateCode>-mmis.{crt,key}
     });
     const parsed = parse271(typeof r.data === 'string' ? r.data : JSON.stringify(r.data));
+    // HETS AAA-41 — surface as a typed condition so callers can prompt the
+    // provider to complete HETS attestation. We update the enrollment row's
+    // last_aaa41_at marker so the compliance dashboard reflects the rejection.
+    if (parsed.requiresHetsAttestation && hetsSubmitterUid) {
+      try {
+        const { recordAaa41 } = await import('./hets');
+        await recordAaa41(input.providerNpi ?? (process.env.MEDGUARD_BILLING_NPI ?? '1234567890'), hetsSubmitterUid);
+      } catch (e) {
+        logger.warn('failed to record AAA-41 on HETS enrollment', { error: (e as Error).message });
+      }
+    }
     return {
       active: parsed.active,
       effectiveFrom: parsed.effectiveFrom,
@@ -85,7 +106,7 @@ async function submitX12(endpoint: string, input: MmisLookupInput): Promise<Mmis
       planName: parsed.planName,
       copayCents: parsed.copayCents,
       deductibleRemainingCents: parsed.deductibleRemainingCents,
-      raw: { x12_271: parsed, endpoint },
+      raw: { x12_271: parsed, endpoint, requiresHetsAttestation: parsed.requiresHetsAttestation, aaaCodes: parsed.aaaCodes },
     };
   } catch (err) {
     logger.warn('MMIS X12 submit failed; falling back to simulator', { error: (err as Error).message });

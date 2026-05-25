@@ -39,6 +39,15 @@ export interface Build270Input {
   serviceDate?: string;            // YYYYMMDD
   /** Service-type code (e.g., '30'=Health Benefit Plan Coverage, '47'=Hospital, '52'=Acupuncture). */
   serviceTypeCode?: string;
+  /**
+   * HETS Submitter UID (CMS HETS Trading Partner Management System).
+   * REQUIRED for Medicare 270/271 transactions effective 2026-05-11.
+   * When set, this value populates ISA06 sender ID (overriding sender.id) so
+   * CMS can match the inquiry to the originating submitter. Providers whose
+   * NPI is not yet attested under this submitter UID will receive AAA error 41.
+   * Source: /opt/credential-vault/<service>.json → HETS_SUBMITTER_UID
+   */
+  hetsSubmitterUid?: string;
 }
 
 function pad(s: string, n: number): string { return s.padEnd(n).slice(0, n); }
@@ -56,11 +65,16 @@ export function build270(input: Build270Input): string {
   const serviceTypeCode = input.serviceTypeCode ?? '30';
 
   // ---- ISA envelope ----
+  // HETS UID, when supplied, takes precedence over input.sender.id in ISA06.
+  // CMS HETS effective 2026-05-11.
+  const isa06Id = input.hetsSubmitterUid && input.hetsSubmitterUid.trim().length > 0
+    ? input.hetsSubmitterUid
+    : input.sender.id;
   out.push([
     'ISA',
     '00', pad('', 10),
     '00', pad('', 10),
-    input.sender.qualifier, pad(input.sender.id, 15),
+    input.sender.qualifier, pad(isa06Id, 15),
     input.receiver.qualifier, pad(input.receiver.id, 15),
     ymd(now).slice(2), hm(now),
     '^',
@@ -116,6 +130,10 @@ export function build270(input: Build270Input): string {
 export interface Parsed271 {
   active: boolean;
   rejectReason?: string;
+  /** AAA reject codes returned by payer. Code 41 = HETS submitter not authorized for this NPI. */
+  aaaCodes: string[];
+  /** True when AAA code 41 is present — NPI must complete HETS attestation. */
+  requiresHetsAttestation: boolean;
   planName?: string;
   effectiveFrom?: string;    // YYYY-MM-DD
   effectiveTo?: string;
@@ -133,16 +151,30 @@ export interface Parsed271 {
 /** Parses a 271 response. The 271 uses EB segments — one per benefit returned. */
 export function parse271(payload: string): Parsed271 {
   const segments = payload.split(/[~\n\r]+/).filter(Boolean);
-  const out: Parsed271 = { active: false, benefits: [], raw: { rawSegmentCount: segments.length } };
+  const out: Parsed271 = {
+    active: false, benefits: [], aaaCodes: [], requiresHetsAttestation: false,
+    raw: { rawSegmentCount: segments.length },
+  };
 
   for (const seg of segments) {
     const parts = seg.split('*');
     const tag = parts[0];
 
     if (tag === 'AAA') {
-      // Application error - subscriber not found, etc.
+      // Application error - subscriber not found, HETS attestation missing, etc.
+      // AAA01: valid request indicator (Y/N)
+      // AAA02: rejection reason code (technical)
+      // AAA03: reject reason code (business) — '41' = HETS submitter not authorized for NPI
+      // AAA04: follow-up action code
       out.active = false;
-      out.rejectReason = `AAA reject code ${parts[3] ?? 'unknown'}`;
+      const reject = parts[3] ?? 'unknown';
+      out.aaaCodes.push(reject);
+      out.rejectReason = `AAA reject code ${reject}`;
+      if (reject === '41') {
+        out.requiresHetsAttestation = true;
+        out.rejectReason = 'HETS submitter not authorized for this NPI (AAA 41). '
+          + 'Provider must complete HETS attestation linking their NPI to the MedGuard360 HETS Submitter UID.';
+      }
     } else if (tag === 'EB') {
       // Eligibility/Benefit segment
       // EB01: coverage status (1=Active, 6=Inactive, V=Cannot Process)

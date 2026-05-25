@@ -27,6 +27,7 @@ import {
 import * as repo from './repository';
 import { runClinicalDecisionEngine, computeDueAt } from './engine';
 import { getDaVinciPasAdapter } from '@medguard360/shared';
+import * as drugPa from './drugPa';
 
 const logger = createLogger('prior-auth-service:routes');
 
@@ -81,6 +82,112 @@ const ah = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unk
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const router = Router();
+
+/**
+ * GET /api/v1/prior-auth/drug-pa/formulary-check?payerId=&ndcCode=
+ * Pre-PA formulary tier check. If drug is preferred + no PA flag → no PA needed.
+ * Pharmacy / EHR calls this before initiating a drug PA workflow.
+ */
+router.get(
+  '/prior-auth/drug-pa/formulary-check',
+  requireAuth,
+  ah(async (req, res) => {
+    const q = z.object({
+      payerId: z.string().min(1).max(50),
+      ndcCode: z.string().regex(/^\d{4,5}-\d{3,4}-\d{1,2}$/),
+    }).parse(req.query);
+    const result = await drugPa.checkFormulary(q.payerId, q.ndcCode);
+    res.json(result);
+  }),
+);
+
+/**
+ * POST /api/v1/prior-auth/drug-pa
+ * Create a drug-type PA request. Uses pa_requests table with service_code_type='NDC'.
+ * SLA: 24h (CMS-0062-P standard). Triggers BERT criteria evaluation just like procedure PA.
+ */
+router.post(
+  '/prior-auth/drug-pa',
+  requireAuth,
+  requireRole('individual_provider', 'facility_provider', 'pharmacy', 'prior_auth_specialist'),
+  ah(async (req, res) => {
+    const body = z.object({
+      patientId: z.string().uuid(),
+      orderingProviderUserId: z.string().uuid(),
+      pharmacyProviderId: z.string().uuid().optional(),
+      payerId: z.string().min(1),
+      stateCode: z.string().length(2).toUpperCase(),
+      ndcCode: z.string().regex(/^\d{4,5}-\d{3,4}-\d{1,2}$/),
+      drugName: z.string().min(1).max(200),
+      daysSupply: z.number().int().positive().max(365),
+      quantity: z.number().positive(),
+      diagnosisCodes: z.array(z.string()).min(1),
+      priorDrugTrials: z.array(z.object({
+        ndcCode: z.string(), drugName: z.string(),
+        outcome: z.enum(['failed','intolerant','contraindicated']),
+        durationDays: z.number().int().positive(),
+      })).optional(),
+      urgency: z.enum(['standard','expedited','drug']).default('drug'),
+      ncpdpMessageId: z.string().optional(),
+    }).parse(req.body);
+
+    // 1. Formulary tier check — if drug is preferred and no PA flag, return early
+    const fc = await drugPa.checkFormulary(body.payerId, body.ndcCode);
+    if (!fc.pa_required) {
+      res.json({ paRequired: false, formulary: fc, message: 'No PA required for this drug under this payer\'s formulary.' });
+      return;
+    }
+
+    // 2. Step therapy gate — block PA submission if step therapy required and no prior trials documented
+    if (fc.step_therapy_required && (!body.priorDrugTrials || body.priorDrugTrials.length === 0)) {
+      res.status(422).json({
+        error: 'STEP_THERAPY_REQUIRED',
+        message: 'Step therapy required for this drug. Document prior trials in priorDrugTrials before submission.',
+        formulary: fc,
+      });
+      return;
+    }
+
+    // 3. Create PA row (uses repo.createPaRequest with drug-specific fields)
+    const dueAt = computeDueAt(body.urgency);
+    const result = await pool.query(
+      `INSERT INTO pa_requests (
+         patient_id, ordering_provider_id, payer_id, state_code,
+         service_code, service_code_type, service_description, diagnosis_codes,
+         urgency, status, due_at, created_by,
+         days_supply, quantity, pharmacy_provider_id, prior_drug_trials,
+         formulary_tier, step_therapy_required, ncpdp_message_id
+       ) VALUES ($1,$2,$3,$4, $5,'NDC',$6,$7, $8,'received',$9,$10, $11,$12,$13,$14::jsonb, $15,$16,$17)
+       RETURNING id`,
+      [
+        body.patientId, body.orderingProviderUserId, body.payerId, body.stateCode,
+        body.ndcCode, body.drugName, body.diagnosisCodes,
+        body.urgency, dueAt, req.auth!.sub,
+        body.daysSupply, body.quantity, body.pharmacyProviderId ?? null,
+        JSON.stringify(body.priorDrugTrials ?? []),
+        fc.entry?.tier ?? null, fc.step_therapy_required, body.ncpdpMessageId ?? null,
+      ],
+    );
+    const paId = result.rows[0].id;
+
+    await auditLog({
+      resource: 'pa_request', resourceId: paId, action: 'create',
+      actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
+      context: { kind: 'drug_pa', ndc: body.ndcCode, payer: body.payerId, tier: fc.entry?.tier },
+    });
+    await emitEvent('pa.requested', {
+      paId, kind: 'drug', patientId: body.patientId, payerId: body.payerId,
+      stateCode: body.stateCode, ndcCode: body.ndcCode, urgency: body.urgency,
+      dueAt: dueAt.toISOString(),
+    }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
+
+    res.status(201).json({
+      paId, paRequired: true, formulary: fc,
+      dueAt: dueAt.toISOString(),
+      message: 'Drug PA submitted; awaiting BERT criteria evaluation + pharmacist review.',
+    });
+  }),
+);
 
 /**
  * POST /api/v1/prior-auth/pa-requests/crd-check
