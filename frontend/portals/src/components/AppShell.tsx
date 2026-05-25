@@ -10,7 +10,30 @@ import { logout } from '@/lib/api-client';
 import { getCurrentClaims } from '@/lib/auth';
 import { cn } from '@/lib/format';
 import { PORTAL_TITLE, navForRole } from '@/lib/nav-config';
-import type { AuthClaims } from '@/lib/types';
+import type { AuthClaims, UserRole } from '@/lib/types';
+
+const DEMO_ROLES: { role: UserRole; home: string }[] = [
+  { role: 'platform_administrator',    home: '/admin' },
+  { role: 'individual_provider',       home: '/provider' },
+  { role: 'facility_provider',         home: '/provider' },
+  { role: 'patient',                   home: '/patient' },
+  { role: 'pharmacy',                  home: '/pharmacy' },
+  { role: 'dmepos_supplier',           home: '/dme' },
+  { role: 'nemt_broker',               home: '/nemt' },
+  { role: 'mco_admin',                 home: '/state' },
+  { role: 'state_medicaid_agency',     home: '/state' },
+  { role: 'federal_cms',               home: '/state' },
+  { role: 'credentialing_specialist',  home: '/credentialing' },
+  { role: 'prior_auth_specialist',     home: '/pa-queue' },
+  { role: 'billing_manager',           home: '/admin' },
+  { role: 'compliance_officer',        home: '/audit' },
+  { role: 'fraud_investigator',        home: '/fraud' },
+  { role: 'denial_appeals_specialist', home: '/denials' },
+  { role: 'school_administrator',      home: '/school' },
+  { role: 'hie_administrator',         home: '/hie' },
+  { role: 'emergency_responder',       home: '/responder' },
+  { role: 'qa_auditor',                home: '/audit' },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }): React.ReactElement {
   const pathname = usePathname();
@@ -18,13 +41,20 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   const [claims, setClaims] = useState<AuthClaims | null>(null);
 
   useEffect(() => {
-    const c = getCurrentClaims();
-    if (!c) {
-      router.replace('/login');
-      return;
-    }
+    // DEMO BYPASS: synthesize claims from sessionStorage role picker or default to admin.
+    const demoRole = (typeof window !== 'undefined' && sessionStorage.getItem('demo_role')) as UserRole | null;
+    const role: UserRole = demoRole ?? 'platform_administrator';
+    const c = getCurrentClaims() ?? ({
+      sub: '00000000-0000-0000-0000-000000000001',
+      email: `${role}@demo.medguard360.com`,
+      role,
+      stateCode: undefined,
+      orgId: undefined,
+      biometricVerified: false,
+      sessionId: 'demo-session',
+    } as AuthClaims);
     setClaims(c);
-  }, [pathname, router]);
+  }, [pathname]);
 
   if (!claims) {
     return <div className="flex h-screen items-center justify-center text-sm text-slate-500">Loading…</div>;
@@ -89,6 +119,21 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
             <button className="rounded-md p-2 text-slate-500 hover:bg-slate-100" title="Alerts">
               <BellAlertIcon className="h-5 w-5" />
             </button>
+            <select
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs"
+              value={claims.role}
+              onChange={(e) => {
+                const role = e.target.value as UserRole;
+                sessionStorage.setItem('demo_role', role);
+                const home = DEMO_ROLES.find(r => r.role === role)?.home ?? '/';
+                window.location.href = home;
+              }}
+              title="Switch demo role"
+            >
+              {DEMO_ROLES.map(r => (
+                <option key={r.role} value={r.role}>{PORTAL_TITLE[r.role]} ({r.role})</option>
+              ))}
+            </select>
             <div className="flex items-center gap-2 rounded-md border border-slate-200 px-2 py-1 text-xs">
               <span className="font-medium text-slate-700">{claims.email}</span>
               {claims.stateCode && <span className="badge-gray">{claims.stateCode}</span>}
