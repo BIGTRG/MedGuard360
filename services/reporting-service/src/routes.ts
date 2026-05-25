@@ -5,6 +5,9 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { buildPermReport, buildFraudSummary, buildClaimsVolume } from './reports';
+import { extractFfsUniverse, toPipeDelimited } from './perm';
+import { extractEligibleFile, extractProviderFile, buildFilename, type TmsisFile } from './tmsis';
+import { computeMlr } from './mlr';
 
 const RunSchema = z.object({
   stateCode: z.string().length(2),
@@ -108,6 +111,63 @@ router.get('/reporting/reports/:id', requireAuth, ah(async (req, res) => {
   const job = await repo.getJob(req.auth!, id);
   res.json(job);
 }));
+
+// PERM universe extract (FFS only for now)
+router.get('/reporting/perm/ffs-universe',
+  requireAuth, requireRole('state_medicaid_agency','federal_cms','compliance_officer','platform_administrator'),
+  ah(async (req, res) => {
+    const q = z.object({
+      stateCode: z.string().length(2).toUpperCase(),
+      fromDate:  z.string(),
+      toDate:    z.string(),
+      format:    z.enum(['json','pipe']).default('json'),
+    }).parse(req.query);
+    const rows = await extractFfsUniverse({ stateCode: q.stateCode, fromDate: q.fromDate, toDate: q.toDate, universe: 'FFS' });
+    if (q.format === 'pipe') {
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="PERM_FFS_${q.stateCode}_${q.fromDate}_${q.toDate}.txt"`);
+      res.send(toPipeDelimited(rows));
+      return;
+    }
+    res.json({ count: rows.length, rows });
+  }),
+);
+
+// T-MSIS monthly file generator (ELIGIBLE + PROVIDER for now)
+router.get('/reporting/tmsis/file',
+  requireAuth, requireRole('state_medicaid_agency','federal_cms','platform_administrator'),
+  ah(async (req, res) => {
+    const q = z.object({
+      stateCode: z.string().length(2).toUpperCase(),
+      yyyymm:    z.string().regex(/^\d{6}$/),
+      file:      z.enum(['ELIGIBLE','PROVIDER']),
+    }).parse(req.query);
+    const out = q.file === 'ELIGIBLE'
+      ? await extractEligibleFile(q.stateCode, q.yyyymm)
+      : await extractProviderFile(q.stateCode, q.yyyymm);
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="${buildFilename({ state_code: q.stateCode, reporting_period: q.yyyymm, file_type: q.file as TmsisFile })}"`);
+    res.send(out.body);
+  }),
+);
+
+// MLR computation
+router.get('/reporting/mlr',
+  requireAuth, requireRole('mco_admin','state_medicaid_agency','compliance_officer','platform_administrator'),
+  ah(async (req, res) => {
+    const q = z.object({
+      mcoPayerId: z.string(),
+      stateCode:  z.string().length(2).toUpperCase(),
+      from:       z.string(),
+      to:         z.string(),
+    }).parse(req.query);
+    const result = await computeMlr({
+      mco_payer_id: q.mcoPayerId, state_code: q.stateCode,
+      period_start: q.from, period_end: q.to,
+    });
+    res.json(result);
+  }),
+);
 
 // Dashboard endpoint — quick rollup queries for portals
 router.get('/reporting/reports/rollups',

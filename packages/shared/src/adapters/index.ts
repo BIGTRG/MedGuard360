@@ -14,3 +14,5 @@ export * from './mtm';
 export * from './modivcare';
 export * from './cgs';
 export * from './davinci-pas';
+export * from './surescripts';
+export * from './dea-epcs';
