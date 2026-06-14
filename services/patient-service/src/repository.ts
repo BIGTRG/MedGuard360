@@ -12,7 +12,7 @@ import { PatientRow, CrisisPlanRow } from './types';
 // ── Patient CRUD ──────────────────────────────────────────────────────────────
 
 export async function findPatient(id: string, auth: AuthClaims): Promise<PatientRow | null> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const result = await client.query<PatientRow>(
       'SELECT * FROM patients WHERE id = $1 LIMIT 1',
       [id],
@@ -31,7 +31,7 @@ export async function searchPatients(
   filters: SearchFilters,
   auth: AuthClaims,
 ): Promise<PatientRow[]> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const where: string[] = [];
     const params: unknown[] = [];
 
@@ -97,7 +97,7 @@ export async function updatePatient(
   data: Partial<PatientRow>,
   auth: AuthClaims,
 ): Promise<PatientRow> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const fields: string[] = [];
     const params: unknown[] = [];
 
@@ -138,7 +138,7 @@ export async function getCrisisPlan(
   patientId: string,
   auth: AuthClaims,
 ): Promise<CrisisPlanRow | null> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const result = await client.query<CrisisPlanRow>(
       'SELECT * FROM crisis_plans WHERE patient_id = $1 LIMIT 1',
       [patientId],
@@ -154,7 +154,7 @@ export async function upsertCrisisPlan(
   data: UpsertCrisisPlanData,
   auth: AuthClaims,
 ): Promise<CrisisPlanRow> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const result = await client.query<CrisisPlanRow>(
       `INSERT INTO crisis_plans
          (patient_id, triggers, deescalation_strategies, emergency_contacts,

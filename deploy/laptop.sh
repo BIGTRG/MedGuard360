@@ -70,7 +70,7 @@ docker compose -f "$COMPOSE" up -d
 echo ""
 echo "→ Waiting for portal to come up..."
 for i in {1..60}; do
-  if curl -fsS http://localhost:3000 >/dev/null 2>&1; then break; fi
+  if curl -fsS http://localhost/ >/dev/null 2>&1; then break; fi
   printf '.'
   sleep 2
 done
@@ -81,7 +81,7 @@ cat <<'EOF'
 ================================================================
   🎉 MedGuard360 is running
 
-  Portal:        http://localhost:3000
+  Portal:        http://localhost/  (or http://localhost:3080/ direct)
   API gateway:   http://localhost/api/v1
   MinIO console: http://localhost:9001 (medguard / medguard-demo-password)
 

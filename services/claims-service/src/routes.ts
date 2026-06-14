@@ -146,7 +146,7 @@ router.get(
     // If not a specialist/admin, scope to own provider
     const privilegedRoles = ['prior_auth_specialist', 'billing_manager', 'compliance_officer',
       'fraud_investigator', 'platform_administrator', 'state_medicaid_agency', 'federal_cms'];
-    const hasPrivilege = auth.roles?.some((r: string) => privilegedRoles.includes(r));
+    const hasPrivilege = privilegedRoles.includes(auth.role);
 
     const rows = await repo.listClaims({
       providerId: hasPrivilege ? filters.provider_id : auth.sub,

@@ -56,8 +56,7 @@ CREATE POLICY patients_read ON patients FOR SELECT USING (
     app_current_role() IN (
       'state_medicaid_agency', 'mco_admin', 'credentialing_specialist',
       'prior_auth_specialist', 'billing_manager', 'compliance_officer',
-      'fraud_investigator', 'denial_appeals_specialist', 'qa_auditor',
-      'hub_admin'::user_role          -- (omit if role doesn't exist; harmless cast)
+      'fraud_investigator', 'denial_appeals_specialist', 'qa_auditor'
     )
     AND state_code = app_current_state_code()
   )

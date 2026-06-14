@@ -115,7 +115,7 @@ export async function listClaims(filters: ClaimListFilters): Promise<ClaimRow[]>
 
   if (filters.providerId) {
     params.push(filters.providerId);
-    conditions.push(`provider_user_id = $${params.length}`);
+    conditions.push(`billing_provider_id = $${params.length}`);
   }
   if (filters.patientId) {
     params.push(filters.patientId);

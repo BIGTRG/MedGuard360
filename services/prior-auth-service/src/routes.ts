@@ -361,7 +361,7 @@ router.post(
 router.get(
   '/prior-auth/pa-requests/queue',
   requireAuth,
-  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer'),
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'platform_administrator'),
   ah(async (_req, res) => {
     // Pull active items from both buckets — repo's list filters one status at a
     // time, so concatenate and sort in-process. Volume is bounded (queue is for
@@ -385,7 +385,7 @@ router.get(
 router.get(
   '/prior-auth/pa-requests',
   requireAuth,
-  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer'),
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'platform_administrator'),
   ah(async (req, res) => {
     const query = parse(ListPaSchema, req.query);
 

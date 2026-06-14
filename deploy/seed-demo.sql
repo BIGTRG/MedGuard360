@@ -12,35 +12,35 @@ BEGIN;
 -- ============================================================
 INSERT INTO users (id, email, password_hash, role, status, state_code, created_by) VALUES
   ('00000000-0000-0000-0000-000000000001', 'admin@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'platform_administrator', 'active', NULL,
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000002', 'state@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'state_medicaid_agency', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000003', 'provider@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'individual_provider', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000004', 'patient@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'patient', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000005', 'pa@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'prior_auth_specialist', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000006', 'fraud@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'fraud_investigator', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000007', 'denial@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'denial_appeals_specialist', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001'),
   ('00000000-0000-0000-0000-000000000008', 'responder@demo.medguard360.com',
-   '$2b$12$Ow3iQX4mF8Xq7JmF5oFvL.PcCQpwhGCk1MtPj0BMXFPxgRiH.kZS6',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'emergency_responder', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
@@ -156,7 +156,7 @@ VALUES
    '00000000-0000-0000-0000-000000000003')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO pa_criterion_evaluations (pa_request_id, criterion_text, status, evidence_excerpt, ai_confidence)
+INSERT INTO pa_criterion_evaluations (pa_request_id, criterion_text, outcome, explanation, similarity_score)
 VALUES
   ('40000000-0000-0000-0000-000000000001',
    'Patient must have a documented mental health diagnosis on the DSM-5 axis.',
@@ -240,13 +240,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO fraud_scores (claim_id, state_code, score, recommendation, flags, explanation, engine_version)
 VALUES
   ('50000000-0000-0000-0000-000000000003', 'NC', 67, 'route_to_review',
-   '[{"code":"CHARGE_OUTLIER","label":"Claim charge is 12.5× provider 30-day average","severity":0.85}]',
+   '[{"code":"CHARGE_OUTLIER","label":"Claim charge is 12.5× provider 30-day average","severity":0.85}]'::jsonb,
    'Risk score: 67/100 (auto-block threshold: 80). Recommendation: route to review.' || chr(10) ||
    'Flags raised:' || chr(10) || '  • Claim charge is 12.5× provider 30-day average',
    'fraud-detection/1.0.0-iforest-xgb'),
   ('50000000-0000-0000-0000-000000000004', 'NC', 89, 'auto_block',
-   '[{"code":"UNUSUAL_VOLUME_24H","label":"Provider submitted 250 claims in 24h","severity":0.85},' ||
-   '{"code":"CHARGE_OUTLIER","label":"Claim charge is 45× provider 30-day average","severity":0.9}]',
+   '[{"code":"UNUSUAL_VOLUME_24H","label":"Provider submitted 250 claims in 24h","severity":0.85},{"code":"CHARGE_OUTLIER","label":"Claim charge is 45× provider 30-day average","severity":0.9}]'::jsonb,
    'Risk score: 89/100 (auto-block threshold: 80). Recommendation: auto block.' || chr(10) ||
    'Flags raised:' || chr(10) ||
    '  • Provider submitted 250 claims in 24h' || chr(10) ||
