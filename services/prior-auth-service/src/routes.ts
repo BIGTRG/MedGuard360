@@ -366,10 +366,13 @@ router.get(
     // Pull active items from both buckets — repo's list filters one status at a
     // time, so concatenate and sort in-process. Volume is bounded (queue is for
     // humans to work through), so this is fine.
-    const pending = await repo.listPaRequests({ status: 'pending',          limit: 500 });
-    const moreInfo = await repo.listPaRequests({ status: 'needs_more_info', limit: 500 });
+    const [received, evaluating, moreInfo] = await Promise.all([
+      repo.listPaRequests({ status: 'received', limit: 500 }),
+      repo.listPaRequests({ status: 'evaluating', limit: 500 }),
+      repo.listPaRequests({ status: 'needs_more_info', limit: 500 }),
+    ]);
     const urgencyRank: Record<string, number> = { drug: 0, expedited: 1, standard: 2 };
-    const requests = [...pending, ...moreInfo].sort((a, b) => {
+    const requests = [...received, ...evaluating, ...moreInfo].sort((a, b) => {
       const ur = (urgencyRank[a.urgency] ?? 99) - (urgencyRank[b.urgency] ?? 99);
       if (ur !== 0) return ur;
       return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
@@ -436,6 +439,8 @@ router.get(
     });
 
     res.json({
+      ...paRequest,
+      criteria: evalResult.rows,
       paRequest,
       criteriaEvaluations: evalResult.rows,
     });

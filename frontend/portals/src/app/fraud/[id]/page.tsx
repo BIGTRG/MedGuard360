@@ -31,8 +31,8 @@ function FraudCaseDetailInner(): React.ReactElement {
 
   useEffect(() => {
     if (!params.id) return;
-    api.get<{ cases: CaseDetail[] }>('/v1/fraud/cases')
-      .then(r => setData(r.cases.find(c => c.id === params.id) ?? null))
+    api.get<CaseDetail>(`/v1/fraud/cases/${params.id}`)
+      .then(setData)
       .catch(err => setError(err instanceof ApiError ? err.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, [params.id]);

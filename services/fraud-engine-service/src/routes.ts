@@ -29,6 +29,7 @@ import {
   recordEvent,
 } from './repository';
 import { fraudDetection } from './clients';
+import { toPortalView } from './serialize';
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -110,7 +111,10 @@ router.get(
       phiAccessed: true,
     });
 
-    res.json(result);
+    res.json({
+      cases: result.cases.map(toPortalView),
+      total: result.total,
+    });
   }),
 );
 
@@ -118,7 +122,7 @@ router.get(
 router.get(
   '/fraud/cases/:id',
   requireAuth,
-  requireRole('fraud_investigator', 'compliance_officer'),
+  requireRole('fraud_investigator', 'compliance_officer', 'platform_administrator'),
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const fraudCase = await getFraudCase(id);
@@ -130,7 +134,7 @@ router.get(
       phiAccessed: true,
     });
 
-    res.json(fraudCase);
+    res.json(toPortalView(fraudCase));
   }),
 );
 

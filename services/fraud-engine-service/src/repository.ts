@@ -73,6 +73,7 @@ function mapFraudCase(row: FraudCaseDbRow): FraudCase {
     escalated_by: row.escalated_by,
     escalation_target: row.escalation_target,
     escalation_notes: row.escalation_notes,
+    opened_at: row.opened_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

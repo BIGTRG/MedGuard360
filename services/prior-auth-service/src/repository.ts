@@ -67,7 +67,7 @@ export async function listPaRequests(filters: PaListFilters): Promise<PaRequestR
   }
   if (filters.providerId) {
     params.push(filters.providerId);
-    conditions.push(`provider_user_id = $${params.length}`);
+    conditions.push(`ordering_provider_id = $${params.length}`);
   }
 
   const limit = Math.min(filters.limit ?? 100, 500);

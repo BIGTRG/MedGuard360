@@ -18,8 +18,22 @@ export interface FraudCase {
   escalated_by: string | null;
   escalation_target: 'OCPI' | 'MFCU' | 'CMS_UPIC' | 'STATE_OIG' | null;
   escalation_notes: string | null;
+  opened_at: Date;
   created_at: Date;
   updated_at: Date;
+}
+
+/** Shape expected by frontend/portals investigator queue. */
+export interface FraudCasePortalView {
+  id: string;
+  claim_id: string;
+  state_code: string;
+  status: string;
+  opened_at: string;
+  assigned_investigator: string | null;
+  score: number;
+  recommendation: 'auto_pay' | 'route_to_review' | 'auto_block';
+  explanation: string;
 }
 
 export interface ClaimFeatureVector {
