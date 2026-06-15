@@ -1,4 +1,5 @@
 import { pool, withRlsContext, NotFoundError, query } from '@medguard360/shared';
+import type { PoolClient } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 
 // ── CCN generation ────────────────────────────────────────────────────────────
@@ -109,7 +110,10 @@ export interface ClaimListFilters {
   stateCode?: string;
 }
 
-export async function listClaims(filters: ClaimListFilters): Promise<ClaimRow[]> {
+export async function listClaims(
+  filters: ClaimListFilters,
+  client: PoolClient = pool,
+): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -132,7 +136,7 @@ export async function listClaims(filters: ClaimListFilters): Promise<ClaimRow[]>
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await pool.query<ClaimRow>(
+  const result = await client.query<ClaimRow>(
     `SELECT * FROM claims ${where} ORDER BY created_at DESC LIMIT 500`,
     params,
   );

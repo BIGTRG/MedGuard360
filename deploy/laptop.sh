@@ -95,6 +95,7 @@ cat <<'EOF'
                                            criterion-by-criterion AI matching
     fraud@demo.medguard360.com         — fraud investigator queue
                                            ⭐ 2 cases pre-loaded
+    compliance@demo.medguard360.com    — compliance officer / audit log
     denial@demo.medguard360.com        — denials/appeals (1 denial waiting)
     responder@demo.medguard360.com     — emergency responder (biometric-gated)
 

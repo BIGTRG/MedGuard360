@@ -1,19 +1,42 @@
-﻿# MedGuard360 - NC demo flow API checks
+﻿# MedGuard360 - NC DHHS demo flow API checks (all script stops)
 $ErrorActionPreference = "Continue"
 $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
 $api = "http://localhost/api/v1"
+$portal = "http://localhost"
 $pass = "demo-Password!1"
 $failures = New-Object System.Collections.Generic.List[string]
+
 function Test-Ok($name, $cond, $detail = "") {
   if ($cond) { Write-Host "[OK] $name" -ForegroundColor Green }
   else { Write-Host "[FAIL] $name $detail" -ForegroundColor Red; $script:failures.Add($name) | Out-Null }
 }
+
 function Get-Token($email) {
   $login = Invoke-RestMethod -Uri "$api/auth/login" -Method POST -Body (@{ email = $email; password = $pass } | ConvertTo-Json) -ContentType "application/json"
   return $login.accessToken
 }
-Write-Host "`n=== Demo flow: Fraud investigator ===" -ForegroundColor Cyan
+
+function Test-PortalPage($path) {
+  try {
+    $r = Invoke-WebRequest -Uri "$portal$path" -UseBasicParsing -TimeoutSec 15
+    return $r.StatusCode -eq 200
+  } catch { return $false }
+}
+
+Write-Host "`n=== Stop 1-2: Platform admin ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'admin@demo.medguard360.com')" }
+try {
+  $nc = Invoke-RestMethod -Uri "$api/state-config/NC" -Headers $h
+  Test-Ok "NC state config" ($null -ne $nc.state_code)
+  $plans = Invoke-RestMethod -Uri "$api/state-config/plans" -Headers $h
+  Test-Ok "pilot state plans" ($plans.states.Count -ge 1)
+  Test-Ok "portal /admin" (Test-PortalPage "/admin")
+  Test-Ok "portal /admin/pilot-states" (Test-PortalPage "/admin/pilot-states")
+  Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
+} catch { Test-Ok "admin flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Stop 3: Fraud investigator ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'fraud@demo.medguard360.com')" }
 try {
   $cases = Invoke-RestMethod -Uri "$api/fraud/cases?limit=5" -Headers $h
@@ -21,15 +44,59 @@ try {
   Test-Ok "fraud case has score field" ($null -ne $cases.cases[0].score)
   $one = Invoke-RestMethod -Uri "$api/fraud/cases/$($cases.cases[0].id)" -Headers $h
   Test-Ok "fraud case detail" ($one.score -ge 0)
+  Test-Ok "portal /fraud" (Test-PortalPage "/fraud")
 } catch { Test-Ok "fraud flow" $false $_.Exception.Message }
-Write-Host "`n=== Demo flow: PA specialist ===" -ForegroundColor Cyan
+
+Write-Host "`n=== Stop 4: PA specialist ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'pa@demo.medguard360.com')" }
 try {
   $queue = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/queue" -Headers $h
   Test-Ok "PA queue has items" ($queue.count -ge 1)
-  $detail = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$($queue.requests[0].id)" -Headers $h
-  Test-Ok "PA detail has criteria" ($detail.criteria.Count -ge 1)
+  $paId = $queue.requests[0].id
+  $detail = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$paId" -Headers $h
+  $criteria = if ($detail.criteriaEvaluations) { $detail.criteriaEvaluations } else { $detail.criteria }
+  Test-Ok "PA detail has criteria" ($criteria.Count -ge 1)
+  Test-Ok "portal /pa-queue" (Test-PortalPage "/pa-queue")
+  Test-Ok "portal PA evidence" (Test-PortalPage "/pa-queue/$paId/evidence")
 } catch { Test-Ok "PA flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Stop 5: Provider workflow ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'provider@demo.medguard360.com')" }
+try {
+  $claims = Invoke-RestMethod -Uri "$api/claims?limit=10" -Headers $h
+  Test-Ok "provider sees own claims" ($claims.count -ge 1)
+  $patients = Invoke-RestMethod -Uri "$api/patients?limit=5" -Headers $h
+  Test-Ok "provider sees patients" ($patients.count -ge 1)
+  Test-Ok "portal /provider/workflow" (Test-PortalPage "/provider/workflow")
+  Test-Ok "portal /provider/claims" (Test-PortalPage "/provider/claims")
+} catch { Test-Ok "provider flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
+Test-Ok "portal /patient" (Test-PortalPage "/patient")
+
+Write-Host "`n=== Stop 7: Compliance + denials ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" }
+try {
+  $audit = Invoke-RestMethod -Uri "$api/audit/search?limit=5" -Headers $h
+  Test-Ok "audit search" ($audit.count -ge 0)
+  Test-Ok "portal /compliance" (Test-PortalPage "/compliance")
+  Test-Ok "portal /audit" (Test-PortalPage "/audit")
+} catch { Test-Ok "compliance flow" $false $_.Exception.Message }
+
+$h = @{ Authorization = "Bearer $(Get-Token 'denial@demo.medguard360.com')" }
+try {
+  $denials = Invoke-RestMethod -Uri "$api/denials?limit=5" -Headers $h
+  Test-Ok "denials list" ($denials.denials.Count -ge 1)
+  Test-Ok "portal /denials" (Test-PortalPage "/denials")
+} catch { Test-Ok "denial flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Reporting rollups ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'admin@demo.medguard360.com')" }
+try {
+  $rollups = Invoke-RestMethod -Uri "$api/reporting/reports/rollups?stateCode=NC&metric=claims_submitted&fromDay=2026-05-15&toDay=2026-06-15" -Headers $h
+  Test-Ok "reporting rollups" ($rollups.rollups.Count -ge 1)
+} catch { Test-Ok "reporting flow" $false $_.Exception.Message }
+
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan
 if ($failures.Count -eq 0) { Write-Host "All demo flow checks passed." -ForegroundColor Green; exit 0 }
 Write-Host "$($failures.Count) failure(s)" -ForegroundColor Red; exit 1

@@ -7,7 +7,7 @@
 ## Pre-meeting (5 min before)
 
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
-- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/smoke-demo.ps1`)
+- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/smoke-demo.ps1` and `deploy/demo-flow.ps1`)
 - Login bypass enabled — land on **Platform Admin** dashboard
 - Backup: PROJECT-STATUS.md open in second tab
 

@@ -91,8 +91,11 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`)
-      .then(setData)
+    api.get<PaDetailResponse & { criteria?: CriterionEvaluation[] }>(`/v1/prior-auth/pa-requests/${paId}`)
+      .then((r) => setData({
+        paRequest: r.paRequest ?? (r as unknown as PaRequestRow),
+        criteriaEvaluations: r.criteriaEvaluations ?? r.criteria ?? [],
+      }))
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false));
   }, [paId]);

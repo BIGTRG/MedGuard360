@@ -42,6 +42,10 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000008', 'responder@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'emergency_responder', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000009', 'compliance@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'compliance_officer', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
 
