@@ -57,7 +57,7 @@ function AdminInner(): React.ReactElement {
         <SectionCard icon={FlagIcon}        title="NC Enterprise"      subtitle="Primary pilot deep dive — divisions, NCTracks, connectors, readiness" href="/admin/nc-enterprise" />
         <SectionCard icon={CircleStackIcon} title="Integrations"       subtitle="8 vendor adapters — env mode + credential vault" href="/admin/integrations" />
         <SectionCard icon={UserGroupIcon}   title="Users & Roles"      subtitle="20 role types • RLS-scoped" href="/admin/users" />
-        <SectionCard icon={ShieldCheckIcon} title="Audit Log"          subtitle="Append-only HIPAA event log" href="/admin/audit" />
+        <SectionCard icon={ShieldCheckIcon} title="Audit Log"          subtitle="Append-only HIPAA event log" href="/audit" />
       </div>
 
       <div className="card">

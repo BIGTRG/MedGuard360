@@ -34,6 +34,8 @@ try {
   Test-Ok "portal /admin" (Test-PortalPage "/admin")
   Test-Ok "portal /admin/pilot-states" (Test-PortalPage "/admin/pilot-states")
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
+  Test-Ok "portal /admin/nc-enterprise" (Test-PortalPage "/admin/nc-enterprise")
+  Test-Ok "portal /admin/users" (Test-PortalPage "/admin/users")
 } catch { Test-Ok "admin flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 3: Fraud investigator ===" -ForegroundColor Cyan
@@ -50,6 +52,8 @@ try {
     $ev = Invoke-RestMethod -Uri "$api/fraud/cases/$($high.id)/events" -Headers $h
     Test-Ok "fraud case timeline events" ($ev.events.Count -ge 1)
     Test-Ok "portal fraud case detail" (Test-PortalPage "/fraud/cases/$($high.id)")
+    $note = Invoke-RestMethod -Uri "$api/fraud/cases/$($high.id)/events" -Method POST -Headers $h -Body (@{ eventType = 'note'; text = 'Demo-flow verification note.' } | ConvertTo-Json) -ContentType "application/json"
+    Test-Ok "fraud investigator note" ($null -ne $note.id)
   }
   Test-Ok "portal /fraud" (Test-PortalPage "/fraud")
 } catch { Test-Ok "fraud flow" $false $_.Exception.Message }
@@ -111,6 +115,7 @@ try {
     $denId = $denials.denials[0].id
     $den = Invoke-RestMethod -Uri "$api/denials/$denId" -Headers $h
     Test-Ok "denial detail" ($null -ne $den.id)
+    Test-Ok "denial AI appeal draft" ($den.appeals.Count -ge 1)
     Test-Ok "portal denial detail" (Test-PortalPage "/denials/$denId")
   }
   Test-Ok "portal /denials" (Test-PortalPage "/denials")

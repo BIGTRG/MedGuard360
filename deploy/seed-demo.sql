@@ -313,7 +313,19 @@ VALUES
   ('70000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000006', 'NC',
    '197', 'Precertification/authorization absent',
-   22000, 'received', now() + interval '85 days')
+   22000, 'reviewing', now() + interval '85 days')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO appeals (id, denial_id, attempt_number, status, drafted_by_ai, ai_engine_version,
+                     ai_confidence, subject, body, attachments)
+VALUES
+  ('71000000-0000-0000-0000-000000000001',
+   '70000000-0000-0000-0000-000000000001', 1, 'draft', true,
+   'denial-predictor/1.0.0', 0.84,
+   'Appeal: prior authorization was obtained — claim 50000000-000006',
+   E'We respectfully appeal this denial. Prior authorization PA-40000001 was approved for CPT 97140 on 2026-05-08. ' ||
+   E'The attached authorization letter and clinical notes establish medical necessity per NC Medicaid policy.',
+   ARRAY['pa_approval_letter.pdf', 'clinical_notes.pdf'])
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

@@ -99,7 +99,9 @@ cat <<'EOF'
     denial@demo.medguard360.com        — denials/appeals (1 denial waiting)
     responder@demo.medguard360.com     — emergency responder (biometric-gated)
 
-  Logs:        docker compose -f COMPOSE_FILE logs -f <service-name>
-  Tear down:   ./deploy/laptop.sh --teardown
+  Verify:  powershell -File deploy\smoke-demo.ps1
+           powershell -File deploy\demo-flow.ps1
+  One-shot: powershell -File deploy\demo-up.ps1
+  Stop:    ./deploy/laptop.sh --teardown
 ================================================================
 EOF
