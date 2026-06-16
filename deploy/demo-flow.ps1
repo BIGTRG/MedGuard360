@@ -44,6 +44,13 @@ try {
   Test-Ok "fraud case has score field" ($null -ne $cases.cases[0].score)
   $one = Invoke-RestMethod -Uri "$api/fraud/cases/$($cases.cases[0].id)" -Headers $h
   Test-Ok "fraud case detail" ($one.score -ge 0)
+  Test-Ok "fraud detail has risk_score" ($null -ne $one.risk_score)
+  $high = $cases.cases | Where-Object { $_.score -ge 80 } | Select-Object -First 1
+  if ($high) {
+    $ev = Invoke-RestMethod -Uri "$api/fraud/cases/$($high.id)/events" -Headers $h
+    Test-Ok "fraud case timeline events" ($ev.events.Count -ge 1)
+    Test-Ok "portal fraud case detail" (Test-PortalPage "/fraud/cases/$($high.id)")
+  }
   Test-Ok "portal /fraud" (Test-PortalPage "/fraud")
 } catch { Test-Ok "fraud flow" $false $_.Exception.Message }
 
@@ -56,6 +63,10 @@ try {
   $detail = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$paId" -Headers $h
   $criteria = if ($detail.criteriaEvaluations) { $detail.criteriaEvaluations } else { $detail.criteria }
   Test-Ok "PA detail has criteria" ($criteria.Count -ge 1)
+  if ($criteria.Count -ge 1 -and $criteria[0].id) {
+    $ov = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$paId/criteria/$($criteria[0].id)/override" -Method PUT -Headers $h -Body (@{ outcome = 'met' } | ConvertTo-Json) -ContentType "application/json"
+    Test-Ok "PA criterion override" ($null -ne $ov.id)
+  }
   Test-Ok "portal /pa-queue" (Test-PortalPage "/pa-queue")
   Test-Ok "portal PA evidence" (Test-PortalPage "/pa-queue/$paId/evidence")
 } catch { Test-Ok "PA flow" $false $_.Exception.Message }
@@ -72,7 +83,16 @@ try {
 } catch { Test-Ok "provider flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
-Test-Ok "portal /patient" (Test-PortalPage "/patient")
+$h = @{ Authorization = "Bearer $(Get-Token 'patient@demo.medguard360.com')" }
+try {
+  $me = Invoke-RestMethod -Uri "$api/patients/me" -Headers $h
+  Test-Ok "patient /me profile" ($null -ne $me.first_name)
+  $cov = Invoke-RestMethod -Uri "$api/patients/me/coverages" -Headers $h
+  Test-Ok "patient coverages" ($cov.coverages.Count -ge 1)
+  $crisis = Invoke-RestMethod -Uri "$api/patients/me/crisis-plan" -Headers $h
+  Test-Ok "patient crisis plan" ($crisis.warning_signs.Count -ge 1)
+  Test-Ok "portal /patient" (Test-PortalPage "/patient")
+} catch { Test-Ok "patient flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 7: Compliance + denials ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" }
@@ -87,6 +107,12 @@ $h = @{ Authorization = "Bearer $(Get-Token 'denial@demo.medguard360.com')" }
 try {
   $denials = Invoke-RestMethod -Uri "$api/denials?limit=5" -Headers $h
   Test-Ok "denials list" ($denials.denials.Count -ge 1)
+  if ($denials.denials.Count -ge 1) {
+    $denId = $denials.denials[0].id
+    $den = Invoke-RestMethod -Uri "$api/denials/$denId" -Headers $h
+    Test-Ok "denial detail" ($null -ne $den.id)
+    Test-Ok "portal denial detail" (Test-PortalPage "/denials/$denId")
+  }
   Test-Ok "portal /denials" (Test-PortalPage "/denials")
 } catch { Test-Ok "denial flow" $false $_.Exception.Message }
 

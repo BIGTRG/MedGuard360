@@ -29,7 +29,7 @@ import {
   recordEvent,
 } from './repository';
 import { fraudDetection } from './clients';
-import { toPortalView } from './serialize';
+import { toPortalView, toDetailView } from './serialize';
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ router.get(
       phiAccessed: true,
     });
 
-    res.json(toPortalView(fraudCase));
+    res.json(toDetailView(fraudCase));
   }),
 );
 

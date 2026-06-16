@@ -147,6 +147,24 @@ export async function getCrisisPlan(
   });
 }
 
+/** Member portal crisis plan — uses crisis-service schema (migration 0014). */
+export async function getMemberCrisisPlan(
+  patientId: string,
+  auth: AuthClaims,
+): Promise<Record<string, unknown> | null> {
+  return withRlsContext(auth, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT warning_signs, internal_coping_strategies, emergency_contacts,
+              social_supports, professional_supports, safe_environment_steps, status
+       FROM crisis_plans
+       WHERE patient_id = $1 AND status = 'active'
+       LIMIT 1`,
+      [patientId],
+    );
+    return result.rows[0] ?? null;
+  });
+}
+
 export type UpsertCrisisPlanData = Partial<Omit<CrisisPlanRow, 'id' | 'patient_id' | 'created_at' | 'updated_at'>>;
 
 export async function upsertCrisisPlan(

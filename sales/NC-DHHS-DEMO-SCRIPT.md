@@ -42,7 +42,7 @@ Page: `/admin/pilot-states`
 
 ### Stop 3 — A fraud case in flight (3 min)
 Switch role → **Fraud Investigator**. Page: `/fraud`
-- Show the queue. Click claim with score 82/100.
+- Show the queue. Click claim with score 89/100.
 - Open `/fraud/cases/[id]` — show the timeline:
   - AI scored the claim
   - Investigator pulled 30-day provider history

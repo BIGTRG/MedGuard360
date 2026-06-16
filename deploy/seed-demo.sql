@@ -55,6 +55,11 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO patients (id, medicaid_id, first_name, last_name, date_of_birth, sex_at_birth,
                       email, phone, address_line1, city, state_code, postal_code,
                       primary_care_provider_id, status, created_by) VALUES
+  -- Demo member portal user (patients.id must equal users.id for RLS)
+  ('00000000-0000-0000-0000-000000000004', 'NCMD-DEMO-MEMBER', 'Alex', 'Member', '1990-06-15', 'F',
+   'patient@demo.medguard360.com', '919-555-0142', '100 Demo Lane', 'Raleigh', 'NC', '27601',
+   '00000000-0000-0000-0000-000000000003', 'active',
+   '00000000-0000-0000-0000-000000000001'),
   ('10000000-0000-0000-0000-000000000001', 'NCMD00100001', 'John',    'Doe',     '1985-03-12', 'M',
    'jdoe@example.com',  '919-555-0101', '123 Main St',  'Raleigh',   'NC', '27601',
    '00000000-0000-0000-0000-000000000003', 'active',
@@ -261,6 +266,42 @@ INSERT INTO fraud_cases (id, claim_id, state_code, status)
 VALUES
   ('60000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000003', 'NC', 'open'),
   ('60000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000004', 'NC', 'open')
+ON CONFLICT (id) DO NOTHING;
+
+-- Demo timeline for the flagship high-score case (NC script stop 3)
+INSERT INTO fraud_case_events (id, case_id, actor_user_id, event_type, text, occurred_at)
+VALUES
+  ('61000000-0000-0000-0000-000000000001',
+   '60000000-0000-0000-0000-000000000002',
+   NULL, 'system',
+   'AI scored claim at 89/100 — auto_block recommendation.',
+   now() - interval '3 hours'),
+  ('61000000-0000-0000-0000-000000000002',
+   '60000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000006', 'review',
+   'Investigator pulled 30-day provider billing history — 250 claims in 24h vs baseline 12/day.',
+   now() - interval '2 hours'),
+  ('61000000-0000-0000-0000-000000000003',
+   '60000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000006', 'note',
+   'GPS encounter log confirms patient at home; service location mismatch flagged for follow-up.',
+   now() - interval '90 minutes')
+ON CONFLICT (id) DO NOTHING;
+
+-- Crisis plan for demo member (Stop 6 — 3-second offline access talking point)
+INSERT INTO crisis_plans (id, patient_id, state_code, created_by_provider_id, warning_signs,
+                          internal_coping_strategies, social_supports, professional_supports,
+                          emergency_contacts, safe_environment_steps, effective_from, status)
+VALUES
+  ('A0000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000004', 'NC',
+   '00000000-0000-0000-0000-000000000003',
+   ARRAY['isolation', 'sleep changes', 'hopelessness'],
+   ARRAY['deep breathing', 'walk outside', 'call support person'],
+   '[{"name":"Jordan Member","phone":"919-555-9002","relationship":"sibling"}]'::jsonb,
+   '[{"name":"Dr. Demo Provider","phone":"919-555-0201","role":"PCP"}]'::jsonb,
+   '[{"name":"988 Suicide & Crisis Lifeline","phone":"988"}]'::jsonb,
+   ARRAY['remove firearms', 'secure medications'],
+   CURRENT_DATE, 'active')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

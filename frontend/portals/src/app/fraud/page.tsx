@@ -91,7 +91,7 @@ function FraudQueueInner(): React.ReactElement {
                 <td className="max-w-xs truncate text-xs text-slate-600" title={c.explanation}>{c.explanation}</td>
                 <td className="text-xs text-slate-500">{timeSince(c.opened_at)}</td>
                 <td>
-                  <Link href={`/fraud/${c.id}`} className="btn-ghost">Review</Link>
+                  <Link href={`/fraud/cases/${c.id}`} className="btn-ghost">Review</Link>
                 </td>
               </tr>
             ))}

@@ -83,6 +83,113 @@ const ah =
 
 export const router = Router();
 
+function serializePatient(row: Record<string, unknown>): Record<string, unknown> {
+  const dob = row['date_of_birth'] ?? row['dob'];
+  return {
+    id: row['id'],
+    patient_id: row['id'],
+    first_name: row['first_name'],
+    last_name: row['last_name'],
+    date_of_birth: dob instanceof Date ? dob.toISOString().slice(0, 10) : dob,
+    medicaid_id: row['medicaid_id'] ?? null,
+    state_code: row['state_code'],
+    email: row['email'] ?? null,
+    phone: row['phone'] ?? null,
+  };
+}
+
+async function getSelfPatient(auth: NonNullable<Request['auth']>): Promise<Record<string, unknown>> {
+  const patient = await repo.findPatient(auth.sub, auth);
+  if (!patient) throw new NotFoundError('Patient');
+  return serializePatient(patient as unknown as Record<string, unknown>);
+}
+
+// ── GET /patients/me — member portal (RLS: patients.id = users.id) ───────────
+router.get(
+  '/patients/me',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const patient = await getSelfPatient(req.auth!);
+    await auditLog({
+      resource: 'patient', resourceId: req.auth!.sub, action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId,
+    });
+    res.json(patient);
+  }),
+);
+
+// Alias used by benefits/engagement pages
+router.get(
+  '/patient/me',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    res.json(await getSelfPatient(req.auth!));
+  }),
+);
+
+router.get(
+  '/patients/me/coverages',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const patient = await getSelfPatient(req.auth!);
+    res.json({
+      coverages: [{
+        active: true,
+        plan_name: 'NC Medicaid Standard Plan',
+        payer_id: 'NCMEDPAY',
+        effective_from: '2026-01-01',
+        effective_to: null,
+        state_code: patient['state_code'],
+      }],
+    });
+  }),
+);
+
+router.get(
+  '/patient/me/coverages',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const patient = await getSelfPatient(req.auth!);
+    res.json({
+      coverages: [{
+        active: true,
+        plan_name: 'NC Medicaid Standard Plan',
+        payer_id: 'NCMEDPAY',
+        effective_from: '2026-01-01',
+        effective_to: null,
+        state_code: patient['state_code'],
+      }],
+    });
+  }),
+);
+
+router.get(
+  '/patients/me/crisis-plan',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const plan = await repo.getMemberCrisisPlan(req.auth!.sub, req.auth!);
+    if (!plan) throw new NotFoundError('Crisis plan');
+    res.json(plan);
+  }),
+);
+
+router.get(
+  '/patient/me/crisis-plan',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const plan = await repo.getMemberCrisisPlan(req.auth!.sub, req.auth!);
+    if (!plan) throw new NotFoundError('Crisis plan');
+    res.json(plan);
+  }),
+);
+
 // ── GET /patients/:id ─────────────────────────────────────────────────────────
 router.get(
   '/patients/:id',
