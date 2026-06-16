@@ -192,6 +192,8 @@ router.get(
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
 
+    const lines = await repo.findClaimLines(id);
+
     await auditLog({
       resource: 'claim',
       resourceId: id,
@@ -200,7 +202,7 @@ router.get(
       outcome: 'success',
     });
 
-    res.json({ claim });
+    res.json({ claim, lines });
   }),
 );
 

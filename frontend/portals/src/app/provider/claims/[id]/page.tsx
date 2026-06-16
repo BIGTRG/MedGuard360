@@ -112,7 +112,7 @@ function ClaimDetailInner(): React.ReactElement {
       </div>
 
       <DetailSection title="Service lines">
-        <DataTable rows={data.lines} columns={columns} rowKey={l => l.id} />
+        <DataTable rows={data.lines ?? []} columns={columns} rowKey={l => l.id} />
       </DetailSection>
 
       {c.edi_payload && (

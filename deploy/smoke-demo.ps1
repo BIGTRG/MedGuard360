@@ -10,7 +10,15 @@ function Test-Ok($name, $cond, $detail = "") {
   else { Write-Host "[FAIL] $name $detail" -ForegroundColor Red; $script:failures.Add($name) | Out-Null }
 }
 Write-Host "`n=== Phase 1: HTTP surfaces ===" -ForegroundColor Cyan
-try { $r = Invoke-WebRequest -Uri "$base/" -UseBasicParsing -TimeoutSec 15; Test-Ok "nginx portal" ($r.StatusCode -eq 200) } catch { Test-Ok "nginx portal" $false }
+$portalOk = $false
+try { $r = Invoke-WebRequest -Uri "$base/" -UseBasicParsing -TimeoutSec 15; $portalOk = ($r.StatusCode -eq 200) } catch { $portalOk = $false }
+if (-not $portalOk) {
+  Write-Host "Portal unreachable — recreating nginx..." -ForegroundColor Yellow
+  docker compose -f docker-compose.demo.yml up -d --force-recreate nginx 2>$null | Out-Null
+  Start-Sleep -Seconds 5
+  try { $r = Invoke-WebRequest -Uri "$base/" -UseBasicParsing -TimeoutSec 15; $portalOk = ($r.StatusCode -eq 200) } catch { $portalOk = $false }
+}
+Test-Ok "nginx portal" $portalOk
 Write-Host "`n=== Phase 2: Auth + API via nginx ===" -ForegroundColor Cyan
 $loginBody = @{ email = "admin@demo.medguard360.com"; password = "demo-Password!1" } | ConvertTo-Json
 $token = $null

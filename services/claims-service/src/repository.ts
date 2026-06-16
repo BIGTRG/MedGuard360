@@ -101,6 +101,14 @@ export async function findClaim(id: string): Promise<ClaimRow | null> {
   return result.rows[0] ?? null;
 }
 
+export async function findClaimLines(claimId: string): Promise<Record<string, unknown>[]> {
+  const result = await pool.query(
+    'SELECT * FROM claim_lines WHERE claim_id = $1 ORDER BY line_number',
+    [claimId],
+  );
+  return result.rows;
+}
+
 // ── listClaims ────────────────────────────────────────────────────────────────
 
 export interface ClaimListFilters {

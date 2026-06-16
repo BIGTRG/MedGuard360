@@ -206,7 +206,7 @@ router.post(
       'fraud.case.resolved',
       { caseId: id, status: input.status, claimId: resolved.claim_id },
       { actorUserId: req.auth!.sub, correlationId: req.correlationId },
-    );
+    ).catch(() => undefined);
 
     await auditLog({
       resource: 'fraud_case', resourceId: id, action: 'update',
@@ -250,7 +250,7 @@ router.post(
         stateCode:    updated.state_code,
       },
       { actorUserId: req.auth!.sub, correlationId: req.correlationId },
-    );
+    ).catch(() => undefined);
 
     await auditLog({
       resource: 'fraud_case', resourceId: id, action: 'update',

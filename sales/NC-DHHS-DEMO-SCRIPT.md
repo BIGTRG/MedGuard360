@@ -7,9 +7,19 @@
 ## Pre-meeting (5 min before)
 
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
-- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/smoke-demo.ps1` and `deploy/demo-flow.ps1`)
+- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/demo-up.ps1` or smoke + demo-flow)
 - Login bypass enabled — land on **Platform Admin** dashboard
 - Backup: PROJECT-STATUS.md open in second tab
+
+## Quick links (seeded demo IDs)
+
+| Stop | URL |
+|------|-----|
+| PA evidence | http://localhost/pa-queue/40000000-0000-0000-0000-000000000001/evidence |
+| Fraud case (89/100) | http://localhost/fraud/cases/60000000-0000-0000-0000-000000000002 |
+| Denial + AI appeal | http://localhost/denials/70000000-0000-0000-0000-000000000001 |
+| Provider workflow | http://localhost/provider/workflow |
+| Member portal | http://localhost/patient |
 
 ## Opening (60 seconds)
 
@@ -52,7 +62,7 @@ Switch role → **Fraud Investigator**. Page: `/fraud`
 
 ### Stop 4 — Prior Auth evidence matcher (2 min)
 Switch role → **PA Specialist**. Page: `/pa-queue/[id]/evidence`
-- Show 3 criteria with AI evidence
+- Show 5 criteria with AI evidence (4 met, 1 indeterminate on the flagship PA)
 - "BERT model matched the patient's chart notes against payer policy. For each criterion, AI gave an outcome — met / not met / unclear — with confidence and a quote from the chart."
 - Click a criterion's override button. "Specialist disagrees with AI? One click. Their override is persisted, used to retrain quarterly."
 - "Decision requires a plain-language explanation — not optional. The patient and provider both get this back."

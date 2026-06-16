@@ -66,6 +66,7 @@ docker compose -f "$COMPOSE" run --rm bootstrap
 echo ""
 echo "→ Starting services..."
 docker compose -f "$COMPOSE" up -d
+docker compose -f "$COMPOSE" up -d --force-recreate nginx
 
 echo ""
 echo "→ Waiting for portal to come up..."
