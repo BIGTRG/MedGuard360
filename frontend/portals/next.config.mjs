@@ -7,6 +7,10 @@ const nextConfig = {
     const apiBase = process.env.MEDGUARD_API_BASE ?? 'http://localhost/api';
     return [
       { source: '/api/:path*', destination: `${apiBase}/:path*` },
+      { source: '/school/students', destination: '/school?section=students' },
+      { source: '/school/services', destination: '/school?section=services' },
+      { source: '/school/lea-agreement', destination: '/school?section=lea-agreement' },
+      { source: '/school/claims', destination: '/school?section=claims' },
     ];
   },
 };

@@ -135,6 +135,7 @@ try {
   if ($enc.encounters.Count -ge 1) {
     Test-Ok "portal encounter detail" (Test-PortalPage "/provider/encounters/$($enc.encounters[0].id)")
   }
+  Test-Ok "portal /provider/patients" (Test-PortalPage "/provider/patients")
 } catch { Test-Ok "provider flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Credentialing ===" -ForegroundColor Cyan
@@ -205,6 +206,7 @@ try {
   $appts = Invoke-RestMethod -Uri "$api/patients/me/appointments" -Headers $h
   Test-Ok "patient appointments" ($appts.count -ge 1)
   Test-Ok "portal /patient" (Test-PortalPage "/patient")
+  Test-Ok "portal /patient/benefits" (Test-PortalPage "/patient/benefits")
 } catch { Test-Ok "patient flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Crisis responder ===" -ForegroundColor Cyan
@@ -243,9 +245,29 @@ $h = @{ Authorization = "Bearer $(Get-Token 'state@demo.medguard360.com')" }
 try {
   $nc = Invoke-RestMethod -Uri "$api/state-config/NC" -Headers $h
   Test-Ok "state NC config" ($nc.state_code -eq 'NC')
+  $overdue = Invoke-RestMethod -Uri "$api/eligibility/community-engagement/overdue/list?stateCode=NC" -Headers $h
+  Test-Ok "community engagement overdue" ($overdue.count -ge 1)
+  $fromDay = (Get-Date).AddDays(-30).ToString('yyyy-MM-dd')
+  $toDay = (Get-Date).ToString('yyyy-MM-dd')
+  $fraudRollups = Invoke-RestMethod -Uri "$api/reporting/reports/rollups?stateCode=NC&metric=fraud_auto_block&fromDay=$fromDay&toDay=$toDay" -Headers $h
+  Test-Ok "state fraud rollups" ($fraudRollups.rollups.Count -ge 1)
   Test-Ok "portal /state" (Test-PortalPage "/state")
+  Test-Ok "portal /state/claims" (Test-PortalPage "/state/claims")
+  Test-Ok "portal /state/fraud" (Test-PortalPage "/state/fraud")
+  Test-Ok "portal /state/perm" (Test-PortalPage "/state/perm")
+  Test-Ok "portal /state/engagement" (Test-PortalPage "/state/engagement")
   Test-Ok "portal /state/credentialing" (Test-PortalPage "/state/credentialing")
 } catch { Test-Ok "state flow" $false $_.Exception.Message }
+
+Write-Host "`n=== School Medicaid ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'school@demo.medguard360.com')" }
+try {
+  Test-Ok "portal /school" (Test-PortalPage "/school")
+  Test-Ok "portal /school/students" (Test-PortalPage "/school/students")
+  Test-Ok "portal /school/services" (Test-PortalPage "/school/services")
+  Test-Ok "portal /school/lea-agreement" (Test-PortalPage "/school/lea-agreement")
+  Test-Ok "portal /school/claims" (Test-PortalPage "/school/claims")
+} catch { Test-Ok "school flow" $false $_.Exception.Message }
 
 $h = @{ Authorization = "Bearer $(Get-Token 'denial@demo.medguard360.com')" }
 try {

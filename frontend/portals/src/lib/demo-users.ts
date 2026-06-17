@@ -17,6 +17,7 @@ export const DEMO_USERS = [
   { label: 'NEMT', email: 'nemt@demo.medguard360.com', role: 'nemt_broker' as UserRole, area: 'Transport scheduling' },
   { label: 'Pharmacy', email: 'pharmacy@demo.medguard360.com', role: 'pharmacy' as UserRole, area: 'Formulary + drug PA' },
   { label: 'HIE', email: 'hie@demo.medguard360.com', role: 'hie_administrator' as UserRole, area: 'NC HealthConnex consents' },
+  { label: 'School', email: 'school@demo.medguard360.com', role: 'school_administrator' as UserRole, area: 'School-based Medicaid' },
   { label: 'Responder', email: 'responder@demo.medguard360.com', role: 'emergency_responder' as UserRole, area: 'Crisis (biometric-gated)' },
 ] as const;
 

@@ -37,6 +37,7 @@ docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 -c "
 Get-Content infrastructure\postgres\migrations\0017_hie_schema.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
 Get-Content infrastructure\postgres\migrations\0019_hie.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
 Get-Content infrastructure\postgres\migrations\0025_hets_enrollment.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
+Get-Content infrastructure\postgres\migrations\0026_community_engagement.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
 Get-Content deploy\seed-demo.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 | Out-Null
 
 Write-Host "Waiting for portal..." -ForegroundColor Cyan

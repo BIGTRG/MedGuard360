@@ -66,6 +66,10 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000014', 'hie@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'hie_administrator', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000015', 'school@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'school_administrator', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
 
@@ -524,6 +528,32 @@ ON CONFLICT (state_code, metric, day) DO NOTHING;
 INSERT INTO daily_rollups (state_code, metric, day, value)
 SELECT 'NC', 'credentialing_approved', CURRENT_DATE - i, (random() * 2)::int FROM generate_series(0, 29) AS i
 ON CONFLICT (state_code, metric, day) DO NOTHING;
+INSERT INTO daily_rollups (state_code, metric, day, value)
+SELECT 'NC', 'fraud_auto_block',     CURRENT_DATE - i, (random() * 6 + 2)::int FROM generate_series(0, 29) AS i
+ON CONFLICT (state_code, metric, day) DO NOTHING;
+INSERT INTO daily_rollups (state_code, metric, day, value)
+SELECT 'NC', 'fraud_route_to_review', CURRENT_DATE - i, (random() * 10 + 5)::int FROM generate_series(0, 29) AS i
+ON CONFLICT (state_code, metric, day) DO NOTHING;
+INSERT INTO daily_rollups (state_code, metric, day, value)
+SELECT 'NC', 'fraud_auto_pay',       CURRENT_DATE - i, (random() * 50 + 40)::int FROM generate_series(0, 29) AS i
+ON CONFLICT (state_code, metric, day) DO NOTHING;
+
+-- ============================================================
+-- Community engagement overdue (state /state/engagement stop)
+-- ============================================================
+INSERT INTO community_engagement_records (
+  id, patient_id, state_code, reporting_period, hours_documented,
+  engagement_type, verification_source, status, next_renewal_due_at, created_by)
+VALUES
+  ('97000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000002', 'NC', '2026-04',
+   62, 'employed', 'payroll_attestation', 'verified',
+   now() - interval '12 days', '00000000-0000-0000-0000-000000000002'),
+  ('97000000-0000-0000-0000-000000000002',
+   '10000000-0000-0000-0000-000000000005', 'NC', '2026-05',
+   48, 'job_training', 'self_attestation', 'submitted',
+   now() - interval '5 days', '00000000-0000-0000-0000-000000000002')
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- Provider encounters (clinical-doc stop) + credentialing queue
@@ -676,5 +706,6 @@ UNION ALL SELECT 'NEMT trips',   COUNT(*) FROM nemt_trips
 UNION ALL SELECT 'Crisis alerts',COUNT(*) FROM crisis_alerts
 UNION ALL SELECT 'Formulary',    COUNT(*) FROM formulary_entries
 UNION ALL SELECT 'HETS enroll',  COUNT(*) FROM hets_enrollments
+UNION ALL SELECT 'CE overdue',   COUNT(*) FROM community_engagement_records WHERE next_renewal_due_at < now()
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;
