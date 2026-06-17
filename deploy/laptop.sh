@@ -66,6 +66,7 @@ docker compose -f "$COMPOSE" run --rm bootstrap
 echo ""
 echo "→ Starting services..."
 docker compose -f "$COMPOSE" up -d
+docker compose -f "$COMPOSE" run --rm kafka-init >/dev/null 2>&1 || true
 docker compose -f "$COMPOSE" up -d --force-recreate nginx
 
 echo ""

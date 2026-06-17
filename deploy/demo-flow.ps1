@@ -86,6 +86,7 @@ try {
     $claimId = $claims.claims[0].id
     $claim = Invoke-RestMethod -Uri "$api/claims/$claimId" -Headers $h
     Test-Ok "provider claim detail" ($null -ne $claim.claim.id)
+    Test-Ok "provider claim has lines" ($claim.lines.Count -ge 1)
     Test-Ok "portal provider claim detail" (Test-PortalPage "/provider/claims/$claimId")
   }
   $patients = Invoke-RestMethod -Uri "$api/patients?limit=5" -Headers $h
@@ -133,6 +134,7 @@ try {
     $den = Invoke-RestMethod -Uri "$api/denials/$denId" -Headers $h
     Test-Ok "denial detail" ($null -ne $den.id)
     Test-Ok "denial AI appeal draft" ($den.appeals.Count -ge 1)
+    Test-Ok "denial appeal has subject" ($den.appeals[0].subject.Length -gt 5)
     Test-Ok "portal denial detail" (Test-PortalPage "/denials/$denId")
   }
   Test-Ok "portal /denials" (Test-PortalPage "/denials")
@@ -143,6 +145,7 @@ $h = @{ Authorization = "Bearer $(Get-Token 'admin@demo.medguard360.com')" }
 try {
   $rollups = Invoke-RestMethod -Uri "$api/reporting/reports/rollups?stateCode=NC&metric=claims_submitted&fromDay=2026-05-15&toDay=2026-06-15" -Headers $h
   Test-Ok "reporting rollups" ($rollups.rollups.Count -ge 1)
+  Test-Ok "portal /reporting" (Test-PortalPage "/reporting")
 } catch { Test-Ok "reporting flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan

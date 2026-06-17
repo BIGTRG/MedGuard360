@@ -39,6 +39,8 @@ create fraud.score.computed 6
 create fraud.flag.raised
 create fraud.ring.detected
 create fraud.case.opened
+create fraud.case.escalated
+create fraud.case.resolved
 create clinical.encounter.started
 create clinical.encounter.completed
 create clinical.note.created

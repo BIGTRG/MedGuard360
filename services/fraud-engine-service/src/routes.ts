@@ -215,7 +215,7 @@ router.post(
       context: { status: input.status },
     });
 
-    res.json(resolved);
+    res.json(toDetailView(resolved));
   }),
 );
 
@@ -258,7 +258,7 @@ router.post(
       context: { escalation_target: input.target, escalation_notes: input.notes },
     });
 
-    res.json(updated);
+    res.json(toDetailView(updated));
   }),
 );
 
@@ -279,7 +279,7 @@ router.post(
       context: { assigned_to: input.investigatorId },
     });
 
-    res.json(updated);
+    res.json(toDetailView(updated));
   }),
 );
 

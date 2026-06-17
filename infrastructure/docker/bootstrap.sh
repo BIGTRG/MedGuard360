@@ -80,6 +80,9 @@ create_topic fraud.score.computed 6
 create_topic fraud.flag.raised
 create_topic fraud.ring.detected
 create_topic fraud.case.opened
+create_topic fraud.case.escalated
+create_topic fraud.case.resolved
+create_topic pa.decided
 create_topic clinical.encounter.started
 create_topic clinical.encounter.completed
 create_topic clinical.note.created
