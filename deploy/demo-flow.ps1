@@ -142,6 +142,10 @@ $h = @{ Authorization = "Bearer $(Get-Token 'credentialing@demo.medguard360.com'
 try {
   $apps = Invoke-RestMethod -Uri "$api/credentialing/applications" -Headers $h
   Test-Ok "credentialing applications" ($apps.count -ge 1)
+  if ($apps.applications.Count -ge 1) {
+    $appDetail = Invoke-RestMethod -Uri "$api/credentialing/applications/$($apps.applications[0].id)" -Headers $h
+    Test-Ok "credentialing application detail" ($null -ne $appDetail.id)
+  }
   Test-Ok "portal /credentialing" (Test-PortalPage "/credentialing")
 } catch { Test-Ok "credentialing flow" $false $_.Exception.Message }
 
@@ -180,6 +184,18 @@ try {
   Test-Ok "patient appointments" ($appts.count -ge 1)
   Test-Ok "portal /patient" (Test-PortalPage "/patient")
 } catch { Test-Ok "patient flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Crisis responder ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'responder@demo.medguard360.com')" }
+try {
+  $alerts = Invoke-RestMethod -Uri "$api/crisis/alerts" -Headers $h
+  Test-Ok "crisis alerts queue" ($alerts.count -ge 1)
+  $memberPatient = '00000000-0000-0000-0000-000000000004'
+  $plan = Invoke-RestMethod -Uri "$api/crisis/plans/patient/$memberPatient" -Headers $h
+  Test-Ok "crisis plan for member" ($plan.warning_signs.Count -ge 1)
+  Test-Ok "portal /responder" (Test-PortalPage "/responder")
+  Test-Ok "portal responder patient plan" (Test-PortalPage "/responder/patient/$memberPatient")
+} catch { Test-Ok "crisis flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 7: Compliance + denials ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" }

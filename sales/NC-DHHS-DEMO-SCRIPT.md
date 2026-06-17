@@ -26,6 +26,8 @@
 | Credentialing queue | http://localhost/credentialing |
 | DME orders | http://localhost/dme |
 | NEMT trips | http://localhost/nemt |
+| Crisis responder | http://localhost/responder |
+| Member crisis plan | http://localhost/responder/patient/00000000-0000-0000-0000-000000000004 |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |
 | Compliance | http://localhost/compliance |
@@ -94,6 +96,7 @@ Switch role → **Provider** (quick-button or dropdown). Page: `/provider/workfl
 Switch role → **Patient** (quick-button or dropdown). Page: `/patient`
 - 6 tabs: Overview, Coverage, **Claims (live from DB)**, Crisis Plan, Appointments, Messages
 - "This is what your members see. Mobile app has the same surface — offline-first SQLite cache, biometric login, crisis plan accessible in 3 seconds even with no signal."
+- Optional: switch to **Responder** (`responder@demo.medguard360.com`) → `/responder` live alert queue; `/responder/patient/[id]` shows biometric-gated crisis plan (click through `/biometric` in demo).
 
 ### Stop 7 — Compliance posture (2 min)
 Switch role → **Compliance Officer** (quick-button or dropdown). Page: `/compliance`

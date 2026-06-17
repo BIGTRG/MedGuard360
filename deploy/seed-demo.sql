@@ -405,6 +405,32 @@ VALUES
    CURRENT_DATE, 'active')
 ON CONFLICT (id) DO NOTHING;
 
+-- Active crisis alerts for emergency responder queue (Stop 6 — mobile crisis talking point)
+INSERT INTO crisis_alerts (id, patient_id, state_code, source, severity, signals, status,
+                           detector_engine_version, detected_at, created_by)
+VALUES
+  ('B0000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000004',
+   'NC', 'hub_chat', 'critical',
+   '{"keywords":["suicide","hopeless"],"risk_score":0.94,"channel":"member_chat"}'::jsonb,
+   'active',
+   'crisis-detector/0.1.0',
+   now() - interval '18 minutes',
+   '00000000-0000-0000-0000-000000000001'),
+  ('B0000000-0000-0000-0000-000000000002',
+   '10000000-0000-0000-0000-000000000001',
+   'NC', 'clinical_note', 'high',
+   '{"keywords":["self-harm","isolation"],"risk_score":0.81}'::jsonb,
+   'responder_dispatched',
+   'crisis-detector/0.1.0',
+   now() - interval '2 hours',
+   '00000000-0000-0000-0000-000000000001')
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  severity = EXCLUDED.severity,
+  signals = EXCLUDED.signals,
+  detected_at = EXCLUDED.detected_at;
+
 -- ============================================================
 -- A denial + AI-drafted appeal (denial-appeals queue)
 -- ============================================================
@@ -569,5 +595,6 @@ UNION ALL SELECT 'Encounters',   COUNT(*) FROM clinical_encounters
 UNION ALL SELECT 'Cred apps',    COUNT(*) FROM credentialing_applications
 UNION ALL SELECT 'DME orders',   COUNT(*) FROM dme_orders
 UNION ALL SELECT 'NEMT trips',   COUNT(*) FROM nemt_trips
+UNION ALL SELECT 'Crisis alerts',COUNT(*) FROM crisis_alerts
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;
