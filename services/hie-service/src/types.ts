@@ -109,6 +109,34 @@ export interface ReferralFilters {
 }
 
 // ---------------------------------------------------------------------------
+// Consent (42 CFR Part 2 / HIPAA scopes)
+// ---------------------------------------------------------------------------
+
+/** Row shape for the hie_consents table. */
+export interface ConsentRow {
+  id: string;
+  patient_id: string;
+  scope: string;
+  granted_to_org: string;
+  effective_from: string;
+  effective_to: string | null;
+  status: string;
+  fhir_resource_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Input for recording a new patient consent. */
+export interface CreateConsentInput {
+  patient_id: string;
+  scope: string;
+  granted_to_org: string;
+  effective_from: string;
+  effective_to?: string | null;
+  fhir_resource_id?: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
 

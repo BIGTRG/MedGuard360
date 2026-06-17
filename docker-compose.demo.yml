@@ -5,7 +5,7 @@
 #   fraud-engine-service, state-config-service, audit-log-service,
 #   reporting-service, denial-service, provider-service, notification-service,
 #   crisis-service, clinical-doc-service, credentialing-service,
-#   dme-service, nemt-service, pharmacy-service
+#   dme-service, nemt-service, pharmacy-service, hie-service
 # Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
@@ -255,6 +255,12 @@ services:
     ports: ["3019:3019"]
     <<: *node-service
 
+  hie-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: hie-service } }
+    environment: { <<: *service-env, PORT: "3020" }
+    ports: ["3020:3020"]
+    <<: *node-service
+
   # -------- 3 AI engines (demo) --------
   fraud-detection:
     build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } }
@@ -298,6 +304,7 @@ services:
       - credentialing-service
       - clinical-doc-service
       - crisis-service
+      - hie-service
 
   portals:
     build:

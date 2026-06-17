@@ -14,6 +14,8 @@ import type {
   ReferralFilters,
   CreateReferralInput,
   UpdateReferralInput,
+  ConsentRow,
+  CreateConsentInput,
   ListResult,
 } from './types';
 
@@ -212,6 +214,67 @@ export async function updateReferral(
       params,
     );
     if (!result.rows[0]) throw new NotFoundError('Referral');
+    return result.rows[0];
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Consents
+// ---------------------------------------------------------------------------
+
+/** List consents for a patient; activeOnly defaults to true. */
+export async function listConsents(
+  auth: AuthClaims,
+  patientId: string,
+  activeOnly = true,
+): Promise<ConsentRow[]> {
+  return withRlsContext(auth, async (client) => {
+    const result = await client.query<ConsentRow>(
+      `SELECT * FROM hie_consents
+       WHERE patient_id = $1
+         AND ($2::boolean = false OR status = 'active')
+       ORDER BY effective_from DESC`,
+      [patientId, activeOnly],
+    );
+    return result.rows;
+  });
+}
+
+/** Record a new consent grant. */
+export async function createConsent(
+  auth: AuthClaims,
+  data: CreateConsentInput,
+): Promise<ConsentRow> {
+  return withRlsContext(auth, async (client) => {
+    const result = await client.query<ConsentRow>(
+      `INSERT INTO hie_consents
+         (patient_id, scope, granted_to_org, effective_from, effective_to, fhir_resource_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        data.patient_id,
+        data.scope,
+        data.granted_to_org,
+        data.effective_from,
+        data.effective_to ?? null,
+        data.fhir_resource_id ?? null,
+      ],
+    );
+    return result.rows[0];
+  });
+}
+
+/** Revoke an active consent. */
+export async function revokeConsent(auth: AuthClaims, id: string): Promise<ConsentRow> {
+  return withRlsContext(auth, async (client) => {
+    const result = await client.query<ConsentRow>(
+      `UPDATE hie_consents
+       SET status = 'revoked', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id],
+    );
+    if (!result.rows[0]) throw new NotFoundError('Consent');
     return result.rows[0];
   });
 }

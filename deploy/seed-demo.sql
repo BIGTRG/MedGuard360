@@ -62,6 +62,10 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000013', 'pharmacy@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'pharmacy', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000014', 'hie@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'hie_administrator', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
 
@@ -602,6 +606,29 @@ VALUES
    'WakeMed Outpatient, Raleigh NC 27610', 35.7865, -78.6250,
    now() - interval '2 days', 'completed', 18.4, 5520,
    '00000000-0000-0000-0000-000000000012')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- HIE consents + referrals (NC HealthConnex demo)
+-- ============================================================
+INSERT INTO hie_consents (id, patient_id, scope, granted_to_org, effective_from, effective_to, status) VALUES
+  ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+   'all', 'NC HealthConnex', '2026-01-01', NULL, 'active'),
+  ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
+   'mental_health', 'Duke Health Network', '2026-03-01', '2027-03-01', 'active'),
+  ('80000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002',
+   'substance_use', 'UNC Health Alliance', '2026-02-15', NULL, 'active')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO referrals (id, from_provider_id, to_provider_id, patient_id, state_code,
+                       reason, priority, status, fhir_service_request_id, notes, created_by) VALUES
+  ('90000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000001', NULL,
+   '10000000-0000-0000-0000-000000000001', 'NC',
+   'Cardiology consult — chest pain workup', 'routine', 'pending',
+   'ServiceRequest/90000000-0000-0000-0000-000000000001',
+   'Outbound via NC HealthConnex to Duke Cardiology Clinic',
+   '00000000-0000-0000-0000-000000000014')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

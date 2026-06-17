@@ -180,6 +180,17 @@ try {
   Test-Ok "portal /pharmacy/drug-pa" (Test-PortalPage "/pharmacy/drug-pa")
 } catch { Test-Ok "pharmacy flow" $false $_.Exception.Message }
 
+Write-Host "`n=== HIE (NC HealthConnex) ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'hie@demo.medguard360.com')" }
+try {
+  $demoPatient = '10000000-0000-0000-0000-000000000001'
+  $consents = Invoke-RestMethod -Uri "$api/hie/patients/$demoPatient/consents" -Headers $h
+  Test-Ok "HIE patient consents" ($consents.count -ge 2)
+  $refs = Invoke-RestMethod -Uri "$api/hie/referrals?patientId=$demoPatient" -Headers $h
+  Test-Ok "HIE referrals list" ($refs.count -ge 1)
+  Test-Ok "portal /hie" (Test-PortalPage "/hie")
+} catch { Test-Ok "HIE flow" $false $_.Exception.Message }
+
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'patient@demo.medguard360.com')" }
 try {

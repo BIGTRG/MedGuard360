@@ -56,7 +56,7 @@ function HieInner(): React.ReactElement {
         <form className="flex gap-2" onSubmit={fetch}>
           <input
             className="input max-w-md"
-            placeholder="Patient UUID"
+            placeholder="Patient UUID (demo: 10000000-0000-0000-0000-000000000001)"
             value={patientId}
             onChange={e => setPatientId(e.target.value)}
             required

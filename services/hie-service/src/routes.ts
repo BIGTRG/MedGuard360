@@ -56,6 +56,15 @@ const ReferralListFiltersSchema = z.object({
   status: z.enum(['pending', 'accepted', 'completed', 'declined', 'cancelled']).optional(),
 });
 
+const ConsentCreateSchema = z.object({
+  patientId: z.string().uuid(),
+  scope: z.string().min(1).max(100),
+  grantedToOrg: z.string().min(1).max(500),
+  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  fhirResourceId: z.string().optional().nullable(),
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -328,5 +337,114 @@ router.put(
     });
 
     res.json(updated);
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/hie/patients/:patientId/consents
+// List active consents for a patient (42 CFR Part 2 scopes).
+// ---------------------------------------------------------------------------
+
+router.get(
+  '/hie/patients/:patientId/consents',
+  requireAuth,
+  requireRole('hie_administrator', 'compliance_officer', 'platform_administrator', 'individual_provider', 'facility_provider'),
+  ah(async (req, res) => {
+    const patientId = parse(UuidParam, req.params.patientId);
+    const activeOnly = req.query['includeRevoked'] !== 'true';
+    const consents = await repo.listConsents(req.auth!, patientId, activeOnly);
+
+    await auditLog({
+      resource: 'consent',
+      resourceId: patientId,
+      action: 'read',
+      actor: req.auth!,
+      outcome: 'success',
+      correlationId: req.correlationId,
+      context: { count: consents.length },
+    });
+
+    res.json({ count: consents.length, consents });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/v1/hie/consents
+// Record a FHIR Consent grant for outbound HIE sharing.
+// ---------------------------------------------------------------------------
+
+router.post(
+  '/hie/consents',
+  requireAuth,
+  requireRole('hie_administrator', 'individual_provider', 'facility_provider', 'platform_administrator'),
+  ah(async (req, res) => {
+    const input = parse(ConsentCreateSchema, req.body);
+    const consent = await repo.createConsent(req.auth!, {
+      patient_id: input.patientId,
+      scope: input.scope,
+      granted_to_org: input.grantedToOrg,
+      effective_from: input.effectiveFrom,
+      effective_to: input.effectiveTo ?? null,
+      fhir_resource_id: input.fhirResourceId ?? null,
+    });
+
+    await emitEvent(
+      'hie.consent.granted',
+      {
+        consentId: consent.id,
+        patientId: consent.patient_id,
+        scope: consent.scope,
+        grantedToOrg: consent.granted_to_org,
+      },
+      { actorUserId: req.auth!.sub, correlationId: req.correlationId },
+    );
+
+    await auditLog({
+      resource: 'consent',
+      resourceId: consent.id,
+      action: 'create',
+      actor: req.auth!,
+      outcome: 'success',
+      correlationId: req.correlationId,
+    });
+
+    res.status(201).json(consent);
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/v1/hie/consents/:id/revoke
+// Patient or HIE admin revokes an active consent.
+// ---------------------------------------------------------------------------
+
+router.post(
+  '/hie/consents/:id/revoke',
+  requireAuth,
+  requireRole('hie_administrator', 'patient', 'platform_administrator'),
+  ah(async (req, res) => {
+    const id = parse(UuidParam, req.params.id);
+    const revoked = await repo.revokeConsent(req.auth!, id);
+
+    await emitEvent(
+      'hie.consent.revoked',
+      {
+        consentId: revoked.id,
+        patientId: revoked.patient_id,
+        scope: revoked.scope,
+      },
+      { actorUserId: req.auth!.sub, correlationId: req.correlationId },
+    );
+
+    await auditLog({
+      resource: 'consent',
+      resourceId: id,
+      action: 'update',
+      actor: req.auth!,
+      outcome: 'success',
+      correlationId: req.correlationId,
+      context: { status: 'revoked' },
+    });
+
+    res.json(revoked);
   }),
 );
