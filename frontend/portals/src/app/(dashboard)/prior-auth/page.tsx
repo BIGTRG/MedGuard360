@@ -38,13 +38,7 @@ function PriorAuthInner(): React.ReactElement {
   useEffect(() => {
     api.get<{ requests?: PaRequest[] }>('/v1/prior-auth/pa-requests/queue')
       .then(d => setRequests(d.requests ?? []))
-      .catch(err => {
-        if (err instanceof ApiError && err.status === 404) {
-          setError('PA queue endpoint not yet exposed by prior-auth-service. Add a GET /pa-requests/queue route to surface pending items.');
-        } else {
-          setError(err instanceof ApiError ? err.message : 'Failed to load queue');
-        }
-      })
+      .catch(err => setError(err instanceof ApiError ? err.message : 'Failed to load queue'))
       .finally(() => setLoading(false));
   }, []);
 

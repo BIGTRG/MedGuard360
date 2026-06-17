@@ -20,7 +20,9 @@
 | Fraud case (89/100) | http://localhost/fraud/cases/60000000-0000-0000-0000-000000000002 |
 | Denial + AI appeal | http://localhost/denials/70000000-0000-0000-0000-000000000001 |
 | Provider workflow | http://localhost/provider/workflow |
+| Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |
+| Compliance | http://localhost/compliance |
 | State dashboard | http://localhost/state |
 | Reporting | http://localhost/reporting |
 | Admin users | http://localhost/admin/users |

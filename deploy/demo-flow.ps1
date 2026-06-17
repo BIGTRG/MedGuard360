@@ -92,6 +92,7 @@ try {
   $patients = Invoke-RestMethod -Uri "$api/patients?limit=5" -Headers $h
   Test-Ok "provider sees patients" ($patients.count -ge 1)
   Test-Ok "portal /provider/workflow" (Test-PortalPage "/provider/workflow")
+  Test-Ok "portal /provider" (Test-PortalPage "/provider")
   Test-Ok "portal /provider/claims" (Test-PortalPage "/provider/claims")
 } catch { Test-Ok "provider flow" $false $_.Exception.Message }
 
