@@ -4,7 +4,7 @@
 #   auth-service, patient-service, prior-auth-service, claims-service,
 #   fraud-engine-service, state-config-service, audit-log-service,
 #   reporting-service, denial-service, provider-service, notification-service,
-#   crisis-service
+#   crisis-service, clinical-doc-service, credentialing-service
 # Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
@@ -158,6 +158,18 @@ services:
     build: { <<: *node-build, args: { SERVICE_NAME: provider-service } }
     environment: { <<: *service-env, PORT: "3002" }
     ports: ["3002:3002"]
+    <<: *node-service
+
+  credentialing-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: credentialing-service } }
+    environment: { <<: *service-env, PORT: "3003" }
+    ports: ["3003:3003"]
+    <<: *node-service
+
+  clinical-doc-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: clinical-doc-service } }
+    environment: { <<: *service-env, PORT: "3007" }
+    ports: ["3007:3007"]
     <<: *node-service
 
   patient-service:

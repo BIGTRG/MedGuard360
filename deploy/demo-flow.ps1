@@ -101,7 +101,21 @@ try {
   $mine = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/mine" -Headers $h
   Test-Ok "provider PA mine" ($mine.count -ge 1)
   Test-Ok "portal /provider/pa" (Test-PortalPage "/provider/pa")
+  $enc = Invoke-RestMethod -Uri "$api/clinical-doc/encounters" -Headers $h
+  Test-Ok "provider encounters list" ($enc.encounters.Count -ge 1)
+  Test-Ok "portal /provider/encounters" (Test-PortalPage "/provider/encounters")
+  if ($enc.encounters.Count -ge 1) {
+    Test-Ok "portal encounter detail" (Test-PortalPage "/provider/encounters/$($enc.encounters[0].id)")
+  }
 } catch { Test-Ok "provider flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Credentialing ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'credentialing@demo.medguard360.com')" }
+try {
+  $apps = Invoke-RestMethod -Uri "$api/credentialing/applications" -Headers $h
+  Test-Ok "credentialing applications" ($apps.count -ge 1)
+  Test-Ok "portal /credentialing" (Test-PortalPage "/credentialing")
+} catch { Test-Ok "credentialing flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'patient@demo.medguard360.com')" }

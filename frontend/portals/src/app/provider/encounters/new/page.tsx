@@ -20,11 +20,14 @@ function NewEncounterInner(): React.ReactElement {
     e.preventDefault();
     setError(null); setSubmitting(true);
     try {
-      const enc = await api.post<{ id: string }>('/v1/clinical-doc/encounters', {
-        patientId, providerId: claims?.sub, stateCode: claims?.stateCode ?? 'NC',
-        encounterType,
+      const resp = await api.post<{ encounter?: { id: string }; id?: string }>('/v1/clinical-doc/encounters', {
+        patientId,
+        stateCode: claims?.stateCode ?? 'NC',
+        serviceDate: new Date().toISOString().slice(0, 10),
       });
-      router.push(`/provider/encounters/${enc.id}`);
+      const encId = resp.encounter?.id ?? resp.id;
+      if (!encId) throw new Error('Encounter id missing from response');
+      router.push(`/provider/encounters/${encId}`);
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);

@@ -22,7 +22,8 @@
 | Fraud rings scan | http://localhost/fraud/rings |
 | Denial + AI appeal | http://localhost/denials/70000000-0000-0000-0000-000000000001 |
 | Provider PA list | http://localhost/provider/pa |
-| Provider workflow | http://localhost/provider/workflow |
+| Provider encounters | http://localhost/provider/encounters |
+| Credentialing queue | http://localhost/credentialing |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |
 | Compliance | http://localhost/compliance |

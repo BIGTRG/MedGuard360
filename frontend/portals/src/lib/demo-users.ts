@@ -12,6 +12,7 @@ export const DEMO_USERS = [
   { label: 'Patient', email: 'patient@demo.medguard360.com', role: 'patient' as UserRole, area: 'Member portal' },
   { label: 'Denials', email: 'denial@demo.medguard360.com', role: 'denial_appeals_specialist' as UserRole, area: 'Denials + appeals' },
   { label: 'Compliance', email: 'compliance@demo.medguard360.com', role: 'compliance_officer' as UserRole, area: 'Audit / compliance' },
+  { label: 'Credentialing', email: 'credentialing@demo.medguard360.com', role: 'credentialing_specialist' as UserRole, area: 'Provider credentialing queue' },
   { label: 'Responder', email: 'responder@demo.medguard360.com', role: 'emergency_responder' as UserRole, area: 'Crisis (biometric-gated)' },
 ] as const;
 

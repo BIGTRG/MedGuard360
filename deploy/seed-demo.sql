@@ -46,6 +46,10 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000009', 'compliance@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'compliance_officer', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000010', 'credentialing@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'credentialing_specialist', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
 
@@ -411,6 +415,40 @@ SELECT 'NC', 'credentialing_approved', CURRENT_DATE - i, (random() * 2)::int FRO
 ON CONFLICT (state_code, metric, day) DO NOTHING;
 
 -- ============================================================
+-- Provider encounters (clinical-doc stop) + credentialing queue
+-- ============================================================
+INSERT INTO clinical_encounters (id, provider_id, patient_id, state_code, encounter_type, status,
+                                 started_at, signed_at, signed_by, created_by)
+VALUES
+  ('85000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000003',
+   '10000000-0000-0000-0000-000000000001',
+   'NC', 'office', 'signed',
+   now() - interval '3 days', now() - interval '3 days',
+   '00000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000003'),
+  ('85000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000003',
+   '10000000-0000-0000-0000-000000000002',
+   'NC', 'telehealth', 'in_progress',
+   now() - interval '1 day', NULL, NULL,
+   '00000000-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO credentialing_applications (id, provider_id, state_code, application_type, status,
+                                      submitted_at, target_decision_by, created_by)
+VALUES
+  ('90000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000001', 'NC', 'initial', 'review_pending',
+   now() - interval '2 days', now() + interval '3 days',
+   '00000000-0000-0000-0000-000000000010'),
+  ('90000000-0000-0000-0000-000000000002',
+   '20000000-0000-0000-0000-000000000001', 'NC', 'recredential', 'psv_pending',
+   now() - interval '5 days', now() + interval '1 day',
+   '00000000-0000-0000-0000-000000000010')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
 -- Audit log (compliance stop — live feed on /compliance + /audit)
 -- ============================================================
 INSERT INTO audit_log_events (id, occurred_at, actor_user_id, actor_role, actor_state_code, resource, resource_id, action, outcome, context, producer) VALUES
@@ -438,5 +476,7 @@ UNION ALL SELECT 'PA criteria',  COUNT(*) FROM pa_criterion_evaluations
 UNION ALL SELECT 'Claims',       COUNT(*) FROM claims
 UNION ALL SELECT 'Fraud cases',  COUNT(*) FROM fraud_cases
 UNION ALL SELECT 'Denials',      COUNT(*) FROM denials
+UNION ALL SELECT 'Encounters',   COUNT(*) FROM clinical_encounters
+UNION ALL SELECT 'Cred apps',    COUNT(*) FROM credentialing_applications
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;

@@ -7,11 +7,20 @@ import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
 import { DataTable, type Column } from '@/components/DataTable';
 import { api } from '@/lib/api-client';
-import { formatDateTime, timeSince } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 
 interface EncounterRow {
-  id: string; patient_id: string; encounter_type: string; status: string;
-  started_at: string; signed_at: string | null;
+  id: string;
+  patient_id: string;
+  provider_id?: string;
+  provider_user_id?: string;
+  state_code: string;
+  encounter_type?: string;
+  service_date?: string;
+  started_at?: string;
+  created_at?: string;
+  status: string;
+  signed_at: string | null;
 }
 
 function EncountersInner(): React.ReactElement {
@@ -30,13 +39,13 @@ function EncountersInner(): React.ReactElement {
 
   const columns: Column<EncounterRow>[] = [
     { header: 'Encounter',  accessor: e => <Link href={`/provider/encounters/${e.id}`} className="font-mono text-xs text-brand-700 hover:underline">{e.id.slice(0,8)}…</Link> },
-    { header: 'Type',       accessor: e => <span className="badge-gray">{e.encounter_type}</span> },
+    { header: 'Type',       accessor: e => <span className="badge-gray">{e.encounter_type ?? 'visit'}</span> },
+    { header: 'Service date', accessor: e => formatDateTime(e.started_at ?? e.service_date ?? e.created_at) },
     { header: 'Status',     accessor: e => <span className={
       e.status === 'signed' ? 'badge-green' :
       e.status === 'transcribing' ? 'badge-yellow' :
       e.status === 'cancelled' ? 'badge-red' : 'badge-blue'
     }>{e.status}</span> },
-    { header: 'Started',    accessor: e => timeSince(e.started_at) },
     { header: 'Signed',     accessor: e => formatDateTime(e.signed_at) },
   ];
 
