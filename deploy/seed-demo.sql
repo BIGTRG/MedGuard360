@@ -228,6 +228,17 @@ VALUES
    '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000001',
    'NCMEDPAY', 'NC', '837P', '2026-05-09', '2026-05-09', ARRAY['M54.5'],
    22000, 'denied', now() - interval '4 days', 24, 'auto_pay',
+   '00000000-0000-0000-0000-000000000003'),
+  -- Demo member portal (patient user id = patients.id)
+  ('50000000-0000-0000-0000-000000000007', '260517-000107',
+   '00000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000001',
+   'NCMEDPAY', 'NC', '837P', '2026-05-14', '2026-05-14', ARRAY['F41.1'],
+   18000, 'paid', now() - interval '5 days', 10, 'auto_pay',
+   '00000000-0000-0000-0000-000000000003'),
+  ('50000000-0000-0000-0000-000000000008', '260517-000108',
+   '00000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000001',
+   'NCMEDPAY', 'NC', '837P', '2026-05-09', '2026-05-09', ARRAY['M54.5'],
+   22000, 'submitted', now() - interval '2 days', 14, 'auto_pay',
    '00000000-0000-0000-0000-000000000003')
 ON CONFLICT (id) DO NOTHING;
 
@@ -240,8 +251,22 @@ VALUES
   ('50000000-0000-0000-0000-000000000003', 1, '99215', 'CPT', 1, 285000, ARRAY[1], '2026-05-12', '11'),
   ('50000000-0000-0000-0000-000000000004', 1, '99215', 'CPT', 1, 895000, ARRAY[1], '2026-05-13', '11'),
   ('50000000-0000-0000-0000-000000000005', 1, '90834', 'CPT', 1, 18000, ARRAY[1], '2026-05-14', '11'),
-  ('50000000-0000-0000-0000-000000000006', 1, '97140', 'CPT', 1, 22000, ARRAY[1], '2026-05-09', '11')
+  ('50000000-0000-0000-0000-000000000006', 1, '97140', 'CPT', 1, 22000, ARRAY[1], '2026-05-09', '11'),
+  ('50000000-0000-0000-0000-000000000007', 1, '90834', 'CPT', 1, 18000, ARRAY[1], '2026-05-14', '11'),
+  ('50000000-0000-0000-0000-000000000008', 1, '97140', 'CPT', 1, 22000, ARRAY[1], '2026-05-09', '11')
 ON CONFLICT DO NOTHING;
+
+-- Member portal: patients read own claims (patients.id = users.id for demo member)
+DROP POLICY IF EXISTS claims_read ON claims;
+CREATE POLICY claims_read ON claims FOR SELECT USING (
+  app_role_is_cross_state()
+  OR (app_current_role() IN ('state_medicaid_agency','mco_admin','billing_manager',
+                              'compliance_officer','fraud_investigator','denial_appeals_specialist')
+      AND state_code = app_current_state_code())
+  OR billing_provider_id = app_current_user_id()
+  OR rendering_provider_id = app_current_user_id()
+  OR (app_current_role() = 'patient' AND patient_id = app_current_user_id())
+);
 
 -- ============================================================
 -- Fraud scores + cases (queue for the investigator)

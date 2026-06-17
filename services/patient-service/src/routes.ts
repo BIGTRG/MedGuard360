@@ -190,6 +190,49 @@ router.get(
   }),
 );
 
+const MEMBER_APPOINTMENTS = [
+  { id: 'appt-1', when: 'Jun 18, 2026 · 10:30 AM', provider: 'Dr. Demo Provider', location: 'Raleigh Family Medicine' },
+  { id: 'appt-2', when: 'Jul 02, 2026 · 2:00 PM', provider: 'Dr. Demo Provider', location: 'Telehealth' },
+];
+
+const MEMBER_MESSAGES = [
+  { id: 'msg-1', from: 'NC Medicaid Member Services', at: '2 days ago', preview: 'Your prior authorization for psychotherapy was approved.' },
+  { id: 'msg-2', from: 'Dr. Demo Provider', at: '1 week ago', preview: 'Lab results are ready — no action needed.' },
+];
+
+router.get(
+  '/patients/me/claims',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const claims = await repo.getMemberClaims(req.auth!.sub, req.auth!);
+    await auditLog({
+      resource: 'claim', resourceId: 'member-list', action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId, context: { count: claims.length },
+    });
+    res.json({ count: claims.length, claims });
+  }),
+);
+
+router.get(
+  '/patients/me/appointments',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    res.json({ count: MEMBER_APPOINTMENTS.length, appointments: MEMBER_APPOINTMENTS });
+  }),
+);
+
+router.get(
+  '/patients/me/messages',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    res.json({ count: MEMBER_MESSAGES.length, messages: MEMBER_MESSAGES });
+  }),
+);
+
 // ── GET /patients/:id ─────────────────────────────────────────────────────────
 router.get(
   '/patients/:id',

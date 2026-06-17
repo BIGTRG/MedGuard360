@@ -104,6 +104,10 @@ try {
   Test-Ok "patient coverages" ($cov.coverages.Count -ge 1)
   $crisis = Invoke-RestMethod -Uri "$api/patients/me/crisis-plan" -Headers $h
   Test-Ok "patient crisis plan" ($crisis.warning_signs.Count -ge 1)
+  $memberClaims = Invoke-RestMethod -Uri "$api/patients/me/claims" -Headers $h
+  Test-Ok "patient claims" ($memberClaims.count -ge 1)
+  $appts = Invoke-RestMethod -Uri "$api/patients/me/appointments" -Headers $h
+  Test-Ok "patient appointments" ($appts.count -ge 1)
   Test-Ok "portal /patient" (Test-PortalPage "/patient")
 } catch { Test-Ok "patient flow" $false $_.Exception.Message }
 

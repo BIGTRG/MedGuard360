@@ -36,6 +36,40 @@ interface CrisisPlan {
   safe_environment_steps: string[];
 }
 
+interface MemberClaim {
+  id: string;
+  service_date: string;
+  service_label: string;
+  provider_name: string;
+  amount_cents: number;
+  status: string;
+}
+
+interface MemberAppointment {
+  id: string;
+  when: string;
+  provider: string;
+  location: string;
+}
+
+interface MemberMessage {
+  id: string;
+  from: string;
+  at: string;
+  preview: string;
+}
+
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function statusLabel(status: string): string {
+  if (status === 'paid') return 'Paid';
+  if (status === 'submitted') return 'Pending';
+  if (status === 'denied') return 'Denied';
+  return status.replace('_', ' ');
+}
+
 const TABS: { id: TabId; label: string; icon: typeof HeartIcon }[] = [
   { id: 'overview', label: 'Overview', icon: HeartIcon },
   { id: 'coverage', label: 'Coverage', icon: ShieldCheckIcon },
@@ -45,26 +79,14 @@ const TABS: { id: TabId; label: string; icon: typeof HeartIcon }[] = [
   { id: 'messages', label: 'Messages', icon: ChatBubbleLeftRightIcon },
 ];
 
-const DEMO_CLAIMS = [
-  { date: '2026-05-14', provider: 'Dr. Demo Provider', service: 'Psychotherapy (90834)', amount: '$180.00', status: 'Paid' },
-  { date: '2026-05-09', provider: 'Dr. Demo Provider', service: 'Manual therapy (97140)', amount: '$220.00', status: 'Pending' },
-];
-
-const DEMO_APPOINTMENTS = [
-  { when: 'Jun 18, 2026 · 10:30 AM', who: 'Dr. Demo Provider', where: 'Raleigh Family Medicine' },
-  { when: 'Jul 02, 2026 · 2:00 PM', who: 'Dr. Demo Provider', where: 'Telehealth' },
-];
-
-const DEMO_MESSAGES = [
-  { from: 'NC Medicaid Member Services', at: '2 days ago', preview: 'Your prior authorization for psychotherapy was approved.' },
-  { from: 'Dr. Demo Provider', at: '1 week ago', preview: 'Lab results are ready — no action needed.' },
-];
-
 function PatientInner(): React.ReactElement {
   const [tab, setTab] = useState<TabId>('overview');
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [coverages, setCoverages] = useState<Coverage[]>([]);
   const [crisis, setCrisis] = useState<CrisisPlan | null>(null);
+  const [claims, setClaims] = useState<MemberClaim[]>([]);
+  const [appointments, setAppointments] = useState<MemberAppointment[]>([]);
+  const [messages, setMessages] = useState<MemberMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -72,11 +94,17 @@ function PatientInner(): React.ReactElement {
       api.get<PatientProfile>('/v1/patients/me'),
       api.get<{ coverages: Coverage[] }>('/v1/patients/me/coverages'),
       api.get<CrisisPlan>('/v1/patients/me/crisis-plan').catch(() => null),
+      api.get<{ claims: MemberClaim[] }>('/v1/patients/me/claims').catch(() => ({ claims: [] })),
+      api.get<{ appointments: MemberAppointment[] }>('/v1/patients/me/appointments').catch(() => ({ appointments: [] })),
+      api.get<{ messages: MemberMessage[] }>('/v1/patients/me/messages').catch(() => ({ messages: [] })),
     ])
-      .then(([p, c, crisisPlan]) => {
+      .then(([p, c, crisisPlan, claimRes, apptRes, msgRes]) => {
         setProfile(p);
         setCoverages(c.coverages ?? []);
         setCrisis(crisisPlan);
+        setClaims(claimRes.claims ?? []);
+        setAppointments(apptRes.appointments ?? []);
+        setMessages(msgRes.messages ?? []);
       })
       .catch(() => setProfile(null))
       .finally(() => setLoading(false));
@@ -149,13 +177,21 @@ function PatientInner(): React.ReactElement {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {DEMO_CLAIMS.map((c) => (
-              <tr key={c.date + c.service}>
-                <td className="px-4 py-2">{c.date}</td>
-                <td className="px-4 py-2">{c.provider}</td>
-                <td className="px-4 py-2">{c.service}</td>
-                <td className="px-4 py-2 text-right">{c.amount}</td>
-                <td className="px-4 py-2"><span className="badge-green">{c.status}</span></td>
+            {claims.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">No claims on file.</td></tr>
+            )}
+            {claims.map((c) => (
+              <tr key={c.id}>
+                <td className="px-4 py-2">{c.service_date}</td>
+                <td className="px-4 py-2">{c.provider_name}</td>
+                <td className="px-4 py-2">{c.service_label}</td>
+                <td className="px-4 py-2 text-right">{formatUsd(c.amount_cents)}</td>
+                <td className="px-4 py-2">
+                  <span className={cn(
+                    'badge',
+                    c.status === 'paid' ? 'badge-green' : c.status === 'denied' ? 'badge-red' : 'badge-yellow',
+                  )}>{statusLabel(c.status)}</span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -193,10 +229,10 @@ function PatientInner(): React.ReactElement {
 
       {tab === 'appointments' && (
         <ul className="space-y-2">
-          {DEMO_APPOINTMENTS.map((a) => (
-            <li key={a.when} className="card card-body">
+          {appointments.map((a) => (
+            <li key={a.id} className="card card-body">
               <div className="font-medium">{a.when}</div>
-              <div className="text-sm text-slate-600">{a.who} · {a.where}</div>
+              <div className="text-sm text-slate-600">{a.provider} · {a.location}</div>
             </li>
           ))}
         </ul>
@@ -204,8 +240,8 @@ function PatientInner(): React.ReactElement {
 
       {tab === 'messages' && (
         <ul className="space-y-2">
-          {DEMO_MESSAGES.map((m) => (
-            <li key={m.preview} className="card card-body">
+          {messages.map((m) => (
+            <li key={m.id} className="card card-body">
               <div className="flex justify-between text-xs text-slate-500">
                 <span className="font-medium text-slate-800">{m.from}</span>
                 <span>{m.at}</span>

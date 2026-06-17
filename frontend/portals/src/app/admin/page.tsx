@@ -49,7 +49,7 @@ function AdminInner(): React.ReactElement {
         <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
           <Cog6ToothIcon className="h-5 w-5" /> Platform Administration
         </h2>
-        <p className="text-sm text-slate-500">Cross-platform admin surface — 20 services, 10 AI engines, 44 SQL migrations.</p>
+        <p className="text-sm text-slate-500">Cross-platform admin surface — 20 services, 10 AI engines, 45 SQL migrations.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

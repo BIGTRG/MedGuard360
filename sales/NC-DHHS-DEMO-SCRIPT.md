@@ -45,7 +45,7 @@
 
 ### Stop 1 — Platform Administration (1 min)
 Page: `/admin`
-- Point out 20 services / 10 AI engines / **44 SQL migrations**
+- Point out 20 services / 10 AI engines / **45 SQL migrations**
 - "This is what runs the platform. **Eight vendor adapters** on `/admin/integrations` — NCTracks, MTM, ModivCare, CGS DMEPOS, Da Vinci PAS, and more — all currently in stub mode, all flip to live with credential rotation."
 
 ### Stop 2 — Pilot States live data (1 min)
@@ -65,26 +65,26 @@ Switch role → **Fraud Investigator** (login quick-button or header dropdown). 
 - Show "Escalate to OCPI / MFCU / CMS UPIC / State OIG" button. "When we say human-in-the-loop, this is what we mean. AI flags, human escalates."
 
 ### Stop 4 — Prior Auth evidence matcher (2 min)
-Switch role → **PA Specialist**. Page: `/pa-queue/[id]/evidence`
+Switch role → **PA Specialist** (quick-button or dropdown). Page: `/pa-queue/[id]/evidence`
 - Show 5 criteria with AI evidence (4 met, 1 indeterminate on the flagship PA)
 - "BERT model matched the patient's chart notes against payer policy. For each criterion, AI gave an outcome — met / not met / unclear — with confidence and a quote from the chart."
 - Click a criterion's override button. "Specialist disagrees with AI? One click. Their override is persisted, used to retrain quarterly."
 - "Decision requires a plain-language explanation — not optional. The patient and provider both get this back."
 
 ### Stop 5 — Provider end-to-end workflow (2 min)
-Switch role → **Provider**. Page: `/provider/workflow`
+Switch role → **Provider** (quick-button or dropdown). Page: `/provider/workflow`
 - Click "Run pipeline"
 - Walk through the 9 steps: encounter start → voice capture → Whisper transcription → clinical NLP → ICD-10/CPT suggestions → Da Vinci CRD PA pre-check → 837P draft → fraud pre-scan → NCTracks submit
 - "Total time from end of visit to submitted claim: about 4 minutes today. Manual today is 20-40 minutes."
 
 ### Stop 6 — Member experience (1 min)
-Switch role → **Patient (My Health)**. Page: `/patient`
-- 6 tabs: Overview, Coverage, Claims, Crisis Plan, Appointments, Messages
+Switch role → **Patient** (quick-button or dropdown). Page: `/patient`
+- 6 tabs: Overview, Coverage, **Claims (live from DB)**, Crisis Plan, Appointments, Messages
 - "This is what your members see. Mobile app has the same surface — offline-first SQLite cache, biometric login, crisis plan accessible in 3 seconds even with no signal."
 
 ### Stop 7 — Compliance posture (2 min)
-Switch role → **Compliance Officer**. Page: `/compliance`
-- "Every PHI access event logged. Failed login attempts surface here. SRA + SOC 2 + HITRUST in active observation."
+Switch role → **Compliance Officer** (quick-button or dropdown). Page: `/compliance`
+- Live audit feed from `audit_log_events` — PHI access, failed logins, PA overrides
 - Open `/admin/integrations` — "Every vendor surface. Status column shows stub vs partial vs live. Real credentials live in `/opt/credential-vault/`, never .env files."
 - Show `compliance/controls.md` if asked — NIST 800-53 mapping ready for auditors.
 
