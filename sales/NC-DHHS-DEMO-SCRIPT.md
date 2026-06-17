@@ -24,6 +24,8 @@
 | Provider PA list | http://localhost/provider/pa |
 | Provider encounters | http://localhost/provider/encounters |
 | Credentialing queue | http://localhost/credentialing |
+| DME orders | http://localhost/dme |
+| NEMT trips | http://localhost/nemt |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |
 | Compliance | http://localhost/compliance |
@@ -85,6 +87,7 @@ Switch role → **Provider** (quick-button or dropdown). Page: `/provider/workfl
 - Walk through the 9 steps: encounter start → voice capture → Whisper transcription → clinical NLP → ICD-10/CPT suggestions → Da Vinci CRD PA pre-check → 837P draft → fraud pre-scan → NCTracks submit
 - "Total time from end of visit to submitted claim: about 4 minutes today. Manual today is 20-40 minutes."
 - Show `/provider/pa` — provider's own PA requests (active + historical) from live API.
+- Show `/provider/encounters` — live signed + in-progress encounters from clinical-doc-service (open detail to edit note on in-progress visit).
 
 ### Stop 6 — Member experience (1 min)
 Switch role → **Patient** (quick-button or dropdown). Page: `/patient`

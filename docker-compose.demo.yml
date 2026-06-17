@@ -4,7 +4,8 @@
 #   auth-service, patient-service, prior-auth-service, claims-service,
 #   fraud-engine-service, state-config-service, audit-log-service,
 #   reporting-service, denial-service, provider-service, notification-service,
-#   crisis-service, clinical-doc-service, credentialing-service
+#   crisis-service, clinical-doc-service, credentialing-service,
+#   dme-service, nemt-service
 # Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
@@ -147,7 +148,7 @@ services:
       MINIO_URL: http://minio:9000
     entrypoint: ["sh", "-c", "/bootstrap.sh && PGPASSWORD=$$PG_PASSWORD psql -h postgres -U medguard -d medguard360 -f /work/deploy/seed-demo.sql"]
 
-  # -------- 12 demo services --------
+  # -------- 14 demo services --------
   auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: auth-service } }
     environment: { <<: *service-env, PORT: "3001" }
@@ -204,6 +205,18 @@ services:
     build: { <<: *node-build, args: { SERVICE_NAME: denial-service } }
     environment: { <<: *service-env, PORT: "3010" }
     ports: ["3010:3010"]
+    <<: *node-service
+
+  dme-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: dme-service } }
+    environment: { <<: *service-env, PORT: "3012" }
+    ports: ["3012:3012"]
+    <<: *node-service
+
+  nemt-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: nemt-service } }
+    environment: { <<: *service-env, PORT: "3013" }
+    ports: ["3013:3013"]
     <<: *node-service
 
   crisis-service:

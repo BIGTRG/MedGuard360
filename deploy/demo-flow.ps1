@@ -117,6 +117,20 @@ try {
   Test-Ok "portal /credentialing" (Test-PortalPage "/credentialing")
 } catch { Test-Ok "credentialing flow" $false $_.Exception.Message }
 
+Write-Host "`n=== DME + NEMT ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'dme@demo.medguard360.com')" }
+try {
+  $orders = Invoke-RestMethod -Uri "$api/dme/orders" -Headers $h
+  Test-Ok "DME orders list" ($orders.count -ge 1)
+  Test-Ok "portal /dme" (Test-PortalPage "/dme")
+} catch { Test-Ok "DME flow" $false $_.Exception.Message }
+$h = @{ Authorization = "Bearer $(Get-Token 'nemt@demo.medguard360.com')" }
+try {
+  $trips = Invoke-RestMethod -Uri "$api/nemt/trips" -Headers $h
+  Test-Ok "NEMT trips list" ($trips.count -ge 1)
+  Test-Ok "portal /nemt" (Test-PortalPage "/nemt")
+} catch { Test-Ok "NEMT flow" $false $_.Exception.Message }
+
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'patient@demo.medguard360.com')" }
 try {

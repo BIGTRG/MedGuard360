@@ -98,6 +98,12 @@ router.post('/dme/orders/:id/status',
   }),
 );
 
+router.get('/dme/orders', requireAuth, ah(async (req, res) => {
+  const limit = z.coerce.number().int().min(1).max(1000).optional().parse(req.query.limit);
+  const orders = await repo.listOrders(req.auth!, limit ?? 100);
+  res.json({ count: orders.length, orders });
+}));
+
 router.get('/dme/orders/:id', requireAuth, ah(async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   const order = await repo.getOrder(req.auth!, id);

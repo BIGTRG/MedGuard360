@@ -50,6 +50,14 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000010', 'credentialing@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'credentialing_specialist', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000011', 'dme@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'dmepos_supplier', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000012', 'nemt@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'nemt_broker', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
 
@@ -449,6 +457,55 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
+-- DME orders + NEMT trips (supplier/broker portals)
+-- ============================================================
+INSERT INTO dme_orders (id, patient_id, prescribing_provider_id, supplier_provider_id, payer_id,
+                        state_code, hcpcs_code, description, quantity, rental_or_purchase,
+                        total_charge_cents, prior_auth_id, cmn_complete, date_of_service, status,
+                        delivery_address, created_by)
+VALUES
+  ('95000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000011',
+   'NCMEDPAY', 'NC', 'E0601', 'CPAP device with humidifier', 1, 'rental',
+   18500, '40000000-0000-0000-0000-000000000001', TRUE, CURRENT_DATE - 2, 'pending',
+   '123 Main St, Raleigh NC 27601',
+   '00000000-0000-0000-0000-000000000011'),
+  ('95000000-0000-0000-0000-000000000002',
+   '10000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000011',
+   'NCMEDPAY', 'NC', 'K0001', 'Standard wheelchair', 1, 'purchase',
+   42000, NULL, TRUE, CURRENT_DATE - 10, 'delivered',
+   '456 Oak Ave, Durham NC 27701',
+   '00000000-0000-0000-0000-000000000011')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO nemt_trips (id, patient_id, broker_id, payer_id, state_code, trip_type,
+                        pickup_address, pickup_latitude, pickup_longitude,
+                        destination_address, destination_latitude, destination_longitude,
+                        scheduled_pickup_at, status, miles_billed, total_charge_cents, created_by)
+VALUES
+  ('96000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000012',
+   'NCMEDPAY', 'NC', 'one_way',
+   '789 Pine Rd, Cary NC 27513', 35.7915, -78.7811,
+   'Duke Primary Care, Durham NC 27705', 36.0012, -78.9382,
+   now() + interval '1 day', 'scheduled', NULL, NULL,
+   '00000000-0000-0000-0000-000000000012'),
+  ('96000000-0000-0000-0000-000000000002',
+   '10000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000012',
+   'NCMEDPAY', 'NC', 'round_trip',
+   '123 Main St, Raleigh NC 27601', 35.7796, -78.6382,
+   'WakeMed Outpatient, Raleigh NC 27610', 35.7865, -78.6250,
+   now() - interval '2 days', 'completed', 18.4, 5520,
+   '00000000-0000-0000-0000-000000000012')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
 -- Audit log (compliance stop — live feed on /compliance + /audit)
 -- ============================================================
 INSERT INTO audit_log_events (id, occurred_at, actor_user_id, actor_role, actor_state_code, resource, resource_id, action, outcome, context, producer) VALUES
@@ -478,5 +535,7 @@ UNION ALL SELECT 'Fraud cases',  COUNT(*) FROM fraud_cases
 UNION ALL SELECT 'Denials',      COUNT(*) FROM denials
 UNION ALL SELECT 'Encounters',   COUNT(*) FROM clinical_encounters
 UNION ALL SELECT 'Cred apps',    COUNT(*) FROM credentialing_applications
+UNION ALL SELECT 'DME orders',   COUNT(*) FROM dme_orders
+UNION ALL SELECT 'NEMT trips',   COUNT(*) FROM nemt_trips
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;

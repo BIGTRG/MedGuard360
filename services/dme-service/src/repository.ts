@@ -41,6 +41,16 @@ export async function createOrder(auth: AuthClaims, input: Omit<DmeOrderRow, 'id
   });
 }
 
+export async function listOrders(auth: AuthClaims, limit = 100): Promise<DmeOrderRow[]> {
+  return withRlsContext(auth, async (client) => {
+    const r = await client.query<DmeOrderRow>(
+      `SELECT * FROM dme_orders ORDER BY date_of_service DESC, created_at DESC LIMIT $1`,
+      [limit],
+    );
+    return r.rows;
+  });
+}
+
 export async function getOrder(auth: AuthClaims, id: string): Promise<DmeOrderRow> {
   return withRlsContext(auth, async (client) => {
     const r = await client.query<DmeOrderRow>('SELECT * FROM dme_orders WHERE id = $1', [id]);

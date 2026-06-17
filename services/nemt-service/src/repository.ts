@@ -75,6 +75,16 @@ export async function appendGpsAndBill(auth: AuthClaims, id: string, track: GpsP
   });
 }
 
+export async function listTrips(auth: AuthClaims, limit = 100): Promise<NemtTripRow[]> {
+  return withRlsContext(auth, async (client) => {
+    const r = await client.query<NemtTripRow>(
+      `SELECT * FROM nemt_trips ORDER BY scheduled_pickup_at DESC LIMIT $1`,
+      [limit],
+    );
+    return r.rows;
+  });
+}
+
 export async function getTrip(auth: AuthClaims, id: string): Promise<NemtTripRow> {
   return withRlsContext(auth, async (client) => {
     const r = await client.query<NemtTripRow>('SELECT * FROM nemt_trips WHERE id = $1', [id]);
