@@ -175,7 +175,14 @@ VALUES
    E'Final decision must be made by a prior authorization specialist (AI governance).',
    now() + interval '5 days',
    '00000000-0000-0000-0000-000000000003')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  ai_engine_version = EXCLUDED.ai_engine_version,
+  ai_match_score = EXCLUDED.ai_match_score,
+  decision_explanation = EXCLUDED.decision_explanation,
+  due_at = EXCLUDED.due_at,
+  human_reviewer_id = NULL,
+  decision_at = NULL;
 
 -- Historical PAs for the specialist "Decided" tab and provider PA list
 INSERT INTO pa_requests (id, patient_id, ordering_provider_id, payer_id, state_code,

@@ -305,8 +305,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
 
       <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         AI generated the criterion outcomes — <strong>human decision is required</strong> before
-        the PA is finalized. Decision emits <code>pa.decided.approved</code> / <code>pa.decided.denied</code> /
-        <code>pa.decided.needs_more_info</code> to Kafka with full audit trail.
+        the PA is finalized. Decision emits <code>pa.approved</code> / <code>pa.denied</code> /
+        <code>pa.needs.more.info</code> to Kafka with full audit trail.
       </div>
     </div>
   );

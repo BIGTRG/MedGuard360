@@ -544,17 +544,16 @@ router.post(
     const updated = await repo.updatePaRequest(id, {
       status: statusMap[body.decision] as 'approved' | 'denied' | 'needs_more_info',
       human_reviewer_id: auth.sub,
-      human_decision: body.decision,
       human_notes: body.notes,
       decided_at: new Date(),
     });
 
     const eventType =
       body.decision === 'approved'
-        ? 'pa.decided.approved'
+        ? 'pa.approved'
         : body.decision === 'denied'
-          ? 'pa.decided.denied'
-          : 'pa.decided.needs_more_info';
+          ? 'pa.denied'
+          : 'pa.needs.more.info';
 
     await emitEvent(eventType, {
       paRequestId: id,

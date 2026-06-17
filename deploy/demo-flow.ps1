@@ -76,8 +76,13 @@ try {
     $ov = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$paId/criteria/$($criteria[0].id)/override" -Method PUT -Headers $h -Body (@{ outcome = 'met' } | ConvertTo-Json) -ContentType "application/json"
     Test-Ok "PA criterion override" ($null -ne $ov.id)
   }
+  $flagship = '40000000-0000-0000-0000-000000000001'
+  $decideBody = @{ decision = 'approved'; notes = 'All criteria met per clinical documentation and NC Medicaid policy after specialist review.' } | ConvertTo-Json
+  $decided = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$flagship/decide" -Method POST -Headers $h -Body $decideBody -ContentType "application/json"
+  $decStatus = if ($decided.status) { $decided.status } else { $decided.paRequest.status }
+  Test-Ok "PA decide endpoint" ($decStatus -eq 'approved')
   Test-Ok "portal /pa-queue" (Test-PortalPage "/pa-queue")
-  Test-Ok "portal PA evidence" (Test-PortalPage "/pa-queue/$paId/evidence")
+  Test-Ok "portal PA evidence" (Test-PortalPage "/pa-queue/$flagship/evidence")
   Test-Ok "portal /pa-queue/decided" (Test-PortalPage "/pa-queue/decided")
 } catch { Test-Ok "PA flow" $false $_.Exception.Message }
 
