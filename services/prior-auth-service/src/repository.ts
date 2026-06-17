@@ -85,6 +85,7 @@ export interface PaListFilters {
   status?: string;
   stateCode?: string;
   providerId?: string;
+  serviceCodeType?: string;
   limit?: number;
   offset?: number;
 }
@@ -104,6 +105,10 @@ export async function listPaRequests(filters: PaListFilters): Promise<PaRequestR
   if (filters.providerId) {
     params.push(filters.providerId);
     conditions.push(`ordering_provider_id = $${params.length}`);
+  }
+  if (filters.serviceCodeType) {
+    params.push(filters.serviceCodeType);
+    conditions.push(`service_code_type = $${params.length}`);
   }
 
   const limit = Math.min(filters.limit ?? 100, 500);

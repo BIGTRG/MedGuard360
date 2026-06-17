@@ -169,6 +169,17 @@ try {
   }
 } catch { Test-Ok "NEMT flow" $false $_.Exception.Message }
 
+Write-Host "`n=== Pharmacy ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'pharmacy@demo.medguard360.com')" }
+try {
+  $form = Invoke-RestMethod -Uri "$api/pharmacy/formulary/NC/NCMEDPAY/00069015001" -Headers $h
+  Test-Ok "pharmacy formulary lookup" ($form.drug_name.Length -gt 0)
+  $drugPa = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests?serviceCodeType=NDC&limit=10" -Headers $h
+  Test-Ok "pharmacy drug PA list" ($drugPa.count -ge 1)
+  Test-Ok "portal /pharmacy" (Test-PortalPage "/pharmacy")
+  Test-Ok "portal /pharmacy/drug-pa" (Test-PortalPage "/pharmacy/drug-pa")
+} catch { Test-Ok "pharmacy flow" $false $_.Exception.Message }
+
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'patient@demo.medguard360.com')" }
 try {

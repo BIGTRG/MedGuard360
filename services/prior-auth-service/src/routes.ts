@@ -81,9 +81,18 @@ const ListPaSchema = z.object({
   status: z.string().optional(),
   state_code: z.string().length(2).optional(),
   provider_id: z.string().uuid().optional(),
+  service_code_type: z.enum(['CPT', 'HCPCS', 'NDC', 'REVENUE']).optional(),
+  serviceCodeType: z.enum(['CPT', 'HCPCS', 'NDC', 'REVENUE']).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
   offset: z.coerce.number().int().min(0).optional(),
-});
+}).transform(b => ({
+  status: b.status,
+  state_code: b.state_code,
+  provider_id: b.provider_id,
+  service_code_type: b.service_code_type ?? b.serviceCodeType,
+  limit: b.limit,
+  offset: b.offset,
+}));
 
 const DecideSchema = z.object({
   decision: z.enum(['approved', 'denied', 'needs_more_info']),
@@ -460,7 +469,7 @@ router.get(
 router.get(
   '/prior-auth/pa-requests',
   requireAuth,
-  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'platform_administrator'),
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'pharmacy', 'platform_administrator'),
   ah(async (req, res) => {
     const query = parse(ListPaSchema, req.query);
 
@@ -468,6 +477,7 @@ router.get(
       status: query.status,
       stateCode: query.state_code,
       providerId: query.provider_id,
+      serviceCodeType: query.service_code_type,
       limit: query.limit,
       offset: query.offset,
     });

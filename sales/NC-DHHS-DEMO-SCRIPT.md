@@ -27,6 +27,8 @@
 | DME orders | http://localhost/dme |
 | NEMT trips | http://localhost/nemt |
 | Crisis responder | http://localhost/responder |
+| Pharmacy formulary | http://localhost/pharmacy |
+| Drug PA queue | http://localhost/pharmacy/drug-pa |
 | Member crisis plan | http://localhost/responder/patient/00000000-0000-0000-0000-000000000004 |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |

@@ -31,6 +31,8 @@ for ($i = 0; $i -lt 60; $i++) {
 }
 
 Write-Host "Seeding demo data..." -ForegroundColor Cyan
+# Idempotent — existing laptop volumes may predate pharmacy-service migration.
+Get-Content infrastructure\postgres\migrations\0015_pharmacy_schema.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
 Get-Content deploy\seed-demo.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 | Out-Null
 
 Write-Host "Waiting for portal..." -ForegroundColor Cyan

@@ -58,6 +58,10 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000012', 'nemt@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'nemt_broker', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000013', 'pharmacy@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'pharmacy', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
 
@@ -201,6 +205,31 @@ VALUES
    'Demo-flow automation PA — safe to approve during verification.',
    now() + interval '4 days',
    '00000000-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  ai_match_score = EXCLUDED.ai_match_score,
+  decision_explanation = EXCLUDED.decision_explanation,
+  due_at = EXCLUDED.due_at,
+  human_reviewer_id = NULL,
+  decision_at = NULL;
+
+-- Drug PA queue (pharmacy /drug-pa portal)
+INSERT INTO pa_requests (id, patient_id, ordering_provider_id, payer_id, state_code,
+                          service_code, service_code_type, service_description,
+                          diagnosis_codes, urgency, status, ai_engine_version,
+                          ai_match_score, decision_explanation, due_at, created_by)
+VALUES
+  ('40000000-0000-0000-0000-000000000005',
+   '10000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000003',
+   'NCMEDPAY', 'NC', '00093721498', 'NDC',
+   'Aripiprazole 10mg tablet (Abilify)',
+   ARRAY['F20.9'], 'drug', 'evaluating',
+   'pa-nlp-matcher/0.1.0+sentence-transformers/all-MiniLM-L6-v2',
+   0.712,
+   'Step therapy and medical necessity criteria under review for specialty tier drug.',
+   now() + interval '1 day',
+   '00000000-0000-0000-0000-000000000013')
 ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   ai_match_score = EXCLUDED.ai_match_score,
@@ -405,6 +434,18 @@ VALUES
    CURRENT_DATE, 'active')
 ON CONFLICT (id) DO NOTHING;
 
+-- ============================================================
+-- Pharmacy formulary (NC Medicaid demo lookups)
+-- ============================================================
+INSERT INTO formulary_entries (id, state_code, payer_id, ndc, drug_name, tier, pa_required,
+                               step_therapy, quantity_limit, effective_from)
+VALUES
+  ('97000000-0000-0000-0000-000000000001', 'NC', 'NCMEDPAY', '00069015001',
+   'Atorvastatin 40mg tablet', 1, false, false, 30, CURRENT_DATE),
+  ('97000000-0000-0000-0000-000000000002', 'NC', 'NCMEDPAY', '00093721498',
+   'Aripiprazole 10mg tablet (Abilify)', 3, true, true, NULL, CURRENT_DATE)
+ON CONFLICT (state_code, payer_id, ndc, effective_from) DO NOTHING;
+
 -- Active crisis alerts for emergency responder queue (Stop 6 — mobile crisis talking point)
 INSERT INTO crisis_alerts (id, patient_id, state_code, source, severity, signals, status,
                            detector_engine_version, detected_at, created_by)
@@ -596,5 +637,6 @@ UNION ALL SELECT 'Cred apps',    COUNT(*) FROM credentialing_applications
 UNION ALL SELECT 'DME orders',   COUNT(*) FROM dme_orders
 UNION ALL SELECT 'NEMT trips',   COUNT(*) FROM nemt_trips
 UNION ALL SELECT 'Crisis alerts',COUNT(*) FROM crisis_alerts
+UNION ALL SELECT 'Formulary',    COUNT(*) FROM formulary_entries
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;
