@@ -41,35 +41,32 @@ function mapPaRow(row: Record<string, unknown>): PaRequestRow {
 }
 
 export async function createPaRequest(
-  data: Omit<PaRequestRow, 'id' | 'created_at' | 'updated_at'>,
+  data: Omit<PaRequestRow, 'id' | 'created_at' | 'updated_at'> & {
+    service_code_type?: string;
+    service_description?: string;
+    clinical_doc_id?: string | null;
+  },
 ): Promise<PaRequestRow> {
-  const result = await pool.query<PaRequestRow>(
+  const result = await pool.query(
     `INSERT INTO pa_requests (
-       patient_id, provider_user_id, state_code, payer_id,
-       procedure_code, diagnosis_codes, clinical_justification,
-       urgency, status, ai_recommendation, ai_confidence, ai_explanation,
-       human_reviewer_id, human_decision, human_notes,
-       due_at, decided_at, created_by
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       patient_id, ordering_provider_id, payer_id, state_code,
+       service_code, service_code_type, service_description,
+       diagnosis_codes, urgency, status, clinical_doc_id, due_at, created_by
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
     [
       data.patient_id,
       data.provider_user_id,
-      data.state_code,
       data.payer_id,
+      data.state_code,
       data.procedure_code,
+      data.service_code_type ?? 'CPT',
+      data.service_description ?? data.procedure_code,
       data.diagnosis_codes,
-      data.clinical_justification ?? null,
       data.urgency,
-      data.status,
-      data.ai_recommendation ?? null,
-      data.ai_confidence ?? null,
-      data.ai_explanation ?? null,
-      data.human_reviewer_id ?? null,
-      data.human_decision ?? null,
-      data.human_notes ?? null,
+      data.status === 'pending' ? 'received' : data.status,
+      data.clinical_doc_id ?? null,
       data.due_at,
-      data.decided_at ?? null,
       data.created_by,
     ],
   );

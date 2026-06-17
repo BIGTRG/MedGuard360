@@ -88,6 +88,7 @@ Switch role → **Provider** (quick-button or dropdown). Page: `/provider/workfl
 - "Total time from end of visit to submitted claim: about 4 minutes today. Manual today is 20-40 minutes."
 - Show `/provider/pa` — provider's own PA requests (active + historical) from live API.
 - Show `/provider/encounters` — live signed + in-progress encounters from clinical-doc-service (open detail to edit note on in-progress visit).
+- Optional: switch to **DME** (`dme@demo.medguard360.com`) → `/dme` live orders; **NEMT** (`nemt@demo.medguard360.com`) → `/nemt` scheduled trips with GPS billing.
 
 ### Stop 6 — Member experience (1 min)
 Switch role → **Patient** (quick-button or dropdown). Page: `/patient`

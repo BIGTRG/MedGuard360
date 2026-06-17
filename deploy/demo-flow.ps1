@@ -24,6 +24,10 @@ function Test-PortalPage($path) {
   } catch { return $false }
 }
 
+function Reset-DemoPa($id) {
+  docker compose -f docker-compose.demo.yml exec -T postgres psql -U medguard -d medguard360 -c "UPDATE pa_requests SET status='evaluating', decision_at=NULL, human_reviewer_id=NULL WHERE id='$id';" 2>$null | Out-Null
+}
+
 Write-Host "`n=== Stop 1-2: Platform admin ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'admin@demo.medguard360.com')" }
 try {
@@ -66,21 +70,25 @@ try {
 Write-Host "`n=== Stop 4: PA specialist ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'pa@demo.medguard360.com')" }
 try {
+  $flagship = '40000000-0000-0000-0000-000000000001'
+  $automationPa = '40000000-0000-0000-0000-000000000004'
+  Reset-DemoPa $flagship
+  Reset-DemoPa $automationPa
   $queue = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/queue" -Headers $h
   Test-Ok "PA queue has items" ($queue.count -ge 1)
-  $paId = $queue.requests[0].id
-  $detail = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$paId" -Headers $h
+  $detail = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$flagship" -Headers $h
   $criteria = if ($detail.criteriaEvaluations) { $detail.criteriaEvaluations } else { $detail.criteria }
   Test-Ok "PA detail has criteria" ($criteria.Count -ge 3)
   if ($criteria.Count -ge 1 -and $criteria[0].id) {
-    $ov = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$paId/criteria/$($criteria[0].id)/override" -Method PUT -Headers $h -Body (@{ outcome = 'met' } | ConvertTo-Json) -ContentType "application/json"
+    $ov = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$flagship/criteria/$($criteria[0].id)/override" -Method PUT -Headers $h -Body (@{ outcome = 'met' } | ConvertTo-Json) -ContentType "application/json"
     Test-Ok "PA criterion override" ($null -ne $ov.id)
   }
-  $flagship = '40000000-0000-0000-0000-000000000001'
   $decideBody = @{ decision = 'approved'; notes = 'All criteria met per clinical documentation and NC Medicaid policy after specialist review.' } | ConvertTo-Json
-  $decided = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$flagship/decide" -Method POST -Headers $h -Body $decideBody -ContentType "application/json"
+  $decided = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$automationPa/decide" -Method POST -Headers $h -Body $decideBody -ContentType "application/json"
   $decStatus = if ($decided.status) { $decided.status } else { $decided.paRequest.status }
   Test-Ok "PA decide endpoint" ($decStatus -eq 'approved')
+  $flagshipDetail = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/$flagship" -Headers $h
+  Test-Ok "flagship PA still pending" ($flagshipDetail.status -eq 'evaluating' -or $flagshipDetail.paRequest.status -eq 'evaluating')
   Test-Ok "portal /pa-queue" (Test-PortalPage "/pa-queue")
   Test-Ok "portal PA evidence" (Test-PortalPage "/pa-queue/$flagship/evidence")
   Test-Ok "portal /pa-queue/decided" (Test-PortalPage "/pa-queue/decided")
@@ -106,6 +114,21 @@ try {
   $mine = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/mine" -Headers $h
   Test-Ok "provider PA mine" ($mine.count -ge 1)
   Test-Ok "portal /provider/pa" (Test-PortalPage "/provider/pa")
+  $newPaBody = @{
+    patientId = '10000000-0000-0000-0000-000000000001'
+    payerId = 'NCMEDPAY'
+    stateCode = 'NC'
+    serviceCode = '99213'
+    serviceCodeType = 'CPT'
+    serviceDescription = 'Demo-flow provider PA submission'
+    diagnosisCodes = @('F32.9')
+    urgency = 'standard'
+  } | ConvertTo-Json
+  try {
+    $newPa = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests" -Method POST -Headers $h -Body $newPaBody -ContentType "application/json"
+    $newPaId = if ($newPa.paRequest) { $newPa.paRequest.id } else { $newPa.id }
+    Test-Ok "provider submit PA" ($null -ne $newPaId)
+  } catch { Test-Ok "provider submit PA" $false $_.Exception.Message }
   $enc = Invoke-RestMethod -Uri "$api/clinical-doc/encounters" -Headers $h
   Test-Ok "provider encounters list" ($enc.encounters.Count -ge 1)
   Test-Ok "portal /provider/encounters" (Test-PortalPage "/provider/encounters")
@@ -128,12 +151,18 @@ try {
   $orders = Invoke-RestMethod -Uri "$api/dme/orders" -Headers $h
   Test-Ok "DME orders list" ($orders.count -ge 1)
   Test-Ok "portal /dme" (Test-PortalPage "/dme")
+  if ($orders.orders.Count -ge 1) {
+    Test-Ok "portal DME detail" (Test-PortalPage "/dme/$($orders.orders[0].id)")
+  }
 } catch { Test-Ok "DME flow" $false $_.Exception.Message }
 $h = @{ Authorization = "Bearer $(Get-Token 'nemt@demo.medguard360.com')" }
 try {
   $trips = Invoke-RestMethod -Uri "$api/nemt/trips" -Headers $h
   Test-Ok "NEMT trips list" ($trips.count -ge 1)
   Test-Ok "portal /nemt" (Test-PortalPage "/nemt")
+  if ($trips.trips.Count -ge 1) {
+    Test-Ok "portal NEMT detail" (Test-PortalPage "/nemt/$($trips.trips[0].id)")
+  }
 } catch { Test-Ok "NEMT flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
@@ -168,6 +197,7 @@ try {
   $nc = Invoke-RestMethod -Uri "$api/state-config/NC" -Headers $h
   Test-Ok "state NC config" ($nc.state_code -eq 'NC')
   Test-Ok "portal /state" (Test-PortalPage "/state")
+  Test-Ok "portal /state/credentialing" (Test-PortalPage "/state/credentialing")
 } catch { Test-Ok "state flow" $false $_.Exception.Message }
 
 $h = @{ Authorization = "Bearer $(Get-Token 'denial@demo.medguard360.com')" }

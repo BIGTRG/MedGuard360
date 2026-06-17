@@ -184,6 +184,31 @@ ON CONFLICT (id) DO UPDATE SET
   human_reviewer_id = NULL,
   decision_at = NULL;
 
+-- Automation target for demo-flow decide check (flagship PA stays pending for live demo)
+INSERT INTO pa_requests (id, patient_id, ordering_provider_id, payer_id, state_code,
+                          service_code, service_code_type, service_description,
+                          diagnosis_codes, urgency, status, ai_engine_version,
+                          ai_match_score, decision_explanation, due_at, created_by)
+VALUES
+  ('40000000-0000-0000-0000-000000000004',
+   '10000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000003',
+   'NCMEDPAY', 'NC', '99214', 'CPT',
+   'Office visit, established patient, moderate complexity',
+   ARRAY['I10'], 'standard', 'evaluating',
+   'pa-nlp-matcher/0.1.0+sentence-transformers/all-MiniLM-L6-v2',
+   0.781,
+   'Demo-flow automation PA — safe to approve during verification.',
+   now() + interval '4 days',
+   '00000000-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  ai_match_score = EXCLUDED.ai_match_score,
+  decision_explanation = EXCLUDED.decision_explanation,
+  due_at = EXCLUDED.due_at,
+  human_reviewer_id = NULL,
+  decision_at = NULL;
+
 -- Historical PAs for the specialist "Decided" tab and provider PA list
 INSERT INTO pa_requests (id, patient_id, ordering_provider_id, payer_id, state_code,
                           service_code, service_code_type, service_description,
