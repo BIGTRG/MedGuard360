@@ -217,6 +217,10 @@ try {
   Test-Ok "crisis plan for member" ($plan.warning_signs.Count -ge 1)
   Test-Ok "portal /responder" (Test-PortalPage "/responder")
   Test-Ok "portal responder patient plan" (Test-PortalPage "/responder/patient/$memberPatient")
+  $sample = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('PASS'))
+  $bio = Invoke-RestMethod -Uri "$api/auth/biometric/verify" -Method POST -Headers $h -Body (@{ modality = 'face'; samplePayloadBase64 = $sample } | ConvertTo-Json) -ContentType "application/json"
+  Test-Ok "responder biometric verify" ($bio.verified -eq $true)
+  Test-Ok "portal /biometric" (Test-PortalPage "/biometric")
 } catch { Test-Ok "crisis flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 7: Compliance + denials ===" -ForegroundColor Cyan
@@ -224,7 +228,12 @@ $h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" 
 try {
   $audit = Invoke-RestMethod -Uri "$api/audit/search?limit=5" -Headers $h
   Test-Ok "audit search has events" ($audit.count -ge 5)
+  $hets = Invoke-RestMethod -Uri "$api/eligibility/hets-status?stateCode=NC" -Headers $h
+  Test-Ok "HETS enrollments list" ($hets.count -ge 1)
+  $attested = $hets.enrollments | Where-Object { $_.attestation_status -eq 'attested' } | Select-Object -First 1
+  Test-Ok "HETS demo provider attested" ($null -ne $attested)
   Test-Ok "portal /compliance" (Test-PortalPage "/compliance")
+  Test-Ok "portal /compliance/hets" (Test-PortalPage "/compliance/hets")
   Test-Ok "portal /audit" (Test-PortalPage "/audit")
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
 } catch { Test-Ok "compliance flow" $false $_.Exception.Message }

@@ -30,6 +30,7 @@
 | Pharmacy formulary | http://localhost/pharmacy |
 | Drug PA queue | http://localhost/pharmacy/drug-pa |
 | HIE consents | http://localhost/hie |
+| HETS compliance | http://localhost/compliance/hets |
 | Member crisis plan | http://localhost/responder/patient/00000000-0000-0000-0000-000000000004 |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |

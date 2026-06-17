@@ -647,6 +647,16 @@ INSERT INTO audit_log_events (id, occurred_at, actor_user_id, actor_role, actor_
   ('a0000000-0000-0000-0000-000000000010', now() - interval '2 days', '00000000-0000-0000-0000-000000000003', 'individual_provider', 'NC', 'patient', '10000000-0000-0000-0000-000000000002', 'read', 'success', '{"encounter":"active"}'::jsonb, 'patient-service')
 ON CONFLICT (id) DO NOTHING;
 
+-- ============================================================
+-- HETS attestation (demo provider attested for compliance stop)
+-- ============================================================
+UPDATE hets_enrollments
+SET attestation_status = 'attested',
+    attestation_confirmed_at = now(),
+    notes = 'Demo: attested under MedGuard360 HETS UID for NC DHHS laptop demo'
+WHERE npi = '1234567893'
+  AND hets_submitter_uid = 'MEDGUARD360_PENDING_UID';
+
 COMMIT;
 
 -- Summary print
@@ -665,5 +675,6 @@ UNION ALL SELECT 'DME orders',   COUNT(*) FROM dme_orders
 UNION ALL SELECT 'NEMT trips',   COUNT(*) FROM nemt_trips
 UNION ALL SELECT 'Crisis alerts',COUNT(*) FROM crisis_alerts
 UNION ALL SELECT 'Formulary',    COUNT(*) FROM formulary_entries
+UNION ALL SELECT 'HETS enroll',  COUNT(*) FROM hets_enrollments
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;

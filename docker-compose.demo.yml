@@ -5,7 +5,7 @@
 #   fraud-engine-service, state-config-service, audit-log-service,
 #   reporting-service, denial-service, provider-service, notification-service,
 #   crisis-service, clinical-doc-service, credentialing-service,
-#   dme-service, nemt-service, pharmacy-service, hie-service
+#   dme-service, nemt-service, pharmacy-service, hie-service, eligibility-service
 # Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
@@ -179,6 +179,15 @@ services:
     ports: ["3004:3004"]
     <<: *node-service
 
+  eligibility-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: eligibility-service } }
+    environment:
+      <<: *service-env
+      PORT: "3005"
+      HETS_SUBMITTER_UID: ${HETS_SUBMITTER_UID:-MEDGUARD360_PENDING_UID}
+    ports: ["3005:3005"]
+    <<: *node-service
+
   prior-auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: prior-auth-service } }
     environment: { <<: *service-env, PORT: "3006" }
@@ -305,6 +314,7 @@ services:
       - clinical-doc-service
       - crisis-service
       - hie-service
+      - eligibility-service
 
   portals:
     build:

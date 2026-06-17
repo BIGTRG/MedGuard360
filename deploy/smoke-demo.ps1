@@ -39,7 +39,7 @@ if ($token) {
   foreach ($ep in $urls) {
     try { $r = Invoke-WebRequest -Uri $ep.u -Headers $headers -UseBasicParsing; Test-Ok "$($ep.n) ($($r.StatusCode))" ($r.StatusCode -lt 300) } catch { Test-Ok $ep.n $false }
   }
-  $portalPaths = @("/compliance", "/reporting", "/fraud/cases", "/fraud/rings", "/state/claims", "/state/credentialing", "/admin/users", "/provider/pa", "/pa-queue/decided", "/provider/encounters", "/credentialing", "/dme", "/nemt", "/responder", "/pharmacy", "/pharmacy/drug-pa", "/hie")
+  $portalPaths = @("/compliance", "/compliance/hets", "/reporting", "/fraud/cases", "/fraud/rings", "/state/claims", "/state/credentialing", "/admin/users", "/provider/pa", "/pa-queue/decided", "/provider/encounters", "/credentialing", "/dme", "/nemt", "/responder", "/pharmacy", "/pharmacy/drug-pa", "/hie", "/biometric")
   foreach ($p in $portalPaths) {
     try { $r = Invoke-WebRequest -Uri "$base$p" -UseBasicParsing -TimeoutSec 10; Test-Ok "portal $p" ($r.StatusCode -eq 200) } catch { Test-Ok "portal $p" $false }
   }
