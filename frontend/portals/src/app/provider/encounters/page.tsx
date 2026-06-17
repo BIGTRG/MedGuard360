@@ -24,11 +24,7 @@ function EncountersInner(): React.ReactElement {
     // page expects a GET /encounters list endpoint to be added.
     api.get<{ encounters?: EncounterRow[] }>('/v1/clinical-doc/encounters')
       .then(r => setRows(r.encounters ?? []))
-      .catch(err => {
-        setError(err.status === 404
-          ? 'GET /clinical-doc/encounters list endpoint not yet exposed by clinical-doc-service.'
-          : err.message);
-      })
+      .catch(err => setError(err.message ?? 'Unable to load encounters.'))
       .finally(() => setLoading(false));
   }, []);
 

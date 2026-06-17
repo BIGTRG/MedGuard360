@@ -27,11 +27,7 @@ function CredentialingInner(): React.ReactElement {
   useEffect(() => {
     api.get<{ applications?: AppRow[] }>('/v1/credentialing/applications')
       .then(r => setRows(r.applications ?? []))
-      .catch(err => {
-        setError(err.status === 404
-          ? 'GET /credentialing/applications list endpoint not yet exposed. Add a `status` filter route to surface the queue.'
-          : err.message);
-      })
+      .catch(err => setError(err.message ?? 'Unable to load credentialing applications.'))
       .finally(() => setLoading(false));
   }, []);
 

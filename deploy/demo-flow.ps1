@@ -94,6 +94,9 @@ try {
   Test-Ok "portal /provider/workflow" (Test-PortalPage "/provider/workflow")
   Test-Ok "portal /provider" (Test-PortalPage "/provider")
   Test-Ok "portal /provider/claims" (Test-PortalPage "/provider/claims")
+  $mine = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/mine" -Headers $h
+  Test-Ok "provider PA mine" ($mine.count -ge 1)
+  Test-Ok "portal /provider/pa" (Test-PortalPage "/provider/pa")
 } catch { Test-Ok "provider flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 6: Patient portal ===" -ForegroundColor Cyan
@@ -162,7 +165,7 @@ try {
   } catch { Test-Ok "reporting run claims_volume" $false $_.Exception.Message }
   try {
     $dec = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/decided" -Headers $h
-    Test-Ok "PA decided endpoint" ($dec.count -ge 0)
+    Test-Ok "PA decided endpoint" ($dec.count -ge 2)
   } catch { Test-Ok "PA decided endpoint" $false }
 } catch { Test-Ok "reporting flow" $false $_.Exception.Message }
 

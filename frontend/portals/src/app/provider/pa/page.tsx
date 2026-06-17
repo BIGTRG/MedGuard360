@@ -16,14 +16,9 @@ function ProviderPaInner(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // No "my PA requests" filter endpoint yet — using the specialist queue as a fallback in dev.
-    api.get<{ requests?: PaRequestRow[] }>('/v1/prior-auth/pa-requests/queue')
+    api.get<{ requests?: PaRequestRow[] }>('/v1/prior-auth/pa-requests/mine')
       .then(r => setRows(r.requests ?? []))
-      .catch(err => {
-        setError(err.status === 404
-          ? 'GET /prior-auth/pa-requests endpoint for providers not yet exposed.'
-          : err.message);
-      })
+      .catch(err => setError(err.message ?? 'Unable to load prior authorization requests.'))
       .finally(() => setLoading(false));
   }, []);
 

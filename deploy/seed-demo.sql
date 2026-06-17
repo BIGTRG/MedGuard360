@@ -165,6 +165,38 @@ VALUES
    '00000000-0000-0000-0000-000000000003')
 ON CONFLICT (id) DO NOTHING;
 
+-- Historical PAs for the specialist "Decided" tab and provider PA list
+INSERT INTO pa_requests (id, patient_id, ordering_provider_id, payer_id, state_code,
+                          service_code, service_code_type, service_description,
+                          diagnosis_codes, urgency, status, ai_engine_version,
+                          ai_match_score, decision_explanation, decision_at, due_at, created_by)
+VALUES
+  ('40000000-0000-0000-0000-000000000002',
+   '10000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000003',
+   'NCMEDPAY', 'NC', '99213', 'CPT',
+   'Office visit, established patient, low complexity',
+   ARRAY['J06.9'], 'standard', 'approved',
+   'pa-nlp-matcher/0.1.0+sentence-transformers/all-MiniLM-L6-v2',
+   0.912,
+   'All policy criteria met. Approved for 12 visits per calendar year.',
+   now() - interval '12 days',
+   now() - interval '14 days',
+   '00000000-0000-0000-0000-000000000003'),
+  ('40000000-0000-0000-0000-000000000003',
+   '10000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000003',
+   'NCMEDPAY', 'NC', '97110', 'CPT',
+   'Therapeutic exercises, each 15 minutes',
+   ARRAY['M54.5'], 'standard', 'denied',
+   'pa-nlp-matcher/0.1.0+sentence-transformers/all-MiniLM-L6-v2',
+   0.441,
+   'Documentation does not show failed conservative therapy per NC Medicaid policy.',
+   now() - interval '5 days',
+   now() - interval '7 days',
+   '00000000-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO pa_criterion_evaluations (pa_request_id, criterion_text, outcome, explanation, similarity_score)
 VALUES
   ('40000000-0000-0000-0000-000000000001',

@@ -25,11 +25,7 @@ function DmeInner(): React.ReactElement {
   useEffect(() => {
     api.get<{ orders?: DmeOrder[] }>('/v1/dme/orders')
       .then(r => setRows(r.orders ?? []))
-      .catch(err => {
-        setError(err.status === 404
-          ? 'GET /dme/orders list endpoint not yet exposed by dme-service.'
-          : err.message);
-      })
+      .catch(err => setError(err.message ?? 'Unable to load DME orders.'))
       .finally(() => setLoading(false));
   }, []);
 

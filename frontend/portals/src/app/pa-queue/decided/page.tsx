@@ -31,7 +31,7 @@ function DecidedInner(): React.ReactElement {
     { header: '', accessor: p => statusIcon(p.status) },
     { header: 'Service', accessor: p => <span className="font-mono text-xs">{p.service_code}</span> },
     { header: 'Decision', accessor: p => <span className="capitalize">{p.status.replace('_', ' ')}</span> },
-    { header: 'Decided', accessor: p => formatDateTime(p.decided_at ?? p.updated_at) },
+    { header: 'Decided', accessor: p => formatDateTime(p.decision_at ?? p.decided_at ?? p.updated_at) },
     { header: 'Age', accessor: p => timeSince(p.created_at) },
   ];
 

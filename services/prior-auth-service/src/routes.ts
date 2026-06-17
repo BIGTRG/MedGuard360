@@ -395,9 +395,24 @@ router.get(
       repo.listPaRequests({ status: 'denied', limit: 200 }),
     ]);
     const requests = [...approved, ...denied].sort(
-      (a, b) => new Date(b.decided_at ?? b.updated_at).getTime() - new Date(a.decided_at ?? a.updated_at).getTime(),
+      (a, b) => new Date((b as { decision_at?: Date }).decision_at ?? b.decided_at ?? b.updated_at).getTime()
+        - new Date((a as { decision_at?: Date }).decision_at ?? a.decided_at ?? a.updated_at).getTime(),
     );
     res.json({ requests, count: requests.length });
+  }),
+);
+
+/**
+ * GET /api/v1/prior-auth/pa-requests/mine
+ * Ordering provider's own PA requests (active + historical).
+ */
+router.get(
+  '/prior-auth/pa-requests/mine',
+  requireAuth,
+  requireRole('individual_provider', 'facility_provider', 'platform_administrator'),
+  ah(async (req, res) => {
+    const rows = await repo.listPaRequests({ providerId: req.auth!.sub, limit: 50 });
+    res.json({ requests: rows, count: rows.length });
   }),
 );
 
