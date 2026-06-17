@@ -58,6 +58,9 @@ try {
     Test-Ok "fraud escalate to OCPI" ($esc.escalation_target -eq 'OCPI' -or $esc.escalationTarget -eq 'OCPI')
   }
   Test-Ok "portal /fraud" (Test-PortalPage "/fraud")
+  Test-Ok "portal /fraud/rings" (Test-PortalPage "/fraud/rings")
+  $rings = Invoke-RestMethod -Uri "$api/fraud/rings/scan" -Method POST -Headers $h
+  Test-Ok "fraud rings scan" ($null -ne $rings.rings)
 } catch { Test-Ok "fraud flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 4: PA specialist ===" -ForegroundColor Cyan
@@ -75,6 +78,7 @@ try {
   }
   Test-Ok "portal /pa-queue" (Test-PortalPage "/pa-queue")
   Test-Ok "portal PA evidence" (Test-PortalPage "/pa-queue/$paId/evidence")
+  Test-Ok "portal /pa-queue/decided" (Test-PortalPage "/pa-queue/decided")
 } catch { Test-Ok "PA flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 5: Provider workflow ===" -ForegroundColor Cyan

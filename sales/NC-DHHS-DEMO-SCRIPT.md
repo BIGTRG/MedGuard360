@@ -8,8 +8,8 @@
 
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
 - Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/demo-up.ps1` or smoke + demo-flow)
-- Login bypass enabled — land on **Platform Admin** dashboard
-- **Role switching:** use login quick-buttons or the header role dropdown (re-authenticates with seeded demo accounts)
+- Sign in at `/login` (one-click role buttons) or use header role dropdown after first login
+- **Role switching:** login quick-buttons or header dropdown re-authenticate with seeded demo accounts
 - Backup: PROJECT-STATUS.md open in second tab
 
 ## Quick links (seeded demo IDs)
@@ -17,8 +17,11 @@
 | Stop | URL |
 |------|-----|
 | PA evidence | http://localhost/pa-queue/40000000-0000-0000-0000-000000000001/evidence |
+| PA decided history | http://localhost/pa-queue/decided |
 | Fraud case (89/100) | http://localhost/fraud/cases/60000000-0000-0000-0000-000000000002 |
+| Fraud rings scan | http://localhost/fraud/rings |
 | Denial + AI appeal | http://localhost/denials/70000000-0000-0000-0000-000000000001 |
+| Provider PA list | http://localhost/provider/pa |
 | Provider workflow | http://localhost/provider/workflow |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |
@@ -65,6 +68,7 @@ Switch role → **Fraud Investigator** (login quick-button or header dropdown). 
   - GPS confirmed patient location
 - "This is a real workflow. The investigator's notes are persisted to `fraud_case_events` (an append-only audit table). Every action is logged for OIG / OCPI / MFCU subpoena response."
 - Show "Escalate to OCPI / MFCU / CMS UPIC / State OIG" button. "When we say human-in-the-loop, this is what we mean. AI flags, human escalates."
+- Optional: `/fraud/rings` — click **Run ring detection** to show GNN cluster scoring on shared provider/patient attributes.
 
 ### Stop 4 — Prior Auth evidence matcher (2 min)
 Switch role → **PA Specialist** (quick-button or dropdown). Page: `/pa-queue/[id]/evidence`
@@ -72,12 +76,14 @@ Switch role → **PA Specialist** (quick-button or dropdown). Page: `/pa-queue/[
 - "BERT model matched the patient's chart notes against payer policy. For each criterion, AI gave an outcome — met / not met / unclear — with confidence and a quote from the chart."
 - Click a criterion's override button. "Specialist disagrees with AI? One click. Their override is persisted, used to retrain quarterly."
 - "Decision requires a plain-language explanation — not optional. The patient and provider both get this back."
+- Show `/pa-queue/decided` — approved/denied history with decision dates from seed data.
 
 ### Stop 5 — Provider end-to-end workflow (2 min)
 Switch role → **Provider** (quick-button or dropdown). Page: `/provider/workflow`
 - Click "Run pipeline"
 - Walk through the 9 steps: encounter start → voice capture → Whisper transcription → clinical NLP → ICD-10/CPT suggestions → Da Vinci CRD PA pre-check → 837P draft → fraud pre-scan → NCTracks submit
 - "Total time from end of visit to submitted claim: about 4 minutes today. Manual today is 20-40 minutes."
+- Show `/provider/pa` — provider's own PA requests (active + historical) from live API.
 
 ### Stop 6 — Member experience (1 min)
 Switch role → **Patient** (quick-button or dropdown). Page: `/patient`

@@ -5,7 +5,7 @@
 #   fraud-engine-service, state-config-service, audit-log-service,
 #   reporting-service, denial-service, provider-service, notification-service,
 #   crisis-service
-# Plus the 2 most-impressive AI engines: fraud-detection, pa-nlp-matcher
+# Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
 # Host port overrides avoid clashes with other local stacks (e.g. GeniusEye on 5432/6379/3000).
@@ -180,7 +180,11 @@ services:
 
   fraud-engine-service:
     build: { <<: *node-build, args: { SERVICE_NAME: fraud-engine-service } }
-    environment: { <<: *service-env, PORT: "3009" }
+    environment:
+      <<: *service-env
+      PORT: "3009"
+      FRAUD_DETECTION_URL: http://fraud-detection:8004
+      FRAUD_RING_GNN_URL: http://fraud-ring-gnn:8005
     ports: ["3009:3009"]
     <<: *node-service
 
@@ -220,7 +224,7 @@ services:
     ports: ["3019:3019"]
     <<: *node-service
 
-  # -------- 2 AI engines (demo) --------
+  # -------- 3 AI engines (demo) --------
   fraud-detection:
     build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } }
     environment:
@@ -230,6 +234,11 @@ services:
       MODEL_PATH: /app/ai-engines/fraud-detection/models/fraud_v1_minimal.pkl
       MODEL_KIND: minimal
     ports: ["8004:8004"]
+
+  fraud-ring-gnn:
+    build: { <<: *py-build, args: { ENGINE_NAME: fraud-ring-gnn } }
+    environment: { <<: *service-env, PORT: "8005" }
+    ports: ["8005:8005"]
 
   pa-nlp-matcher:
     build: { <<: *py-build, args: { ENGINE_NAME: pa-nlp-matcher } }

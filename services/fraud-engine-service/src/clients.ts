@@ -7,5 +7,5 @@ function client(name: string, baseURL: string, timeout = 5000): AxiosInstance {
   return c;
 }
 
-export const fraudDetection   = client('fraud-detection',     'http://localhost:8004', 8000);
+export const fraudDetection   = client('fraud-detection', process.env.FRAUD_DETECTION_URL ?? 'http://localhost:8004', 8000);
 export const stateConfig      = client('state-config-service', 'http://localhost:3018/api/v1');
