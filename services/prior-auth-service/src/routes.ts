@@ -382,6 +382,26 @@ router.get(
 );
 
 /**
+ * GET /api/v1/prior-auth/pa-requests/decided
+ * Approved / denied history for the specialist "Decided" tab.
+ */
+router.get(
+  '/prior-auth/pa-requests/decided',
+  requireAuth,
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'platform_administrator'),
+  ah(async (_req, res) => {
+    const [approved, denied] = await Promise.all([
+      repo.listPaRequests({ status: 'approved', limit: 200 }),
+      repo.listPaRequests({ status: 'denied', limit: 200 }),
+    ]);
+    const requests = [...approved, ...denied].sort(
+      (a, b) => new Date(b.decided_at ?? b.updated_at).getTime() - new Date(a.decided_at ?? a.updated_at).getTime(),
+    );
+    res.json({ requests, count: requests.length });
+  }),
+);
+
+/**
  * GET /api/v1/prior-auth/pa-requests
  * List PA requests with optional filters.
  */

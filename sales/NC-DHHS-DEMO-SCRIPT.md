@@ -9,6 +9,7 @@
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
 - Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/demo-up.ps1` or smoke + demo-flow)
 - Login bypass enabled — land on **Platform Admin** dashboard
+- **Role switching:** use login quick-buttons or the header role dropdown (re-authenticates with seeded demo accounts)
 - Backup: PROJECT-STATUS.md open in second tab
 
 ## Quick links (seeded demo IDs)
@@ -20,6 +21,9 @@
 | Denial + AI appeal | http://localhost/denials/70000000-0000-0000-0000-000000000001 |
 | Provider workflow | http://localhost/provider/workflow |
 | Member portal | http://localhost/patient |
+| State dashboard | http://localhost/state |
+| Reporting | http://localhost/reporting |
+| Admin users | http://localhost/admin/users |
 
 ## Opening (60 seconds)
 
@@ -41,8 +45,8 @@
 
 ### Stop 1 — Platform Administration (1 min)
 Page: `/admin`
-- Point out 20 services / 10 AI engines / 19 SQL migrations
-- "This is what runs the platform. Five vendor adapters — NCTracks, MTM, ModivCare, CGS DMEPOS, Da Vinci PAS — all currently in stub mode, all flip to live with credential rotation."
+- Point out 20 services / 10 AI engines / **44 SQL migrations**
+- "This is what runs the platform. **Eight vendor adapters** on `/admin/integrations` — NCTracks, MTM, ModivCare, CGS DMEPOS, Da Vinci PAS, and more — all currently in stub mode, all flip to live with credential rotation."
 
 ### Stop 2 — Pilot States live data (1 min)
 Page: `/admin/pilot-states`
@@ -51,7 +55,7 @@ Page: `/admin/pilot-states`
 - "The MAC routing is correct — Palmetto JM for NC Part A/B and CGS Jurisdiction C for DMEPOS, not Noridian as some legacy systems mis-route."
 
 ### Stop 3 — A fraud case in flight (3 min)
-Switch role → **Fraud Investigator**. Page: `/fraud`
+Switch role → **Fraud Investigator** (login quick-button or header dropdown). Page: `/fraud`
 - Show the queue. Click claim with score 89/100.
 - Open `/fraud/cases/[id]` — show the timeline:
   - AI scored the claim

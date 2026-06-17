@@ -40,6 +40,21 @@ const PA_NAV: NavItem[] = [
   { label: 'Decided',   href: '/pa-queue/decided', icon: ClipboardDocumentCheckIcon },
 ];
 
+const COMPLIANCE_NAV: NavItem[] = [
+  { label: 'Overview',      href: '/compliance',           icon: HomeIcon },
+  { label: 'Audit search',  href: '/audit',                icon: DocumentTextIcon },
+  { label: 'Integrations',  href: '/admin/integrations',   icon: ArrowsRightLeftIcon },
+  { label: 'Reports',       href: '/reporting',            icon: ChartBarIcon },
+];
+
+const DENIAL_NAV: NavItem[] = [
+  { label: 'Queue',    href: '/denials', icon: HomeIcon },
+];
+
+const PATIENT_NAV: NavItem[] = [
+  { label: 'My Health', href: '/patient', icon: HomeIcon },
+];
+
 const ADMIN_NAV: NavItem[] = [
   { label: 'Admin Home',    href: '/admin',                icon: Cog6ToothIcon },
   { label: 'Integrations',  href: '/admin/integrations',   icon: ArrowsRightLeftIcon },
@@ -59,6 +74,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Responder',     href: '/responder',     icon: BoltIcon },
   { label: 'Biometric',     href: '/biometric',     icon: ShieldCheckIcon },
   { label: 'Audit Log',     href: '/audit',         icon: DocumentTextIcon },
+  { label: 'Reports',       href: '/reporting',     icon: ChartBarIcon },
 ];
 
 export const PORTAL_TITLE: Record<UserRole, string> = {
@@ -97,6 +113,13 @@ export function navForRole(role: UserRole): NavItem[] {
       return FRAUD_NAV;
     case 'prior_auth_specialist':
       return PA_NAV;
+    case 'compliance_officer':
+    case 'qa_auditor':
+      return COMPLIANCE_NAV;
+    case 'denial_appeals_specialist':
+      return DENIAL_NAV;
+    case 'patient':
+      return PATIENT_NAV;
     case 'platform_administrator':
       return ADMIN_NAV;
     default:

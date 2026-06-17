@@ -77,6 +77,8 @@ export interface PaRequestRow {
   ai_engine_version: string | null;
   ai_match_score: string | null;
   due_at: string;
+  decided_at?: string | null;
+  updated_at?: string;
   created_at: string;
 }
 

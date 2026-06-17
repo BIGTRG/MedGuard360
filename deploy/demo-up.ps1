@@ -18,7 +18,9 @@ if (-not $SkipBuild) {
 
 Write-Host "Starting stack..." -ForegroundColor Cyan
 docker compose -f $compose up -d
-docker compose -f $compose run --rm kafka-init 2>$null | Out-Null
+$ErrorActionPreference = 'Continue'
+docker compose -f $compose run --rm kafka-init 2>&1 | Out-Null
+$ErrorActionPreference = 'Stop'
 docker compose -f $compose up -d --force-recreate nginx
 
 Write-Host "Waiting for Postgres..." -ForegroundColor Cyan

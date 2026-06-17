@@ -19,6 +19,7 @@ if (-not $portalOk) {
   try { $r = Invoke-WebRequest -Uri "$base/" -UseBasicParsing -TimeoutSec 15; $portalOk = ($r.StatusCode -eq 200) } catch { $portalOk = $false }
 }
 Test-Ok "nginx portal" $portalOk
+try { $r = Invoke-WebRequest -Uri "$base/login" -UseBasicParsing -TimeoutSec 10; Test-Ok "portal /login" ($r.StatusCode -eq 200) } catch { Test-Ok "portal /login" $false }
 Write-Host "`n=== Phase 2: Auth + API via nginx ===" -ForegroundColor Cyan
 $loginBody = @{ email = "admin@demo.medguard360.com"; password = "demo-Password!1" } | ConvertTo-Json
 $token = $null
@@ -33,9 +34,14 @@ if ($token) {
     @{ n = "GET /fraud/cases"; u = "$api/fraud/cases?limit=5" }
     @{ n = "GET /state-config/NC"; u = "$api/state-config/NC" }
     @{ n = "GET /reporting/rollups"; u = "$api/reporting/reports/rollups?stateCode=NC${amp}metric=claims_submitted${amp}fromDay=2026-05-15${amp}toDay=2026-06-12" }
+    @{ n = "GET /audit/search"; u = "$api/audit/search?limit=5" }
   )
   foreach ($ep in $urls) {
     try { $r = Invoke-WebRequest -Uri $ep.u -Headers $headers -UseBasicParsing; Test-Ok "$($ep.n) ($($r.StatusCode))" ($r.StatusCode -lt 300) } catch { Test-Ok $ep.n $false }
+  }
+  $portalPaths = @("/compliance", "/reporting", "/fraud/cases", "/state/claims", "/admin/users")
+  foreach ($p in $portalPaths) {
+    try { $r = Invoke-WebRequest -Uri "$base$p" -UseBasicParsing -TimeoutSec 10; Test-Ok "portal $p" ($r.StatusCode -eq 200) } catch { Test-Ok "portal $p" $false }
   }
 }
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan

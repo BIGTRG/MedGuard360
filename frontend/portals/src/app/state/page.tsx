@@ -30,8 +30,10 @@ function StateDashboardInner(): React.ReactElement {
 
   useEffect(() => {
     const claims = getCurrentClaims();
-    if (!claims?.stateCode) { setError('No state assigned to your account.'); setLoading(false); return; }
-    const stateCode = claims.stateCode;
+    const stateCode = claims?.stateCode ?? 'NC';
+    if (!claims?.stateCode && claims) {
+      // Demo JWT may omit state on some roles; NC laptop demo defaults to NC rollups.
+    }
     const today = new Date();
     const past = new Date(); past.setDate(past.getDate() - 30);
     const fromDay = past.toISOString().slice(0, 10);
@@ -76,7 +78,7 @@ function StateDashboardInner(): React.ReactElement {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
-            {claims?.stateCode} Medicaid — 30-day overview
+            {(claims?.stateCode ?? 'NC')} Medicaid — 30-day overview
           </h2>
           <p className="text-sm text-slate-500">Pre-payment fraud prevention + real-time program metrics. {formatDate(new Date())}.</p>
         </div>

@@ -105,7 +105,10 @@ function PaQueueInner(): React.ReactElement {
                     </span>
                   </td>
                   <td className="text-xs text-slate-500">{timeSince(p.created_at)}</td>
-                  <td><Link href={`/pa-queue/${p.id}`} className="btn-ghost">Decide</Link></td>
+                  <td className="space-x-1 whitespace-nowrap">
+                    <Link href={`/pa-queue/${p.id}/evidence`} className="btn-ghost text-xs">Evidence</Link>
+                    <Link href={`/pa-queue/${p.id}`} className="btn-ghost text-xs">Decide</Link>
+                  </td>
                 </tr>
               );
             })}

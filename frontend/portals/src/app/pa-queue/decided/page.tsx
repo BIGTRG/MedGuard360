@@ -5,7 +5,7 @@ import { CheckCircleIcon, XCircleIcon, QuestionMarkCircleIcon } from '@heroicons
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
 import { DataTable, type Column } from '@/components/DataTable';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { formatDateTime, timeSince } from '@/lib/format';
 import type { PaRequestRow } from '@/lib/types';
 
@@ -15,25 +15,24 @@ function DecidedInner(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Backend filter not yet exposed; queue endpoint returns active items only.
-    // The "decided" filter is a clear next addition to prior-auth-service routes.
-    setError('GET /prior-auth/pa-requests/decided endpoint not yet exposed. ' +
-             'Add a route with status filter to surface approved/denied/expired requests.');
-    setLoading(false);
+    api.get<{ requests?: PaRequestRow[] }>('/v1/prior-auth/pa-requests/decided')
+      .then(r => setRows(r.requests ?? []))
+      .catch(err => setError(err instanceof ApiError ? err.message : 'Failed to load'))
+      .finally(() => setLoading(false));
   }, []);
 
   const statusIcon = (s: PaRequestRow['status']): React.ReactElement => {
-    if (s === 'approved')        return <CheckCircleIcon className="h-4 w-4 text-green-600" />;
-    if (s === 'denied')          return <XCircleIcon className="h-4 w-4 text-red-600" />;
+    if (s === 'approved') return <CheckCircleIcon className="h-4 w-4 text-green-600" />;
+    if (s === 'denied') return <XCircleIcon className="h-4 w-4 text-red-600" />;
     return <QuestionMarkCircleIcon className="h-4 w-4 text-amber-600" />;
   };
 
   const columns: Column<PaRequestRow>[] = [
-    { header: '',         accessor: p => statusIcon(p.status) },
-    { header: 'Service',  accessor: p => <span className="font-mono text-xs">{p.service_code}</span> },
-    { header: 'Decision', accessor: p => <span className="capitalize">{p.status.replace('_',' ')}</span> },
-    { header: 'Decided',  accessor: p => formatDateTime(p.due_at) },
-    { header: 'Age',      accessor: p => timeSince(p.created_at) },
+    { header: '', accessor: p => statusIcon(p.status) },
+    { header: 'Service', accessor: p => <span className="font-mono text-xs">{p.service_code}</span> },
+    { header: 'Decision', accessor: p => <span className="capitalize">{p.status.replace('_', ' ')}</span> },
+    { header: 'Decided', accessor: p => formatDateTime(p.decided_at ?? p.updated_at) },
+    { header: 'Age', accessor: p => timeSince(p.created_at) },
   ];
 
   return (
@@ -42,7 +41,7 @@ function DecidedInner(): React.ReactElement {
       <DataTable
         rows={rows} columns={columns} loading={loading}
         errorMessage={error ?? undefined}
-        emptyMessage="No decided PA requests."
+        emptyMessage="No decided PA requests yet."
         rowKey={p => p.id}
       />
     </div>

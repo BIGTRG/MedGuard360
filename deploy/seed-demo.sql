@@ -353,6 +353,22 @@ INSERT INTO daily_rollups (state_code, metric, day, value)
 SELECT 'NC', 'credentialing_approved', CURRENT_DATE - i, (random() * 2)::int FROM generate_series(0, 29) AS i
 ON CONFLICT (state_code, metric, day) DO NOTHING;
 
+-- ============================================================
+-- Audit log (compliance stop — live feed on /compliance + /audit)
+-- ============================================================
+INSERT INTO audit_log_events (id, occurred_at, actor_user_id, actor_role, actor_state_code, resource, resource_id, action, outcome, context, producer) VALUES
+  ('a0000000-0000-0000-0000-000000000001', now() - interval '12 minutes', '00000000-0000-0000-0000-000000000006', 'fraud_investigator', 'NC', 'patient', '10000000-0000-0000-0000-000000000001', 'read', 'success', '{"reason":"fraud case review","records":47}'::jsonb, 'patient-service'),
+  ('a0000000-0000-0000-0000-000000000002', now() - interval '38 minutes', '00000000-0000-0000-0000-000000000003', 'individual_provider', 'NC', 'claim', '50000000-0000-0000-0000-000000000001', 'export', 'success', '{"format":"837P","count":1247}'::jsonb, 'claims-service'),
+  ('a0000000-0000-0000-0000-000000000003', now() - interval '1 hour', '00000000-0000-0000-0000-000000000005', 'prior_auth_specialist', 'NC', 'pa_request', '40000000-0000-0000-0000-000000000001', 'update', 'success', '{"override":"criterion met","criterion_id":"demo-crit-1"}'::jsonb, 'prior-auth-service'),
+  ('a0000000-0000-0000-0000-000000000004', now() - interval '3 hours', '00000000-0000-0000-0000-000000000007', 'denial_appeals_specialist', 'NC', 'auth', '00000000-0000-0000-0000-000000000007', 'login', 'denied', '{"attempts":5,"ip":"203.0.113.44"}'::jsonb, 'auth-service'),
+  ('a0000000-0000-0000-0000-000000000005', now() - interval '4 hours', '00000000-0000-0000-0000-000000000009', 'compliance_officer', 'NC', 'audit_log_events', 'a0000000-0000-0000-0000-000000000001', 'read', 'success', '{"query":"phi export last 24h"}'::jsonb, 'audit-log-service'),
+  ('a0000000-0000-0000-0000-000000000006', now() - interval '6 hours', '00000000-0000-0000-0000-000000000004', 'patient', 'NC', 'patient', '00000000-0000-0000-0000-000000000004', 'read', 'success', '{"surface":"crisis_plan"}'::jsonb, 'patient-service'),
+  ('a0000000-0000-0000-0000-000000000007', now() - interval '8 hours', '00000000-0000-0000-0000-000000000006', 'fraud_investigator', 'NC', 'fraud_case', '60000000-0000-0000-0000-000000000002', 'update', 'success', '{"action":"escalate","target":"OCPI"}'::jsonb, 'fraud-engine-service'),
+  ('a0000000-0000-0000-0000-000000000008', now() - interval '10 hours', '00000000-0000-0000-0000-000000000002', 'state_medicaid_agency', 'NC', 'report_job', '70000000-0000-0000-0000-000000000099', 'create', 'success', '{"kind":"perm","state":"NC"}'::jsonb, 'reporting-service'),
+  ('a0000000-0000-0000-0000-000000000009', now() - interval '1 day', '00000000-0000-0000-0000-000000000001', 'platform_administrator', NULL, 'integration', 'nctracks', 'read', 'success', '{"mode":"stub"}'::jsonb, 'state-config-service'),
+  ('a0000000-0000-0000-0000-000000000010', now() - interval '2 days', '00000000-0000-0000-0000-000000000003', 'individual_provider', 'NC', 'patient', '10000000-0000-0000-0000-000000000002', 'read', 'success', '{"encounter":"active"}'::jsonb, 'patient-service')
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;
 
 -- Summary print
@@ -365,4 +381,5 @@ UNION ALL SELECT 'PA criteria',  COUNT(*) FROM pa_criterion_evaluations
 UNION ALL SELECT 'Claims',       COUNT(*) FROM claims
 UNION ALL SELECT 'Fraud cases',  COUNT(*) FROM fraud_cases
 UNION ALL SELECT 'Denials',      COUNT(*) FROM denials
+UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;

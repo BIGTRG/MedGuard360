@@ -6,8 +6,9 @@ import { useEffect, useState } from 'react';
 import {
   ArrowRightOnRectangleIcon, FingerPrintIcon, BellAlertIcon,
 } from '@heroicons/react/24/outline';
-import { logout } from '@/lib/api-client';
-import { getCurrentClaims } from '@/lib/auth';
+import { login, logout } from '@/lib/api-client';
+import { demoEmailForRole, DEMO_PASSWORD } from '@/lib/demo-users';
+import { getCurrentClaims, homePathForRole, saveTokens } from '@/lib/auth';
 import { cn } from '@/lib/format';
 import { PORTAL_TITLE, navForRole } from '@/lib/nav-config';
 import type { AuthClaims, UserRole } from '@/lib/types';
@@ -26,34 +27,23 @@ const DEMO_ROLES: { role: UserRole; home: string }[] = [
   { role: 'credentialing_specialist',  home: '/credentialing' },
   { role: 'prior_auth_specialist',     home: '/pa-queue' },
   { role: 'billing_manager',           home: '/admin' },
-  { role: 'compliance_officer',        home: '/audit' },
+  { role: 'compliance_officer',        home: '/compliance' },
   { role: 'fraud_investigator',        home: '/fraud' },
   { role: 'denial_appeals_specialist', home: '/denials' },
   { role: 'school_administrator',      home: '/school' },
   { role: 'hie_administrator',         home: '/hie' },
   { role: 'emergency_responder',       home: '/responder' },
-  { role: 'qa_auditor',                home: '/audit' },
+  { role: 'qa_auditor',                home: '/compliance' },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }): React.ReactElement {
   const pathname = usePathname();
   const router = useRouter();
   const [claims, setClaims] = useState<AuthClaims | null>(null);
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
-    // DEMO BYPASS: synthesize claims from sessionStorage role picker or default to admin.
-    const demoRole = (typeof window !== 'undefined' && sessionStorage.getItem('demo_role')) as UserRole | null;
-    const role: UserRole = demoRole ?? 'platform_administrator';
-    const c = getCurrentClaims() ?? ({
-      sub: '00000000-0000-0000-0000-000000000001',
-      email: `${role}@demo.medguard360.com`,
-      role,
-      stateCode: undefined,
-      orgId: undefined,
-      biometricVerified: false,
-      sessionId: 'demo-session',
-    } as AuthClaims);
-    setClaims(c);
+    setClaims(getCurrentClaims());
   }, [pathname]);
 
   if (!claims) {
@@ -63,9 +53,24 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   const title = PORTAL_TITLE[claims.role];
   const items = navForRole(claims.role);
 
+  const switchRole = async (role: UserRole): Promise<void> => {
+    const email = demoEmailForRole(role);
+    setSwitching(true);
+    try {
+      const tokens = await login(email, DEMO_PASSWORD);
+      saveTokens(tokens);
+      const next = getCurrentClaims();
+      if (next) setClaims(next);
+      router.replace(homePathForRole(role));
+    } catch {
+      window.location.href = DEMO_ROLES.find(r => r.role === role)?.home ?? '/login';
+    } finally {
+      setSwitching(false);
+    }
+  };
+
   return (
     <div className="flex h-screen">
-      {/* Sidebar */}
       <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
@@ -105,7 +110,6 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
           <h1 className="text-base font-semibold text-slate-900">{title}</h1>
@@ -122,13 +126,9 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
             <select
               className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs"
               value={claims.role}
-              onChange={(e) => {
-                const role = e.target.value as UserRole;
-                sessionStorage.setItem('demo_role', role);
-                const home = DEMO_ROLES.find(r => r.role === role)?.home ?? '/';
-                window.location.href = home;
-              }}
-              title="Switch demo role"
+              disabled={switching}
+              onChange={(e) => { void switchRole(e.target.value as UserRole); }}
+              title="Switch demo role (re-authenticates)"
             >
               {DEMO_ROLES.map(r => (
                 <option key={r.role} value={r.role}>{PORTAL_TITLE[r.role]} ({r.role})</option>

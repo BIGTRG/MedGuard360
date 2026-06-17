@@ -111,7 +111,7 @@ Write-Host "`n=== Stop 7: Compliance + denials ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" }
 try {
   $audit = Invoke-RestMethod -Uri "$api/audit/search?limit=5" -Headers $h
-  Test-Ok "audit search" ($audit.count -ge 0)
+  Test-Ok "audit search has events" ($audit.count -ge 5)
   Test-Ok "portal /compliance" (Test-PortalPage "/compliance")
   Test-Ok "portal /audit" (Test-PortalPage "/audit")
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
@@ -146,6 +146,19 @@ try {
   $rollups = Invoke-RestMethod -Uri "$api/reporting/reports/rollups?stateCode=NC&metric=claims_submitted&fromDay=2026-05-15&toDay=2026-06-15" -Headers $h
   Test-Ok "reporting rollups" ($rollups.rollups.Count -ge 1)
   Test-Ok "portal /reporting" (Test-PortalPage "/reporting")
+  Test-Ok "portal quick PA evidence" (Test-PortalPage "/pa-queue/40000000-0000-0000-0000-000000000001/evidence")
+  Test-Ok "portal quick fraud case" (Test-PortalPage "/fraud/cases/60000000-0000-0000-0000-000000000002")
+  Test-Ok "portal /fraud/cases index" (Test-PortalPage "/fraud/cases")
+  Test-Ok "portal /state/claims" (Test-PortalPage "/state/claims")
+  $runBody = @{ stateCode = 'NC'; kind = 'claims_volume'; from = (Get-Date).AddDays(-30).ToUniversalTime().ToString('o'); to = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json
+  try {
+    $run = Invoke-RestMethod -Uri "$api/reporting/reports/run" -Method POST -Headers $h -Body $runBody -ContentType "application/json"
+    Test-Ok "reporting run claims_volume" ($null -ne $run.jobId)
+  } catch { Test-Ok "reporting run claims_volume" $false $_.Exception.Message }
+  try {
+    $dec = Invoke-RestMethod -Uri "$api/prior-auth/pa-requests/decided" -Headers $h
+    Test-Ok "PA decided endpoint" ($dec.count -ge 0)
+  } catch { Test-Ok "PA decided endpoint" $false }
 } catch { Test-Ok "reporting flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan
