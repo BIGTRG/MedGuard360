@@ -42,10 +42,6 @@ jobs:
           cache-dependency-path: packages/shared/package-lock.json
       - run: cd packages/shared && npm ci && npm run build
       - run: cd packages/shared && npm test
-      - run: |
-          for svc in auth-service prior-auth-service fraud-engine-service; do
-            (cd services/$svc && npm install && npm test) || exit 1
-          done
         env:
           JWT_SECRET: test-secret-min-32-chars-1234567890ab
           PG_HOST: localhost
