@@ -24,7 +24,7 @@ elif [[ "${1:-}" == "--teardown" ]]; then
   echo "✅ Clean."
   exit 0
 else
-  echo "→ Demo subset mode (12 services + 2 AI engines, ~6 GB RAM)"
+  echo "→ Demo subset mode (20 services + AI engines, docker-compose.demo.yml)"
 fi
 
 # .env
@@ -90,20 +90,23 @@ cat <<'EOF'
   Demo logins (password for all: demo-Password!1):
     admin@demo.medguard360.com         — platform admin
     state@demo.medguard360.com         — state Medicaid dashboard
-    provider@demo.medguard360.com      — provider portal
-    patient@demo.medguard360.com       — patient portal
-    pa@demo.medguard360.com            — prior auth specialist queue
-                                           ⭐ open the pending PA to see the
-                                           criterion-by-criterion AI matching
+    provider@demo.medguard360.com      — provider portal + EHR chart
+    patient@demo.medguard360.com       — member portal
+    pa@demo.medguard360.com            — PA evidence matcher
     fraud@demo.medguard360.com         — fraud investigator queue
-                                           ⭐ 2 cases pre-loaded
-    compliance@demo.medguard360.com    — compliance officer / audit log
-    denial@demo.medguard360.com        — denials/appeals (1 denial waiting)
-    responder@demo.medguard360.com     — emergency responder (biometric-gated)
+    compliance@demo.medguard360.com    — compliance / audit / notifications
+    billing@demo.medguard360.com       — revenue cycle / claims
+    denial@demo.medguard360.com        — denials + AI appeal draft
+    credentialing@demo.medguard360.com — provider credentialing
+    dme@demo.medguard360.com           — DMEPOS orders
+    nemt@demo.medguard360.com          — NEMT trips
+    pharmacy@demo.medguard360.com      — formulary + drug PA
+    hie@demo.medguard360.com           — NC HealthConnex consents
+    school@demo.medguard360.com        — school-based Medicaid
+    responder@demo.medguard360.com     — crisis responder (biometric-gated)
 
-  Verify:  powershell -File deploy\smoke-demo.ps1
-           powershell -File deploy\demo-flow.ps1
-  One-shot: powershell -File deploy\demo-up.ps1
+  Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
+  Verify (scripts):  ./deploy/smoke-demo.ps1  &&  ./deploy/demo-flow.ps1
   Stop:    ./deploy/laptop.sh --teardown
 ================================================================
 EOF

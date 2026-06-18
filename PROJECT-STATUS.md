@@ -1,13 +1,28 @@
-# MedGuard360 — Project Status as of 2026-05-23
+# MedGuard360 — Project Status as of 2026-06-18
+
+## NC laptop demo (tag `v1.0-demo`)
+
+| Check | Status |
+|-------|--------|
+| `deploy/demo-up.ps1` | One-command Windows bring-up |
+| `deploy/smoke-demo.ps1` | 68 HTTP/API/portal checks |
+| `deploy/demo-flow.ps1` | Full role workflow API + portal checks |
+| GitHub CI (`main`) | Green — build, test, Next.js, pytest |
+| GitHub Security scan | Green — npm audit + gitleaks + semgrep (report-only) |
+| Demo password (all 16 users) | `demo-Password!1` |
+| Portal | http://localhost/ |
+
+**Bring-up:** `powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1`  
+**Walkthrough:** `sales/NC-DHHS-DEMO-SCRIPT.md`
 
 ## What's complete
 
 ### Platform code
 - **20 Node.js microservices** — auth, provider, credentialing, patient, eligibility, prior-auth, clinical-doc, claims, fraud-engine, denial, pharmacy, dme, nemt, crisis, hub, reporting, notification, state-config, audit-log, hie
 - **10 Python AI engines** — speech-to-text (Whisper), clinical-nlp, ocr-engine, fraud-detection, fraud-ring-gnn, pa-nlp-matcher, denial-predictor, provider-monitor, crisis-detector, eligibility-intel
-- **Next.js 14 portal** — 20-role role-switcher, AuthGate (currently bypassed for demo)
+- **Next.js 14 portal** — 16 seeded demo roles, live API-backed dashboards (login quick-buttons at `/login`)
 - **React Native mobile** — offline-first SQLite cache, biometric login, MemberHomeScreen
-- **24 SQL migrations** including: base schema, RLS policies, audit log, fraud case events + escalation, PA criterion overrides
+- **46 SQL migrations** including: base schema, RLS, EHR core, MA directory, HIE, HETS, notifications, pilot state plans
 - **5 vendor adapter stubs** — NCTracks, MTM, ModivCare, CGS, Da Vinci PAS (env-var toggled)
 - **Hub AI tier** — `liveLookup.ts` answers eligibility/PA/claims queries directly from DB after identity verify
 
@@ -52,10 +67,11 @@ LoginScreen, DashboardScreen, PatientsScreen (offline fallback), CrisisScreen (b
 - `compliance/6-MONTH-COMPLIANCE-PLAN.md` — week-by-week to 2026-11-23
 
 ### Deployment
+- **NC laptop demo** — `docker-compose.demo.yml` + `deploy/demo-up.ps1` (Windows) / `deploy/laptop.sh` (macOS/Linux)
 - **Live on Hetzner** 178.105.21.227:8090 (demo only — not StateRAMP-ready)
-- **GitHub repo** https://github.com/BIGTRG/MedGuard360 (private)
-- **deploy/onprem.sh** + **update.sh** + **backup.sh** + **create-topics.sh** + **seed-e2e.sql** + **cutover-ga-2026-07-01.sql**
-- **GitHub Actions workflow** in place; needs SSH secrets to activate
+- **GitHub repo** https://github.com/BIGTRG/MedGuard360 (public)
+- **Release tag** `v1.0-demo` — NC DHHS laptop evaluation milestone
+- **GitHub Actions** — CI + Security scan green on `main`; auto-deploy manual-only until SSH secrets configured
 
 ## What's stubbed (intentionally — needs real vendor relationships)
 - Clerk auth (using bypass for demo)
@@ -105,6 +121,6 @@ This repo has been edited by **two parallel Claude sessions** (one local to user
 
 ## Repo locations
 - **GitHub**: https://github.com/BIGTRG/MedGuard360
-- **Local (Windows)**: `C:\Users\saint\Downloads\MedGuard360_Claude_Cowork_Workspace\medguard360\extracted\medguard360\`
+- **Local (Windows laptop)**: `Documents\medguard360\`
 - **Server**: `/opt/medguard360/` on Hetzner 178.105.21.227
-- **Live demo**: http://178.105.21.227:8090 (or local tunnel: http://localhost:8090)
+- **Live demo**: http://178.105.21.227:8090 (or local: http://localhost/ after `demo-up.ps1`)

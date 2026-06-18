@@ -12,6 +12,27 @@ and billing platform serving all 50 states.
 
 ---
 
+## NC laptop demo (quick start)
+
+**Windows (recommended for DHHS meetings):**
+
+```powershell
+cd medguard360
+powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
+```
+
+Open http://localhost/ — password for all demo users: `demo-Password!1`
+
+| Script | Purpose |
+|--------|---------|
+| `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow |
+| `deploy/smoke-demo.ps1` | Fast HTTP/API/portal checks |
+| `deploy/demo-flow.ps1` | Full role workflow verification |
+
+See `sales/NC-DHHS-DEMO-SCRIPT.md` for the 15-minute walkthrough.
+
+---
+
 ## Workspace Structure
 
 ```
