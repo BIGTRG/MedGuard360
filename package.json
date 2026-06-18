@@ -1,0 +1,21 @@
+{
+  "name": "medguard360",
+  "version": "1.0.0",
+  "description": "AI-powered EHR system for crisis management",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "frontend/*"
+  ],
+  "scripts": {
+    "build": "npm ci && turbo run build --filter='!frontend'",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "dev": "turbo run dev --parallel"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "turbo": "latest"
+  }
+}
