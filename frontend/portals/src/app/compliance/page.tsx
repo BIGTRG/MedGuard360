@@ -106,6 +106,7 @@ function ComplianceInner(): React.ReactElement {
             <DocumentMagnifyingGlassIcon className="h-4 w-4" /> Recent PHI access events
           </h3>
           <Link href="/audit" className="text-xs text-brand-700 underline">Full audit search</Link>
+          <Link href="/compliance/audit-search" className="ml-3 text-xs text-brand-700 underline">Advanced filters + CSV export</Link>
         </div>
         {loading && <p className="text-sm text-slate-500">Loading audit feed…</p>}
         {!loading && events.length === 0 && (

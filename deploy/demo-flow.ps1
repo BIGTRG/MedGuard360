@@ -150,6 +150,32 @@ try {
   Test-Ok "portal /credentialing" (Test-PortalPage "/credentialing")
 } catch { Test-Ok "credentialing flow" $false $_.Exception.Message }
 
+Write-Host "`n=== Provider registry + MA directory ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'state@demo.medguard360.com')" }
+try {
+  $providers = Invoke-RestMethod -Uri "$api/providers?limit=5" -Headers $h
+  Test-Ok "providers list" ($providers.count -ge 1)
+  $byNpi = Invoke-RestMethod -Uri "$api/providers/by-npi/1234567893" -Headers $h
+  Test-Ok "provider NPI lookup" ($byNpi.npi -eq '1234567893')
+  $dir = Invoke-RestMethod -Uri "$api/providers/directory/export?stateCode=NC" -Headers $h
+  Test-Ok "MA directory export" ($dir.count -ge 1)
+  Test-Ok "portal /state/mco-admin" (Test-PortalPage "/state/mco-admin")
+} catch { Test-Ok "provider directory flow" $false $_.Exception.Message }
+$h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" }
+try {
+  $attestBody = @{
+    mcoPayerId = 'NCMEDPAY'
+    stateCode = 'NC'
+    attestationYear = 2026
+    accuracyPct = 96.4
+    totalProviders = 1
+    providersVerified = 1
+    providersUnableToVerify = 0
+  } | ConvertTo-Json
+  $attest = Invoke-RestMethod -Uri "$api/providers/directory/attest" -Method POST -Headers $h -Body $attestBody -ContentType "application/json"
+  Test-Ok "MA directory attestation" ($attest.message.Length -gt 5)
+} catch { Test-Ok "MA directory attestation" $false $_.Exception.Message }
+
 Write-Host "`n=== DME + NEMT ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'dme@demo.medguard360.com')" }
 try {
@@ -262,6 +288,7 @@ try {
   Test-Ok "notification send stub" ($sent.log.status -eq 'sent')
   Test-Ok "portal /compliance" (Test-PortalPage "/compliance")
   Test-Ok "portal /compliance/hets" (Test-PortalPage "/compliance/hets")
+  Test-Ok "portal /compliance/audit-search" (Test-PortalPage "/compliance/audit-search")
   Test-Ok "portal /audit" (Test-PortalPage "/audit")
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
 } catch { Test-Ok "compliance flow" $false $_.Exception.Message }

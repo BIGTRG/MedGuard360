@@ -155,6 +155,8 @@ VALUES
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (npi) DO NOTHING;
 
+UPDATE providers SET enrolled_medicare = TRUE WHERE npi = '1234567893';
+
 -- ============================================================
 -- PA coverage criteria (a real document the BERT engine will match against)
 -- ============================================================
