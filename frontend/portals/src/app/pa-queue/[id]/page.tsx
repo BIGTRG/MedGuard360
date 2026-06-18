@@ -46,7 +46,7 @@ function DecisionInner(): React.ReactElement {
     setSubmitting(true);
     setError(null);
     try {
-      await api.post(`/v1/prior-auth/pa-requests/${pa.id}/decide`, { status, explanation });
+      await api.post(`/v1/prior-auth/pa-requests/${pa.id}/decide`, { decision: status, notes: explanation });
       router.push('/pa-queue');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to record decision');

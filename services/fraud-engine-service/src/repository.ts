@@ -10,7 +10,74 @@
  */
 
 import { pool, query, NotFoundError } from '@medguard360/shared';
-import { FraudCase, FraudScoreRow } from './types';
+import { FraudCase, FraudScoreRow, scoreToRiskLevel } from './types';
+
+interface FraudCaseDbRow {
+  id: string;
+  claim_id: string;
+  state_code: string;
+  status: string;
+  opened_at: Date;
+  assigned_investigator: string | null;
+  resolution: string | null;
+  resolved_at: Date | null;
+  resolved_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+  escalated_at: Date | null;
+  escalated_by: string | null;
+  escalation_target: FraudCase['escalation_target'];
+  escalation_notes: string | null;
+  risk_score: number | null;
+  recommendation: string | null;
+  ai_explanation: string | null;
+  flags: unknown;
+  provider_user_id: string | null;
+  patient_id: string | null;
+}
+
+const CASE_SELECT = `
+  SELECT fc.id, fc.claim_id, fc.state_code, fc.status, fc.opened_at,
+         fc.assigned_investigator, fc.resolution, fc.resolved_at, fc.resolved_by,
+         fc.created_at, fc.updated_at, fc.escalated_at, fc.escalated_by,
+         fc.escalation_target, fc.escalation_notes,
+         fs.score AS risk_score, fs.recommendation, fs.explanation AS ai_explanation,
+         fs.flags, c.billing_provider_id AS provider_user_id, c.patient_id
+    FROM fraud_cases fc
+    LEFT JOIN fraud_scores fs ON fs.claim_id = fc.claim_id
+    LEFT JOIN claims c ON c.id = fc.claim_id`;
+
+function mapFraudCase(row: FraudCaseDbRow): FraudCase {
+  const flagsRaw = row.flags;
+  const flags = Array.isArray(flagsRaw)
+    ? flagsRaw.map(f => (typeof f === 'string' ? f : JSON.stringify(f)))
+    : [];
+  const score = row.risk_score;
+  return {
+    id: row.id,
+    claim_id: row.claim_id,
+    provider_user_id: row.provider_user_id ?? '',
+    patient_id: row.patient_id ?? '',
+    state_code: row.state_code,
+    risk_score: score,
+    risk_level: score == null ? null : scoreToRiskLevel(score),
+    flags,
+    recommendation: row.recommendation,
+    ai_explanation: row.ai_explanation,
+    status: row.status,
+    assigned_to: row.assigned_investigator,
+    ai_engine_unavailable: false,
+    resolved_at: row.resolved_at,
+    resolution_notes: row.resolution,
+    escalated_at: row.escalated_at,
+    escalated_by: row.escalated_by,
+    escalation_target: row.escalation_target,
+    escalation_notes: row.escalation_notes,
+    opened_at: row.opened_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
 
 // ─── Fraud Scores ──────────────────────────────────────────────────────────────
 
@@ -102,31 +169,15 @@ export async function updateClaimFraudScore(
 export async function createFraudCase(
   data: Omit<FraudCase, 'id' | 'created_at' | 'updated_at'>,
 ): Promise<FraudCase> {
-  const r = await pool.query<FraudCase>(
-    `INSERT INTO fraud_cases (
-       claim_id, provider_user_id, patient_id, state_code,
-       risk_score, risk_level, flags, recommendation, ai_explanation,
-       status, assigned_to, ai_engine_unavailable, resolved_at, resolution_notes
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-     RETURNING *`,
-    [
-      data.claim_id,
-      data.provider_user_id,
-      data.patient_id,
-      data.state_code,
-      data.risk_score   ?? null,
-      data.risk_level   ?? null,
-      data.flags,
-      data.recommendation   ?? null,
-      data.ai_explanation   ?? null,
-      data.status,
-      data.assigned_to      ?? null,
-      data.ai_engine_unavailable,
-      data.resolved_at      ?? null,
-      data.resolution_notes ?? null,
-    ],
+  const r = await pool.query<{ id: string }>(
+    `INSERT INTO fraud_cases (claim_id, state_code, status, assigned_investigator)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
+    [data.claim_id, data.state_code, data.status, data.assigned_to ?? null],
   );
-  return r.rows[0];
+  const created = await getFraudCase(r.rows[0].id);
+  if (!created) throw new NotFoundError('FraudCase');
+  return created;
 }
 
 export interface ListFraudCasesFilters {
@@ -151,10 +202,9 @@ export async function listFraudCases(
     conditions.push(clause.replace('$$', `$${params.length}`));
   };
 
-  if (filters.status)     push('status = $$',             filters.status);
-  if (filters.stateCode)  push('state_code = $$',         filters.stateCode);
-  if (filters.riskLevel)  push('risk_level = $$',         filters.riskLevel);
-  if (filters.assignedTo) push('assigned_to = $$::uuid',  filters.assignedTo);
+  if (filters.status)     push('fc.status = $$',             filters.status);
+  if (filters.stateCode)  push('fc.state_code = $$',         filters.stateCode);
+  if (filters.assignedTo) push('fc.assigned_investigator = $$::uuid', filters.assignedTo);
 
   const where  = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const limit  = Math.min(filters.limit  ?? 50, 200);
@@ -162,18 +212,18 @@ export async function listFraudCases(
 
   const [countRes, rowsRes] = await Promise.all([
     pool.query<{ total: string }>(
-      `SELECT COUNT(*) AS total FROM fraud_cases ${where}`, params,
+      `SELECT COUNT(*) AS total FROM fraud_cases fc ${where}`, params,
     ),
-    pool.query<FraudCase>(
-      `SELECT * FROM fraud_cases ${where}
-       ORDER BY risk_score DESC NULLS LAST
+    pool.query<FraudCaseDbRow>(
+      `${CASE_SELECT} ${where}
+       ORDER BY fs.score DESC NULLS LAST, fc.opened_at DESC
        LIMIT ${limit} OFFSET ${offset}`,
       params,
     ),
   ]);
 
   return {
-    cases: rowsRes.rows,
+    cases: rowsRes.rows.map(mapFraudCase),
     total: Number.parseInt(countRes.rows[0].total, 10),
   };
 }
@@ -182,10 +232,10 @@ export async function listFraudCases(
  * Fetch a single case by PK.  Returns null when not found.
  */
 export async function getFraudCase(id: string): Promise<FraudCase | null> {
-  const r = await pool.query<FraudCase>(
-    'SELECT * FROM fraud_cases WHERE id = $1', [id],
+  const r = await pool.query<FraudCaseDbRow>(
+    `${CASE_SELECT} WHERE fc.id = $1`, [id],
   );
-  return r.rows[0] ?? null;
+  return r.rows[0] ? mapFraudCase(r.rows[0]) : null;
 }
 
 /**
@@ -197,15 +247,16 @@ export async function resolveCase(
   status: 'cleared' | 'confirmed_fraud',
   notes: string,
 ): Promise<FraudCase> {
-  const r = await pool.query<FraudCase>(
+  const r = await pool.query<{ id: string }>(
     `UPDATE fraud_cases
         SET status           = $2,
-            resolution_notes = $3,
+            resolution       = $3,
             resolved_at      = NOW(),
-            assigned_to      = $4,
+            resolved_by      = $4,
+            assigned_investigator = COALESCE(assigned_investigator, $4),
             updated_at       = NOW()
       WHERE id = $1
-      RETURNING *`,
+      RETURNING id`,
     [id, status, notes, investigatorId],
   );
   if (!r.rows[0]) throw new NotFoundError('FraudCase');
@@ -215,7 +266,9 @@ export async function resolveCase(
     text: `Resolved as ${status}: ${notes}`,
     context: { status, notes_length: notes.length },
   }).catch(() => undefined);
-  return r.rows[0];
+  const resolved = await getFraudCase(id);
+  if (!resolved) throw new NotFoundError('FraudCase');
+  return resolved;
 }
 
 /**
@@ -234,16 +287,16 @@ export async function escalateCase(
   target: 'OCPI' | 'MFCU' | 'CMS_UPIC' | 'STATE_OIG',
   notes: string,
 ): Promise<FraudCase> {
-  const r = await pool.query<FraudCase>(
+  const r = await pool.query<{ id: string }>(
     `UPDATE fraud_cases
         SET escalated_at      = NOW(),
             escalated_by      = $2,
             escalation_target = $3,
             escalation_notes  = $4,
-            status            = CASE WHEN status = 'open' THEN 'under_review' ELSE status END,
+            status            = CASE WHEN status = 'open' THEN 'investigating' ELSE status END,
             updated_at        = NOW()
       WHERE id = $1
-      RETURNING *`,
+      RETURNING id`,
     [id, investigatorId, target, notes],
   );
   if (!r.rows[0]) throw new NotFoundError('FraudCase');
@@ -252,20 +305,22 @@ export async function escalateCase(
     text: `Escalated to ${target}: ${notes}`,
     context: { target, notes_length: notes.length },
   }).catch(() => undefined);
-  return r.rows[0];
+  const escalated = await getFraudCase(id);
+  if (!escalated) throw new NotFoundError('FraudCase');
+  return escalated;
 }
 
 /**
  * Assign a case to an investigator and transition open→under_review.
  */
 export async function assignCase(id: string, investigatorId: string): Promise<FraudCase> {
-  const r = await pool.query<FraudCase>(
+  const r = await pool.query<{ id: string }>(
     `UPDATE fraud_cases
-        SET assigned_to = $2,
-            status      = CASE WHEN status = 'open' THEN 'under_review' ELSE status END,
+        SET assigned_investigator = $2,
+            status      = CASE WHEN status = 'open' THEN 'investigating' ELSE status END,
             updated_at  = NOW()
       WHERE id = $1
-      RETURNING *`,
+      RETURNING id`,
     [id, investigatorId],
   );
   if (!r.rows[0]) throw new NotFoundError('FraudCase');
@@ -274,7 +329,9 @@ export async function assignCase(id: string, investigatorId: string): Promise<Fr
     text: `Assigned to investigator ${investigatorId.slice(0, 8)}…`,
     context: { to_user_id: investigatorId },
   }).catch(() => undefined);
-  return r.rows[0];
+  const assigned = await getFraudCase(id);
+  if (!assigned) throw new NotFoundError('FraudCase');
+  return assigned;
 }
 
 // ─── Legacy helpers (used by original consumer.ts) ───────────────────────────
@@ -340,11 +397,8 @@ export async function openCaseIfNeeded(
 ): Promise<string | null> {
   if (recommendation === 'auto_pay') return null;
   const r = await pool.query<{ id: string }>(
-    `INSERT INTO fraud_cases
-       (claim_id, state_code, status, provider_user_id, patient_id)
-     VALUES ($1,$2,'open',
-       (SELECT billing_provider_id FROM claims WHERE id = $1),
-       (SELECT patient_id          FROM claims WHERE id = $1))
+    `INSERT INTO fraud_cases (claim_id, state_code, status)
+     VALUES ($1, $2, 'open')
      RETURNING id`,
     [claimId, stateCode],
   );

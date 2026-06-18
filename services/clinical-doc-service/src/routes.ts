@@ -9,6 +9,8 @@ import * as cds from './cds';
 
 export const router = Router();
 
+const enc = '/clinical-doc/encounters';
+
 const CreateEncounterSchema = z.object({
   patientId: z.string().uuid(),
   stateCode: z.string().length(2),
@@ -17,23 +19,21 @@ const CreateEncounterSchema = z.object({
   locationLng: z.number().optional(),
 });
 
-router.post('/', requireAuth, requireRole('individual_provider', 'facility_provider'), async (req, res, next) => {
+router.post(enc, requireAuth, requireRole('individual_provider', 'facility_provider'), async (req, res, next) => {
   try {
     const body = CreateEncounterSchema.parse(req.body);
     const encounter = await repo.createEncounter({
-      provider_user_id: req.auth!.sub,
+      provider_id: req.auth!.sub,
       patient_id: body.patientId,
       state_code: body.stateCode,
       service_date: new Date(body.serviceDate),
-      location_lat: body.locationLat ?? null,
-      location_lng: body.locationLng ?? null,
       created_by: req.auth!.sub,
     });
     res.status(201).json({ encounter });
   } catch (err) { next(err); }
 });
 
-router.get('/', requireAuth, async (req, res, next) => {
+router.get(enc, requireAuth, async (req, res, next) => {
   try {
     const { patientId, status, stateCode } = req.query as Record<string, string>;
     const auth = req.auth!;
@@ -46,17 +46,22 @@ router.get('/', requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:id', requireAuth, async (req, res, next) => {
+router.get(`${enc}/:id`, requireAuth, async (req, res, next) => {
   try {
     const encounter = await repo.findEncounter(req.params.id);
     if (!encounter) { res.status(404).json({ error: 'Not found' }); return; }
     const documents = await repo.getDocuments(req.params.id);
-    await auditLog({ userId: req.auth!.sub, action: 'read', resourceType: 'clinical_encounter', resourceId: req.params.id, stateCode: encounter.state_code, phiAccessed: true });
+    await auditLog({
+      resource: 'clinical_encounter', resourceId: req.params.id, action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId,
+      context: { stateCode: encounter.state_code },
+    });
     res.json({ encounter, documents });
   } catch (err) { next(err); }
 });
 
-router.post('/:id/upload-audio', requireAuth, requireRole('individual_provider', 'facility_provider'), async (req, res, next) => {
+router.post(`${enc}/:id/upload-audio`, requireAuth, requireRole('individual_provider', 'facility_provider'), async (req, res, next) => {
   try {
     const { audioFilePath } = z.object({ audioFilePath: z.string() }).parse(req.body);
     await repo.updateEncounter(req.params.id, { audio_file_path: audioFilePath });
@@ -73,15 +78,17 @@ router.post('/:id/upload-audio', requireAuth, requireRole('individual_provider',
   } catch (err) { next(err); }
 });
 
-router.put('/:id/note', requireAuth, async (req, res, next) => {
+router.put(`${enc}/:id/note`, requireAuth, async (req, res, next) => {
   try {
     const { noteText } = z.object({ noteText: z.string() }).parse(req.body);
-    const encounter = await repo.updateEncounter(req.params.id, { note_text: noteText });
+    await repo.addDocument(req.params.id, 'note', undefined, noteText);
+    const encounter = await repo.findEncounter(req.params.id);
+    if (!encounter) { res.status(404).json({ error: 'Not found' }); return; }
     res.json({ encounter });
   } catch (err) { next(err); }
 });
 
-router.post('/:id/sign', requireAuth, requireRole('individual_provider', 'facility_provider'), async (req, res, next) => {
+router.post(`${enc}/:id/sign`, requireAuth, requireRole('individual_provider', 'facility_provider'), async (req, res, next) => {
   try {
     const encounter = await repo.updateEncounter(req.params.id, {
       status: 'signed',
@@ -109,19 +116,20 @@ router.post('/:id/sign', requireAuth, requireRole('individual_provider', 'facili
 // POST /v1/clinical-doc/ehr/:patientId/immunizations — add immunization
 // POST /v1/clinical-doc/ehr/:patientId/cds-fire   — run CDS rules and return firings
 
-router.get('/ehr/:patientId', requireAuth, async (req, res, next) => {
+router.get('/clinical-doc/ehr/:patientId', requireAuth, async (req, res, next) => {
   try {
     const patientId = z.string().uuid().parse(req.params.patientId);
     const chart = await ehr.getChart(patientId);
     await auditLog({
-      userId: req.auth!.sub, action: 'read', resourceType: 'ehr_chart',
-      resourceId: patientId, stateCode: 'NC', phiAccessed: true,
-    } as never);
+      resource: 'ehr_chart', resourceId: patientId, action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId,
+    });
     res.json(chart);
   } catch (err) { next(err); }
 });
 
-router.post('/ehr/:patientId/problems', requireAuth, requireRole('individual_provider','facility_provider','prior_auth_specialist'),
+router.post('/clinical-doc/ehr/:patientId/problems', requireAuth, requireRole('individual_provider','facility_provider','prior_auth_specialist'),
   async (req, res, next) => {
     try {
       const patientId = z.string().uuid().parse(req.params.patientId);
@@ -138,7 +146,7 @@ router.post('/ehr/:patientId/problems', requireAuth, requireRole('individual_pro
     } catch (err) { next(err); }
   });
 
-router.post('/ehr/:patientId/medications', requireAuth, requireRole('individual_provider','facility_provider','pharmacy'),
+router.post('/clinical-doc/ehr/:patientId/medications', requireAuth, requireRole('individual_provider','facility_provider','pharmacy'),
   async (req, res, next) => {
     try {
       const patientId = z.string().uuid().parse(req.params.patientId);
@@ -159,7 +167,7 @@ router.post('/ehr/:patientId/medications', requireAuth, requireRole('individual_
     } catch (err) { next(err); }
   });
 
-router.post('/ehr/:patientId/allergies', requireAuth, requireRole('individual_provider','facility_provider','pharmacy'),
+router.post('/clinical-doc/ehr/:patientId/allergies', requireAuth, requireRole('individual_provider','facility_provider','pharmacy'),
   async (req, res, next) => {
     try {
       const patientId = z.string().uuid().parse(req.params.patientId);
@@ -177,7 +185,7 @@ router.post('/ehr/:patientId/allergies', requireAuth, requireRole('individual_pr
     } catch (err) { next(err); }
   });
 
-router.post('/ehr/:patientId/vitals', requireAuth, requireRole('individual_provider','facility_provider'),
+router.post('/clinical-doc/ehr/:patientId/vitals', requireAuth, requireRole('individual_provider','facility_provider'),
   async (req, res, next) => {
     try {
       const patientId = z.string().uuid().parse(req.params.patientId);
@@ -199,7 +207,7 @@ router.post('/ehr/:patientId/vitals', requireAuth, requireRole('individual_provi
     } catch (err) { next(err); }
   });
 
-router.post('/ehr/:patientId/immunizations', requireAuth, requireRole('individual_provider','facility_provider'),
+router.post('/clinical-doc/ehr/:patientId/immunizations', requireAuth, requireRole('individual_provider','facility_provider'),
   async (req, res, next) => {
     try {
       const patientId = z.string().uuid().parse(req.params.patientId);
@@ -217,7 +225,7 @@ router.post('/ehr/:patientId/immunizations', requireAuth, requireRole('individua
     } catch (err) { next(err); }
   });
 
-router.post('/ehr/:patientId/cds-fire', requireAuth, async (req, res, next) => {
+router.post('/clinical-doc/ehr/:patientId/cds-fire', requireAuth, async (req, res, next) => {
   try {
     const patientId = z.string().uuid().parse(req.params.patientId);
     const chart = await ehr.getChart(patientId);

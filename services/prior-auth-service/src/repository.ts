@@ -1,54 +1,91 @@
 import { pool, withRlsContext, NotFoundError } from '@medguard360/shared';
 import { PaRequestRow, CriterionEvaluationRow } from './types';
 
+/** Map DB row (migration 0004 shape) to API row expected by routes + portals. */
+function mapPaRow(row: Record<string, unknown>): PaRequestRow {
+  const status = String(row.status ?? '');
+  const decisionAt = (row.decision_at ?? row.decided_at ?? null) as Date | null;
+  const explanation = (row.decision_explanation ?? row.ai_explanation ?? null) as string | null;
+  const decided = decisionAt != null;
+
+  return {
+    id: row.id as string,
+    patient_id: row.patient_id as string,
+    provider_user_id: (row.ordering_provider_id ?? row.provider_user_id) as string,
+    state_code: row.state_code as string,
+    payer_id: row.payer_id as string,
+    procedure_code: (row.service_code ?? row.procedure_code) as string,
+    diagnosis_codes: (row.diagnosis_codes as string[]) ?? [],
+    clinical_justification: (row.clinical_justification as string | null) ?? null,
+    urgency: row.urgency as PaRequestRow['urgency'],
+    status: status as PaRequestRow['status'],
+    ai_recommendation: (row.ai_recommendation as string | null) ?? null,
+    ai_confidence: row.ai_match_score != null ? Number(row.ai_match_score) : (row.ai_confidence as number | null) ?? null,
+    ai_explanation: explanation,
+    human_reviewer_id: (row.human_reviewer_id as string | null) ?? null,
+    human_decision: decided && ['approved', 'denied', 'needs_more_info'].includes(status) ? status : null,
+    human_notes: decided ? explanation : null,
+    due_at: row.due_at as Date,
+    decided_at: decisionAt,
+    created_at: row.created_at as Date,
+    updated_at: row.updated_at as Date,
+    created_by: row.created_by as string,
+    // Aliases consumed directly by portals (see pa-queue evidence page).
+    ...(row.service_code ? { service_code: row.service_code as string } : {}),
+    ...(row.ordering_provider_id ? { ordering_provider_id: row.ordering_provider_id as string } : {}),
+    ...(row.decision_at ? { decision_at: row.decision_at as Date } : {}),
+    ...(row.decision_explanation ? { decision_explanation: row.decision_explanation as string } : {}),
+    ...(row.ai_match_score != null ? { ai_match_score: row.ai_match_score as string | number } : {}),
+    ...(row.ai_engine_version ? { ai_engine_version: row.ai_engine_version as string } : {}),
+  } as PaRequestRow;
+}
+
 export async function createPaRequest(
-  data: Omit<PaRequestRow, 'id' | 'created_at' | 'updated_at'>,
+  data: Omit<PaRequestRow, 'id' | 'created_at' | 'updated_at'> & {
+    service_code_type?: string;
+    service_description?: string;
+    clinical_doc_id?: string | null;
+  },
 ): Promise<PaRequestRow> {
-  const result = await pool.query<PaRequestRow>(
+  const result = await pool.query(
     `INSERT INTO pa_requests (
-       patient_id, provider_user_id, state_code, payer_id,
-       procedure_code, diagnosis_codes, clinical_justification,
-       urgency, status, ai_recommendation, ai_confidence, ai_explanation,
-       human_reviewer_id, human_decision, human_notes,
-       due_at, decided_at, created_by
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       patient_id, ordering_provider_id, payer_id, state_code,
+       service_code, service_code_type, service_description,
+       diagnosis_codes, urgency, status, clinical_doc_id, due_at, created_by
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
     [
       data.patient_id,
       data.provider_user_id,
-      data.state_code,
       data.payer_id,
+      data.state_code,
       data.procedure_code,
+      data.service_code_type ?? 'CPT',
+      data.service_description ?? data.procedure_code,
       data.diagnosis_codes,
-      data.clinical_justification ?? null,
       data.urgency,
-      data.status,
-      data.ai_recommendation ?? null,
-      data.ai_confidence ?? null,
-      data.ai_explanation ?? null,
-      data.human_reviewer_id ?? null,
-      data.human_decision ?? null,
-      data.human_notes ?? null,
+      data.status === 'pending' ? 'received' : data.status,
+      data.clinical_doc_id ?? null,
       data.due_at,
-      data.decided_at ?? null,
       data.created_by,
     ],
   );
-  return result.rows[0];
+  return mapPaRow(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function findPaRequest(id: string): Promise<PaRequestRow | null> {
-  const result = await pool.query<PaRequestRow>(
+  const result = await pool.query(
     'SELECT * FROM pa_requests WHERE id = $1',
     [id],
   );
-  return result.rows[0] ?? null;
+  return result.rows[0] ? mapPaRow(result.rows[0] as Record<string, unknown>) : null;
 }
 
 export interface PaListFilters {
   status?: string;
   stateCode?: string;
   providerId?: string;
+  serviceCodeType?: string;
   limit?: number;
   offset?: number;
 }
@@ -67,7 +104,11 @@ export async function listPaRequests(filters: PaListFilters): Promise<PaRequestR
   }
   if (filters.providerId) {
     params.push(filters.providerId);
-    conditions.push(`provider_user_id = $${params.length}`);
+    conditions.push(`ordering_provider_id = $${params.length}`);
+  }
+  if (filters.serviceCodeType) {
+    params.push(filters.serviceCodeType);
+    conditions.push(`service_code_type = $${params.length}`);
   }
 
   const limit = Math.min(filters.limit ?? 100, 500);
@@ -83,7 +124,7 @@ export async function listPaRequests(filters: PaListFilters): Promise<PaRequestR
      LIMIT ${limit} OFFSET ${offset}`,
     params,
   );
-  return result.rows;
+  return result.rows.map(r => mapPaRow(r as unknown as Record<string, unknown>));
 }
 
 export async function updatePaRequest(
@@ -95,13 +136,11 @@ export async function updatePaRequest(
 
   const fields: Array<[keyof Partial<PaRequestRow>, string]> = [
     ['status', 'status'],
-    ['ai_recommendation', 'ai_recommendation'],
-    ['ai_confidence', 'ai_confidence'],
-    ['ai_explanation', 'ai_explanation'],
+    ['ai_confidence', 'ai_match_score'],
+    ['ai_explanation', 'decision_explanation'],
     ['human_reviewer_id', 'human_reviewer_id'],
-    ['human_decision', 'human_decision'],
-    ['human_notes', 'human_notes'],
-    ['decided_at', 'decided_at'],
+    ['human_notes', 'decision_explanation'],
+    ['decided_at', 'decision_at'],
   ];
 
   for (const [key, col] of fields) {
@@ -124,7 +163,7 @@ export async function updatePaRequest(
     params,
   );
   if (!result.rows[0]) throw new NotFoundError('PA request');
-  return result.rows[0];
+  return mapPaRow(result.rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function saveCriterionEvaluations(

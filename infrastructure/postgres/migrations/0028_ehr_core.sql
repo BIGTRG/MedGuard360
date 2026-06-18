@@ -290,18 +290,29 @@ ALTER TABLE ehr_patient_instructions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ehr_cds_firings       ENABLE ROW LEVEL SECURITY;
 
 -- One generic policy per table — state_code OR own-patient OR platform_administrator.
-DO $$ BEGIN
-  FOR t IN VALUES ('ehr_problems'),('ehr_medications'),('ehr_allergies'),('ehr_immunizations'),
-                  ('ehr_vitals'),('ehr_smoking_status'),('ehr_lab_results'),('ehr_imaging_results'),
-                  ('ehr_procedures'),('ehr_care_plans'),('ehr_patient_instructions') LOOP
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'ehr_problems','ehr_medications','ehr_allergies','ehr_immunizations',
+    'ehr_vitals','ehr_lab_results','ehr_imaging_results',
+    'ehr_procedures','ehr_care_plans','ehr_patient_instructions'
+  ] LOOP
     EXECUTE format($p$
+      DROP POLICY IF EXISTS %1$I_state_or_patient ON %1$I;
       CREATE POLICY %1$I_state_or_patient ON %1$I FOR ALL USING (
         current_setting('app.current_role', true) = 'platform_administrator'
         OR state_code = current_setting('app.current_state_code', true)
         OR patient_id IN (SELECT id FROM patients WHERE created_by = current_setting('app.current_user_id', true)::uuid)
       )
-    $p$, t.column1);
+    $p$, t);
   END LOOP;
+  DROP POLICY IF EXISTS ehr_smoking_status_patient ON ehr_smoking_status;
+  CREATE POLICY ehr_smoking_status_patient ON ehr_smoking_status FOR ALL USING (
+    current_setting('app.current_role', true) = 'platform_administrator'
+    OR patient_id IN (SELECT id FROM patients WHERE created_by = current_setting('app.current_user_id', true)::uuid)
+  );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

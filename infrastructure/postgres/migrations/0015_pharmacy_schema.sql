@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS formulary_entries (
   effective_to        date,
   UNIQUE (state_code, payer_id, ndc, effective_from)
 );
-CREATE INDEX IF NOT EXISTS formulary_lookup ON formulary_entries(state_code, payer_id, ndc) WHERE effective_to IS NULL OR effective_to > now();
+CREATE INDEX IF NOT EXISTS formulary_lookup ON formulary_entries(state_code, payer_id, ndc);
 
 ALTER TABLE pharmacy_claims ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS pharm_read ON pharmacy_claims;

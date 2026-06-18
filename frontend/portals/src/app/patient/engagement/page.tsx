@@ -19,7 +19,7 @@ function Inner(): React.ReactElement {
   const [s, setS] = useState<Summary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
-    api.get<{ patient_id: string }>('/v1/patient/me').then(p =>
+    api.get<{ patient_id: string }>('/v1/patients/me').then(p =>
       api.get<Summary>(`/v1/eligibility/community-engagement/${p.patient_id}`).then(setS).catch(e => setErr(e.message))
     ).catch(e => setErr(e.message));
   }, []);

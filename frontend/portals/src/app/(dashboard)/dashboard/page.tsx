@@ -43,10 +43,20 @@ export default function DashboardPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<DashboardStats>('/v1/reporting/dashboard/summary')
-      .then(data => setStats(data))
-      .catch(() => setStats(FALLBACK_STATS))
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get<{ count: number }>('/v1/patients?limit=1').catch(() => ({ count: 0 })),
+      api.get<{ count: number }>('/v1/claims?limit=1').catch(() => ({ count: 0 })),
+      api.get<{ cases: unknown[] }>('/v1/fraud/cases?limit=50').catch(() => ({ cases: [] })),
+      api.get<{ count: number }>('/v1/prior-auth/pa-requests/queue').catch(() => ({ count: 0 })),
+    ]).then(([patients, claims, fraud, pa]) => {
+      setStats({
+        activePatients: patients.count ?? 0,
+        totalClaims: claims.count ?? 0,
+        fraudCasesOpen: fraud.cases?.length ?? 0,
+        paPending: pa.count ?? 0,
+        credentialingPending: 0,
+      });
+    }).finally(() => setLoading(false));
   }, []);
 
   return (

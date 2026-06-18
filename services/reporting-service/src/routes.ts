@@ -106,6 +106,15 @@ router.post('/reporting/reports/run',
   }),
 );
 
+router.get('/reporting/reports/rollups',
+  requireAuth, requireRole('state_medicaid_agency','mco_admin','compliance_officer','platform_administrator','federal_cms'),
+  ah(async (req, res) => {
+    const input = parse(RollupQuerySchema, req.query);
+    const rows = await repo.getRollups(req.auth!, input.stateCode, input.metric, input.fromDay, input.toDay);
+    res.json({ count: rows.length, rollups: rows });
+  }),
+);
+
 router.get('/reporting/reports/:id', requireAuth, ah(async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   const job = await repo.getJob(req.auth!, id);
@@ -166,15 +175,5 @@ router.get('/reporting/mlr',
       period_start: q.from, period_end: q.to,
     });
     res.json(result);
-  }),
-);
-
-// Dashboard endpoint — quick rollup queries for portals
-router.get('/reporting/reports/rollups',
-  requireAuth, requireRole('state_medicaid_agency','mco_admin','compliance_officer','platform_administrator','federal_cms'),
-  ah(async (req, res) => {
-    const input = parse(RollupQuerySchema, req.query);
-    const rows = await repo.getRollups(req.auth!, input.stateCode, input.metric, input.fromDay, input.toDay);
-    res.json({ count: rows.length, rollups: rows });
   }),
 );

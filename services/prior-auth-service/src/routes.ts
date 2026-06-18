@@ -34,22 +34,65 @@ const logger = createLogger('prior-auth-service:routes');
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
 const CreatePaSchema = z.object({
-  patient_id: z.string().uuid(),
-  procedure_code: z.string().min(1).max(20),
-  diagnosis_codes: z.array(z.string().min(1)).min(1).max(12),
-  clinical_justification: z.string().min(10).max(10_000),
+  patient_id: z.string().uuid().optional(),
+  patientId: z.string().uuid().optional(),
+  procedure_code: z.string().min(1).max(20).optional(),
+  serviceCode: z.string().min(1).max(20).optional(),
+  service_code_type: z.enum(['CPT', 'HCPCS', 'NDC', 'REVENUE']).optional(),
+  serviceCodeType: z.enum(['CPT', 'HCPCS', 'NDC', 'REVENUE']).optional(),
+  service_description: z.string().max(500).optional(),
+  serviceDescription: z.string().max(500).optional(),
+  diagnosis_codes: z.array(z.string().min(1)).min(1).max(12).optional(),
+  diagnosisCodes: z.array(z.string().min(1)).min(1).max(12).optional(),
+  clinical_justification: z.string().min(10).max(10_000).optional(),
   urgency: z.enum(['standard', 'expedited', 'drug']),
-  state_code: z.string().length(2),
-  payer_id: z.string().min(1),
+  state_code: z.string().length(2).optional(),
+  stateCode: z.string().length(2).optional(),
+  payer_id: z.string().min(1).optional(),
+  payerId: z.string().min(1).optional(),
+  clinical_doc_id: z.string().uuid().optional(),
+  clinicalDocId: z.string().uuid().optional(),
+}).transform((b) => {
+  const patientId = b.patient_id ?? b.patientId;
+  const serviceCode = b.procedure_code ?? b.serviceCode;
+  const diagnosisCodes = b.diagnosis_codes ?? b.diagnosisCodes;
+  const stateCode = b.state_code ?? b.stateCode;
+  const payerId = b.payer_id ?? b.payerId;
+  if (!patientId || !serviceCode || !diagnosisCodes?.length || !stateCode || !payerId) {
+    throw new ValidationError('Invalid input', { fieldErrors: { _errors: ['patientId, serviceCode, diagnosisCodes, stateCode, and payerId are required'] } });
+  }
+  const description = b.service_description ?? b.serviceDescription ?? serviceCode;
+  const justification = b.clinical_justification ?? description;
+  return {
+    patient_id: patientId,
+    procedure_code: serviceCode,
+    service_code_type: b.service_code_type ?? b.serviceCodeType ?? 'CPT',
+    service_description: description,
+    diagnosis_codes: diagnosisCodes,
+    clinical_justification: justification,
+    urgency: b.urgency,
+    state_code: stateCode,
+    payer_id: payerId,
+    clinical_doc_id: b.clinical_doc_id ?? b.clinicalDocId ?? null,
+  };
 });
 
 const ListPaSchema = z.object({
   status: z.string().optional(),
   state_code: z.string().length(2).optional(),
   provider_id: z.string().uuid().optional(),
+  service_code_type: z.enum(['CPT', 'HCPCS', 'NDC', 'REVENUE']).optional(),
+  serviceCodeType: z.enum(['CPT', 'HCPCS', 'NDC', 'REVENUE']).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
   offset: z.coerce.number().int().min(0).optional(),
-});
+}).transform(b => ({
+  status: b.status,
+  state_code: b.state_code,
+  provider_id: b.provider_id,
+  service_code_type: b.service_code_type ?? b.serviceCodeType,
+  limit: b.limit,
+  offset: b.offset,
+}));
 
 const DecideSchema = z.object({
   decision: z.enum(['approved', 'denied', 'needs_more_info']),
@@ -251,10 +294,13 @@ router.post(
       state_code: body.state_code,
       payer_id: body.payer_id,
       procedure_code: body.procedure_code,
+      service_code_type: body.service_code_type,
+      service_description: body.service_description,
       diagnosis_codes: body.diagnosis_codes,
       clinical_justification: body.clinical_justification,
+      clinical_doc_id: body.clinical_doc_id,
       urgency: body.urgency,
-      status: 'pending',
+      status: 'received',
       ai_recommendation: null,
       ai_confidence: null,
       ai_explanation: null,
@@ -266,8 +312,8 @@ router.post(
       created_by: auth.sub,
     });
 
-    // Emit pa.submitted event immediately so consumers can react
-    await emitEvent('pa.submitted', {
+    // Emit pa.requested event immediately so consumers can react
+    await emitEvent('pa.requested', {
       paRequestId: paRequest.id,
       patientId: body.patient_id,
       providerId: auth.sub,
@@ -361,20 +407,58 @@ router.post(
 router.get(
   '/prior-auth/pa-requests/queue',
   requireAuth,
-  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer'),
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'platform_administrator'),
   ah(async (_req, res) => {
     // Pull active items from both buckets — repo's list filters one status at a
     // time, so concatenate and sort in-process. Volume is bounded (queue is for
     // humans to work through), so this is fine.
-    const pending = await repo.listPaRequests({ status: 'pending',          limit: 500 });
-    const moreInfo = await repo.listPaRequests({ status: 'needs_more_info', limit: 500 });
+    const [received, evaluating, moreInfo] = await Promise.all([
+      repo.listPaRequests({ status: 'received', limit: 500 }),
+      repo.listPaRequests({ status: 'evaluating', limit: 500 }),
+      repo.listPaRequests({ status: 'needs_more_info', limit: 500 }),
+    ]);
     const urgencyRank: Record<string, number> = { drug: 0, expedited: 1, standard: 2 };
-    const requests = [...pending, ...moreInfo].sort((a, b) => {
+    const requests = [...received, ...evaluating, ...moreInfo].sort((a, b) => {
       const ur = (urgencyRank[a.urgency] ?? 99) - (urgencyRank[b.urgency] ?? 99);
       if (ur !== 0) return ur;
       return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
     });
     res.json({ requests, count: requests.length });
+  }),
+);
+
+/**
+ * GET /api/v1/prior-auth/pa-requests/decided
+ * Approved / denied history for the specialist "Decided" tab.
+ */
+router.get(
+  '/prior-auth/pa-requests/decided',
+  requireAuth,
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'platform_administrator'),
+  ah(async (_req, res) => {
+    const [approved, denied] = await Promise.all([
+      repo.listPaRequests({ status: 'approved', limit: 200 }),
+      repo.listPaRequests({ status: 'denied', limit: 200 }),
+    ]);
+    const requests = [...approved, ...denied].sort(
+      (a, b) => new Date((b as { decision_at?: Date }).decision_at ?? b.decided_at ?? b.updated_at).getTime()
+        - new Date((a as { decision_at?: Date }).decision_at ?? a.decided_at ?? a.updated_at).getTime(),
+    );
+    res.json({ requests, count: requests.length });
+  }),
+);
+
+/**
+ * GET /api/v1/prior-auth/pa-requests/mine
+ * Ordering provider's own PA requests (active + historical).
+ */
+router.get(
+  '/prior-auth/pa-requests/mine',
+  requireAuth,
+  requireRole('individual_provider', 'facility_provider', 'platform_administrator'),
+  ah(async (req, res) => {
+    const rows = await repo.listPaRequests({ providerId: req.auth!.sub, limit: 50 });
+    res.json({ requests: rows, count: rows.length });
   }),
 );
 
@@ -385,7 +469,7 @@ router.get(
 router.get(
   '/prior-auth/pa-requests',
   requireAuth,
-  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer'),
+  requireRole('prior_auth_specialist', 'billing_manager', 'compliance_officer', 'pharmacy', 'platform_administrator'),
   ah(async (req, res) => {
     const query = parse(ListPaSchema, req.query);
 
@@ -393,6 +477,7 @@ router.get(
       status: query.status,
       stateCode: query.state_code,
       providerId: query.provider_id,
+      serviceCodeType: query.service_code_type,
       limit: query.limit,
       offset: query.offset,
     });
@@ -436,6 +521,8 @@ router.get(
     });
 
     res.json({
+      ...paRequest,
+      criteria: evalResult.rows,
       paRequest,
       criteriaEvaluations: evalResult.rows,
     });
@@ -504,17 +591,16 @@ router.post(
     const updated = await repo.updatePaRequest(id, {
       status: statusMap[body.decision] as 'approved' | 'denied' | 'needs_more_info',
       human_reviewer_id: auth.sub,
-      human_decision: body.decision,
       human_notes: body.notes,
       decided_at: new Date(),
     });
 
     const eventType =
       body.decision === 'approved'
-        ? 'pa.decided.approved'
+        ? 'pa.approved'
         : body.decision === 'denied'
-          ? 'pa.decided.denied'
-          : 'pa.decided.needs_more_info';
+          ? 'pa.denied'
+          : 'pa.needs.more.info';
 
     await emitEvent(eventType, {
       paRequestId: id,

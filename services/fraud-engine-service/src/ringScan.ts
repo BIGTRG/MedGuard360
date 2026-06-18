@@ -12,8 +12,10 @@
 import axios from 'axios';
 import { config, query, logger, UpstreamError } from '@medguard360/shared';
 
+const ringGnnBase = process.env.FRAUD_RING_GNN_URL ?? 'http://localhost:8005';
+
 const ringEngine = axios.create({
-  baseURL: 'http://localhost:8005',
+  baseURL: ringGnnBase,
   timeout: 30_000,
   headers: { 'x-service-caller': config.serviceName },
 });

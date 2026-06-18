@@ -70,6 +70,32 @@ const ALLOWED_ROLES = [
 
 export const router = Router();
 
+async function searchAuditEvents(req: Request, res: Response): Promise<void> {
+  const q = parse(QuerySchema, req.query);
+
+  const startStr = q.startDate ?? q.from;
+  const endStr   = q.endDate   ?? q.to;
+  const result = await repo.queryEvents({
+    actorUserId:     q.actorUserId ?? q.userId,
+    resource:        q.resource ?? q.resourceType,
+    resourceId:      q.resourceId,
+    correlationId:   q.correlationId,
+    stateCode:       q.stateCode,
+    startDate:       startStr ? new Date(startStr) : undefined,
+    endDate:         endStr   ? new Date(endStr)   : undefined,
+    phiAccessedOnly: q.phiOnly === 'true',
+    limit:           q.limit,
+    offset:          q.offset,
+  });
+
+  res.json({
+    total:  result.total,
+    count:  result.rows.length,
+    offset: q.offset ?? 0,
+    rows:   result.rows,
+  });
+}
+
 /**
  * GET /api/v1/audit/search
  * Query audit events with optional filters. Frontend's /audit page calls this.
@@ -81,31 +107,15 @@ router.get(
   '/audit/search',
   requireAuth,
   requireRole(...ALLOWED_ROLES),
-  ah(async (req, res) => {
-    const q = parse(QuerySchema, req.query);
+  ah(async (req, res) => searchAuditEvents(req, res)),
+);
 
-    const startStr = q.startDate ?? q.from;
-    const endStr   = q.endDate   ?? q.to;
-    const result = await repo.queryEvents({
-      actorUserId:     q.actorUserId ?? q.userId,
-      resource:        q.resource ?? q.resourceType,
-      resourceId:      q.resourceId,
-      correlationId:   q.correlationId,
-      stateCode:       q.stateCode,
-      startDate:       startStr ? new Date(startStr) : undefined,
-      endDate:         endStr   ? new Date(endStr)   : undefined,
-      phiAccessedOnly: q.phiOnly === 'true',
-      limit:           q.limit,
-      offset:          q.offset,
-    });
-
-    res.json({
-      total:  result.total,
-      count:  result.rows.length,
-      offset: q.offset ?? 0,
-      rows:   result.rows,
-    });
-  }),
+/** Legacy alias — some scripts used /audit/events before search was canonical. */
+router.get(
+  '/audit/events',
+  requireAuth,
+  requireRole(...ALLOWED_ROLES),
+  ah(async (req, res) => searchAuditEvents(req, res)),
 );
 
 /**

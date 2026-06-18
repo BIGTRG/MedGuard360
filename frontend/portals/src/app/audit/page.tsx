@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MagnifyingGlassIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
@@ -30,8 +30,8 @@ function AuditInner(): React.ReactElement {
   const [resource, setResource] = useState('');
   const [resourceId, setResourceId] = useState('');
 
-  const search = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
+  const search = async (e?: React.FormEvent): Promise<void> => {
+    if (e) e.preventDefault();
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({ limit: '200' });
@@ -46,6 +46,11 @@ function AuditInner(): React.ReactElement {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    void search();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const outcomeBadge = (o: string): string => {
     if (o === 'success') return 'badge-green';

@@ -23,7 +23,7 @@ function DenialsInner(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<{ denials: DenialRow[] }>('/v1/denials/denials')
+    api.get<{ denials: DenialRow[] }>('/v1/denials')
       .then(r => setRows(r.denials))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));

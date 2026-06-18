@@ -31,8 +31,8 @@ function AuditSearchInner(): React.ReactElement {
     if (to)       params.set('to', to);
     params.set('limit', '200');
     try {
-      const res = await api.get<{ events: AuditEvent[] }>(`/v1/audit-log/events?${params.toString()}`);
-      setRows(res.events);
+      const res = await api.get<{ rows: AuditEvent[] }>(`/v1/audit/search?${params.toString()}`);
+      setRows(res.rows);
     } catch (e) { console.error(e); }
     setLoading(false);
   }
@@ -93,5 +93,9 @@ function AuditSearchInner(): React.ReactElement {
 }
 
 export default function AuditSearchPage(): React.ReactElement {
-  return <AuthGate><AppShell><AuditSearchInner /></AppShell></AuthGate>;
+  return (
+    <AuthGate allowedRoles={['compliance_officer', 'qa_auditor', 'fraud_investigator', 'state_medicaid_agency', 'federal_cms', 'platform_administrator']}>
+      <AppShell><AuditSearchInner /></AppShell>
+    </AuthGate>
+  );
 }

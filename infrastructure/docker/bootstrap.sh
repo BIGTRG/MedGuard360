@@ -17,10 +17,31 @@ chmod +x /usr/local/bin/mc
 echo ""
 echo "== Applying Postgres migrations =="
 export PGPASSWORD="${PG_PASSWORD}"
+
+# Standalone/alternate migration files that conflict with canonical *_schema.sql
+# variants when applied in glob order. Skip them during docker bootstrap.
+skip_migration() {
+  case "$1" in
+    0006_fraud_cases.sql|0007_providers.sql|0008_clinical.sql|0012_notification_schema.sql|0013_hub.sql|0014_pharmacy.sql|0015_dme.sql|0016_nemt.sql|0017_crisis.sql|0018_reporting.sql)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 for migration in /work/infrastructure/postgres/migrations/*.sql; do
   name=$(basename "$migration")
+  if skip_migration "$name"; then
+    echo "  ⏭  $name (skipped — canonical *_schema.sql variant exists)"
+    continue
+  fi
   echo "  → $name"
-  psql -h "${PG_HOST}" -U "${PG_USER}" -d "${PG_DATABASE}" -1 -f "$migration" >/dev/null
+  psql -h "${PG_HOST}" -U "${PG_USER}" -d "${PG_DATABASE}" -1 -f "$migration" >/dev/null || {
+    echo "Migration failed: $name" >&2
+    exit 1
+  }
 done
 echo "Migrations applied."
 
@@ -59,6 +80,9 @@ create_topic fraud.score.computed 6
 create_topic fraud.flag.raised
 create_topic fraud.ring.detected
 create_topic fraud.case.opened
+create_topic fraud.case.escalated
+create_topic fraud.case.resolved
+create_topic pa.decided
 create_topic clinical.encounter.started
 create_topic clinical.encounter.completed
 create_topic clinical.note.created

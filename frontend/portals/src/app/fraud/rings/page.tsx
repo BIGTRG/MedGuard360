@@ -25,15 +25,7 @@ function RingsInner(): React.ReactElement {
   const scan = async (): Promise<void> => {
     setRunning(true); setError(null);
     try {
-      // The fraud-ring-gnn engine expects a graph — in production, fraud-engine-service
-      // would assemble it from claims + providers + addresses. Here we hit the engine directly
-      // with a small synthetic graph to demonstrate the screen.
-      const resp = await fetch('/api/v1/fraud/rings/scan', { method: 'POST' });
-      if (!resp.ok) {
-        setError('Ring scan endpoint not yet wired (POST /fraud/rings/scan). The fraud-ring-gnn engine is online at port 8005 and ready when the orchestrator route is added.');
-        return;
-      }
-      const data = await resp.json() as DetectResp;
+      const data = await api.post<DetectResp>('/v1/fraud/rings/scan');
       setResult(data);
     } catch (err) {
       setError((err as Error).message);

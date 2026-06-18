@@ -83,6 +83,156 @@ const ah =
 
 export const router = Router();
 
+function serializePatient(row: Record<string, unknown>): Record<string, unknown> {
+  const dob = row['date_of_birth'] ?? row['dob'];
+  return {
+    id: row['id'],
+    patient_id: row['id'],
+    first_name: row['first_name'],
+    last_name: row['last_name'],
+    date_of_birth: dob instanceof Date ? dob.toISOString().slice(0, 10) : dob,
+    medicaid_id: row['medicaid_id'] ?? null,
+    state_code: row['state_code'],
+    email: row['email'] ?? null,
+    phone: row['phone'] ?? null,
+  };
+}
+
+async function getSelfPatient(auth: NonNullable<Request['auth']>): Promise<Record<string, unknown>> {
+  const patient = await repo.findPatient(auth.sub, auth);
+  if (!patient) throw new NotFoundError('Patient');
+  return serializePatient(patient as unknown as Record<string, unknown>);
+}
+
+// ── GET /patients/me — member portal (RLS: patients.id = users.id) ───────────
+router.get(
+  '/patients/me',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const patient = await getSelfPatient(req.auth!);
+    await auditLog({
+      resource: 'patient', resourceId: req.auth!.sub, action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId,
+    });
+    res.json(patient);
+  }),
+);
+
+// Alias used by benefits/engagement pages
+router.get(
+  '/patient/me',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    res.json(await getSelfPatient(req.auth!));
+  }),
+);
+
+router.get(
+  '/patients/me/coverages',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const patient = await getSelfPatient(req.auth!);
+    res.json({
+      coverages: [{
+        active: true,
+        plan_name: 'NC Medicaid Standard Plan',
+        payer_id: 'NCMEDPAY',
+        effective_from: '2026-01-01',
+        effective_to: null,
+        state_code: patient['state_code'],
+      }],
+    });
+  }),
+);
+
+router.get(
+  '/patient/me/coverages',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const patient = await getSelfPatient(req.auth!);
+    res.json({
+      coverages: [{
+        active: true,
+        plan_name: 'NC Medicaid Standard Plan',
+        payer_id: 'NCMEDPAY',
+        effective_from: '2026-01-01',
+        effective_to: null,
+        state_code: patient['state_code'],
+      }],
+    });
+  }),
+);
+
+router.get(
+  '/patients/me/crisis-plan',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const plan = await repo.getMemberCrisisPlan(req.auth!.sub, req.auth!);
+    if (!plan) throw new NotFoundError('Crisis plan');
+    res.json(plan);
+  }),
+);
+
+router.get(
+  '/patient/me/crisis-plan',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const plan = await repo.getMemberCrisisPlan(req.auth!.sub, req.auth!);
+    if (!plan) throw new NotFoundError('Crisis plan');
+    res.json(plan);
+  }),
+);
+
+const MEMBER_APPOINTMENTS = [
+  { id: 'appt-1', when: 'Jun 18, 2026 · 10:30 AM', provider: 'Dr. Demo Provider', location: 'Raleigh Family Medicine' },
+  { id: 'appt-2', when: 'Jul 02, 2026 · 2:00 PM', provider: 'Dr. Demo Provider', location: 'Telehealth' },
+];
+
+const MEMBER_MESSAGES = [
+  { id: 'msg-1', from: 'NC Medicaid Member Services', at: '2 days ago', preview: 'Your prior authorization for psychotherapy was approved.' },
+  { id: 'msg-2', from: 'Dr. Demo Provider', at: '1 week ago', preview: 'Lab results are ready — no action needed.' },
+];
+
+router.get(
+  '/patients/me/claims',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    const claims = await repo.getMemberClaims(req.auth!.sub, req.auth!);
+    await auditLog({
+      resource: 'claim', resourceId: 'member-list', action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId, context: { count: claims.length },
+    });
+    res.json({ count: claims.length, claims });
+  }),
+);
+
+router.get(
+  '/patients/me/appointments',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    res.json({ count: MEMBER_APPOINTMENTS.length, appointments: MEMBER_APPOINTMENTS });
+  }),
+);
+
+router.get(
+  '/patients/me/messages',
+  requireAuth,
+  requireRole('patient'),
+  ah(async (req, res) => {
+    res.json({ count: MEMBER_MESSAGES.length, messages: MEMBER_MESSAGES });
+  }),
+);
+
 // ── GET /patients/:id ─────────────────────────────────────────────────────────
 router.get(
   '/patients/:id',

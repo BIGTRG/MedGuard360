@@ -4,13 +4,13 @@
 #   auth-service, patient-service, prior-auth-service, claims-service,
 #   fraud-engine-service, state-config-service, audit-log-service,
 #   reporting-service, denial-service, provider-service, notification-service,
-#   crisis-service
-# Plus the 2 most-impressive AI engines: fraud-detection, pa-nlp-matcher
+#   crisis-service, clinical-doc-service, credentialing-service,
+#   dme-service, nemt-service, pharmacy-service, hie-service, eligibility-service
+# Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
-# Skipped (vs docker-compose.yml): pharmacy, dme, nemt, hub, hie, eligibility,
-# clinical-doc, credentialing, and 8 AI engines. They exist in code; this is
-# just a slimmer boot for demos.
+# Host port overrides avoid clashes with other local stacks (e.g. GeniusEye on 5432/6379/3000).
+# Access: UI http://localhost/ (nginx) or http://localhost:3080/ (portals direct), API http://localhost/api/
 
 x-node-build: &node-build
   context: .
@@ -46,7 +46,13 @@ x-service-env: &service-env
 x-deps: &deps
   postgres: { condition: service_healthy }
   redis: { condition: service_started }
-  kafka: { condition: service_started }
+  kafka: { condition: service_healthy }
+  kafka-init:
+    condition: service_completed_successfully
+
+x-node-service: &node-service
+  restart: unless-stopped
+  depends_on: *deps
 
 services:
   # -------- Infrastructure --------
@@ -56,7 +62,7 @@ services:
       POSTGRES_DB: medguard360
       POSTGRES_USER: medguard
       POSTGRES_PASSWORD: ${PG_PASSWORD:-demo-password-not-for-prod}
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes:
       - demo-pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -67,20 +73,50 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["6380:6379"]
 
   kafka:
-    image: bitnami/kafka:3.7
+    image: apache/kafka:3.7.2
     ports: ["9092:9092"]
     environment:
-      KAFKA_CFG_NODE_ID: 1
-      KAFKA_CFG_PROCESS_ROLES: controller,broker
-      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "medguard360-kafka-cluster"
+    volumes: [demo-kafkadata:/var/lib/kafka/data]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  kafka-init:
+    image: apache/kafka:3.7.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - |
+        set -euo pipefail
+        KT=/opt/kafka/bin/kafka-topics.sh
+        topics="user.created user.login.succeeded user.login.failed user.logout user.permission.changed claim.submitted claim.validated claim.adjudicated claim.paid claim.denied claim.appealed pa.requested pa.criteria.evaluated pa.approved pa.denied pa.needs.more.info pa.decided credentialing.application.received credentialing.psv.completed credentialing.approved credentialing.denied credentialing.expiring fraud.score.computed fraud.flag.raised fraud.alert.raised fraud.ring.detected fraud.case.opened fraud.case.escalated fraud.case.resolved clinical.encounter.started clinical.encounter.completed clinical.note.created clinical.code.suggested crisis.plan.created crisis.alert.raised crisis.responder.dispatched eligibility.checked notification.email.requested notification.sms.requested notification.push.requested notification.sent denial.appeal.submitted audit.event provider.created provider.status.changed dme.order.created dme.order.status.changed nemt.trip.scheduled nemt.trip.completed hie.referral.created hie.consent.granted hie.consent.revoked patient.created patient.updated"
+        for topic in $$topics; do
+          $$KT --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions 1 --replication-factor 1 >/dev/null
+          echo "  ✓ $$topic"
+        done
+        echo "Kafka demo topics ready"
 
   minio:
     image: minio/minio:latest
@@ -99,7 +135,9 @@ services:
     image: alpine:3.20
     depends_on:
       postgres: { condition: service_healthy }
-      kafka: { condition: service_started }
+      kafka: { condition: service_healthy }
+      kafka-init:
+        condition: service_completed_successfully
       minio: { condition: service_healthy }
     volumes:
       - ./infrastructure:/work/infrastructure:ro
@@ -110,80 +148,129 @@ services:
       MINIO_URL: http://minio:9000
     entrypoint: ["sh", "-c", "/bootstrap.sh && PGPASSWORD=$$PG_PASSWORD psql -h postgres -U medguard -d medguard360 -f /work/deploy/seed-demo.sql"]
 
-  # -------- 12 demo services --------
+  # -------- 15 demo services --------
   auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: auth-service } }
     environment: { <<: *service-env, PORT: "3001" }
     ports: ["3001:3001"]
-    depends_on: *deps
+    <<: *node-service
 
   provider-service:
     build: { <<: *node-build, args: { SERVICE_NAME: provider-service } }
     environment: { <<: *service-env, PORT: "3002" }
     ports: ["3002:3002"]
-    depends_on: *deps
+    <<: *node-service
+
+  credentialing-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: credentialing-service } }
+    environment: { <<: *service-env, PORT: "3003" }
+    ports: ["3003:3003"]
+    <<: *node-service
+
+  clinical-doc-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: clinical-doc-service } }
+    environment: { <<: *service-env, PORT: "3007" }
+    ports: ["3007:3007"]
+    <<: *node-service
 
   patient-service:
     build: { <<: *node-build, args: { SERVICE_NAME: patient-service } }
     environment: { <<: *service-env, PORT: "3004" }
     ports: ["3004:3004"]
-    depends_on: *deps
+    <<: *node-service
+
+  eligibility-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: eligibility-service } }
+    environment:
+      <<: *service-env
+      PORT: "3005"
+      HETS_SUBMITTER_UID: ${HETS_SUBMITTER_UID:-MEDGUARD360_PENDING_UID}
+    ports: ["3005:3005"]
+    <<: *node-service
 
   prior-auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: prior-auth-service } }
     environment: { <<: *service-env, PORT: "3006" }
     ports: ["3006:3006"]
-    depends_on: *deps
+    <<: *node-service
 
   claims-service:
     build: { <<: *node-build, args: { SERVICE_NAME: claims-service } }
     environment: { <<: *service-env, PORT: "3008" }
     ports: ["3008:3008"]
-    depends_on: *deps
+    <<: *node-service
 
   fraud-engine-service:
     build: { <<: *node-build, args: { SERVICE_NAME: fraud-engine-service } }
-    environment: { <<: *service-env, PORT: "3009" }
+    environment:
+      <<: *service-env
+      PORT: "3009"
+      FRAUD_DETECTION_URL: http://fraud-detection:8004
+      FRAUD_RING_GNN_URL: http://fraud-ring-gnn:8005
     ports: ["3009:3009"]
-    depends_on: *deps
+    <<: *node-service
 
   denial-service:
     build: { <<: *node-build, args: { SERVICE_NAME: denial-service } }
     environment: { <<: *service-env, PORT: "3010" }
     ports: ["3010:3010"]
-    depends_on: *deps
+    <<: *node-service
+
+  pharmacy-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: pharmacy-service } }
+    environment: { <<: *service-env, PORT: "3011" }
+    ports: ["3011:3011"]
+    <<: *node-service
+
+  dme-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: dme-service } }
+    environment: { <<: *service-env, PORT: "3012" }
+    ports: ["3012:3012"]
+    <<: *node-service
+
+  nemt-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: nemt-service } }
+    environment: { <<: *service-env, PORT: "3013" }
+    ports: ["3013:3013"]
+    <<: *node-service
 
   crisis-service:
     build: { <<: *node-build, args: { SERVICE_NAME: crisis-service } }
     environment: { <<: *service-env, PORT: "3014" }
     ports: ["3014:3014"]
-    depends_on: *deps
+    <<: *node-service
 
   reporting-service:
     build: { <<: *node-build, args: { SERVICE_NAME: reporting-service } }
     environment: { <<: *service-env, PORT: "3016" }
     ports: ["3016:3016"]
-    depends_on: *deps
+    <<: *node-service
 
   notification-service:
     build: { <<: *node-build, args: { SERVICE_NAME: notification-service } }
     environment: { <<: *service-env, PORT: "3017" }
     ports: ["3017:3017"]
-    depends_on: *deps
+    <<: *node-service
 
   state-config-service:
     build: { <<: *node-build, args: { SERVICE_NAME: state-config-service } }
     environment: { <<: *service-env, PORT: "3018" }
     ports: ["3018:3018"]
-    depends_on: *deps
+    <<: *node-service
 
   audit-log-service:
     build: { <<: *node-build, args: { SERVICE_NAME: audit-log-service } }
     environment: { <<: *service-env, PORT: "3019" }
     ports: ["3019:3019"]
-    depends_on: *deps
+    <<: *node-service
 
-  # -------- 2 AI engines (demo) --------
+  hie-service:
+    build: { <<: *node-build, args: { SERVICE_NAME: hie-service } }
+    environment: { <<: *service-env, PORT: "3020" }
+    ports: ["3020:3020"]
+    <<: *node-service
+
+  # -------- 3 AI engines (demo) --------
   fraud-detection:
     build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } }
     environment:
@@ -194,6 +281,11 @@ services:
       MODEL_KIND: minimal
     ports: ["8004:8004"]
 
+  fraud-ring-gnn:
+    build: { <<: *py-build, args: { ENGINE_NAME: fraud-ring-gnn } }
+    environment: { <<: *service-env, PORT: "8005" }
+    ports: ["8005:8005"]
+
   pa-nlp-matcher:
     build: { <<: *py-build, args: { ENGINE_NAME: pa-nlp-matcher } }
     environment: { <<: *service-env, PORT: "8006", SKIP_WARMUP: "1" }
@@ -202,6 +294,7 @@ services:
   # -------- Gateway + Frontend --------
   nginx:
     image: nginx:1.27-alpine
+    restart: unless-stopped
     ports: ["80:80"]
     volumes:
       - ./infrastructure/docker/nginx.demo.conf:/etc/nginx/nginx.conf:ro
@@ -214,16 +307,26 @@ services:
       - state-config-service
       - audit-log-service
       - reporting-service
+      - pharmacy-service
+      - dme-service
+      - nemt-service
+      - credentialing-service
+      - clinical-doc-service
+      - crisis-service
+      - hie-service
+      - eligibility-service
 
   portals:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.portals
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE: /api
-    ports: ["3000:3000"]
+    ports: ["3080:3000"]
     depends_on: [nginx]
 
 volumes:
   demo-pgdata:
+  demo-kafkadata:

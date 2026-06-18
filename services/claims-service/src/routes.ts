@@ -20,6 +20,7 @@ import {
   NotFoundError,
   createLogger,
   pool,
+  withRlsContext,
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
@@ -76,6 +77,14 @@ const ah = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unk
   (req: Request, res: Response, next: NextFunction): void => {
     fn(req, res, next).catch(next);
   };
+
+async function billingProviderIdForUser(userId: string): Promise<string | undefined> {
+  const result = await pool.query<{ id: string }>(
+    'SELECT id FROM providers WHERE user_id = $1 LIMIT 1',
+    [userId],
+  );
+  return result.rows[0]?.id;
+}
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -146,14 +155,24 @@ router.get(
     // If not a specialist/admin, scope to own provider
     const privilegedRoles = ['prior_auth_specialist', 'billing_manager', 'compliance_officer',
       'fraud_investigator', 'platform_administrator', 'state_medicaid_agency', 'federal_cms'];
-    const hasPrivilege = auth.roles?.some((r: string) => privilegedRoles.includes(r));
+    const hasPrivilege = privilegedRoles.includes(auth.role);
 
-    const rows = await repo.listClaims({
-      providerId: hasPrivilege ? filters.provider_id : auth.sub,
-      patientId: filters.patient_id,
-      status: effectiveFilters.status,
-      stateCode: effectiveFilters.state_code,
-    });
+    let providerId = filters.provider_id;
+    if (!hasPrivilege) {
+      providerId = await billingProviderIdForUser(auth.sub);
+    }
+
+    const rows = await withRlsContext(auth, (client) =>
+      repo.listClaims(
+        {
+          providerId,
+          patientId: filters.patient_id,
+          status: effectiveFilters.status,
+          stateCode: effectiveFilters.state_code,
+        },
+        client,
+      ),
+    );
 
     res.json({ count: rows.length, claims: rows });
   }),
@@ -173,6 +192,8 @@ router.get(
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
 
+    const lines = await repo.findClaimLines(id);
+
     await auditLog({
       resource: 'claim',
       resourceId: id,
@@ -181,7 +202,7 @@ router.get(
       outcome: 'success',
     });
 
-    res.json({ claim });
+    res.json({ claim, lines });
   }),
 );
 

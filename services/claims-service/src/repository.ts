@@ -1,4 +1,5 @@
 import { pool, withRlsContext, NotFoundError, query } from '@medguard360/shared';
+import type { PoolClient } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 
 // ── CCN generation ────────────────────────────────────────────────────────────
@@ -100,6 +101,14 @@ export async function findClaim(id: string): Promise<ClaimRow | null> {
   return result.rows[0] ?? null;
 }
 
+export async function findClaimLines(claimId: string): Promise<Record<string, unknown>[]> {
+  const result = await pool.query(
+    'SELECT * FROM claim_lines WHERE claim_id = $1 ORDER BY line_number',
+    [claimId],
+  );
+  return result.rows;
+}
+
 // ── listClaims ────────────────────────────────────────────────────────────────
 
 export interface ClaimListFilters {
@@ -109,13 +118,16 @@ export interface ClaimListFilters {
   stateCode?: string;
 }
 
-export async function listClaims(filters: ClaimListFilters): Promise<ClaimRow[]> {
+export async function listClaims(
+  filters: ClaimListFilters,
+  client: PoolClient = pool,
+): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
 
   if (filters.providerId) {
     params.push(filters.providerId);
-    conditions.push(`provider_user_id = $${params.length}`);
+    conditions.push(`billing_provider_id = $${params.length}`);
   }
   if (filters.patientId) {
     params.push(filters.patientId);
@@ -132,7 +144,7 @@ export async function listClaims(filters: ClaimListFilters): Promise<ClaimRow[]>
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await pool.query<ClaimRow>(
+  const result = await client.query<ClaimRow>(
     `SELECT * FROM claims ${where} ORDER BY created_at DESC LIMIT 500`,
     params,
   );

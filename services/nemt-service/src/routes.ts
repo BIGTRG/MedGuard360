@@ -119,6 +119,12 @@ router.post('/nemt/trips/:id/complete',
   }),
 );
 
+router.get('/nemt/trips', requireAuth, ah(async (req, res) => {
+  const limit = z.coerce.number().int().min(1).max(1000).optional().parse(req.query.limit);
+  const trips = await repo.listTrips(req.auth!, limit ?? 100);
+  res.json({ count: trips.length, trips });
+}));
+
 router.get('/nemt/trips/:id', requireAuth, ah(async (req, res) => {
   const id = z.string().uuid().parse(req.params.id);
   const trip = await repo.getTrip(req.auth!, id);

@@ -6,6 +6,7 @@ import { LockClosedIcon } from '@heroicons/react/24/solid';
 import { login } from '@/lib/api-client';
 import { homePathForRole, saveTokens, getCurrentClaims } from '@/lib/auth';
 import { clerkConfigured } from '@/lib/clerk-exchange';
+import { DEMO_PASSWORD, DEMO_USERS } from '@/lib/demo-users';
 import type { Tokens } from '@/lib/types';
 
 export default function LoginPage(): React.ReactElement {
@@ -19,12 +20,11 @@ export default function LoginPage(): React.ReactElement {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
+  const signIn = async (loginEmail: string, loginPassword: string): Promise<void> => {
     setError(null);
     setSubmitting(true);
     try {
-      const tokens: Tokens = await login(email, password);
+      const tokens: Tokens = await login(loginEmail, loginPassword);
       saveTokens(tokens);
       const claims = getCurrentClaims();
       if (!claims) throw new Error('Invalid token returned');
@@ -34,6 +34,17 @@ export default function LoginPage(): React.ReactElement {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const onSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    await signIn(email, password);
+  };
+
+  const onDemoLogin = async (demoEmail: string): Promise<void> => {
+    setEmail(demoEmail);
+    setPassword(DEMO_PASSWORD);
+    await signIn(demoEmail, DEMO_PASSWORD);
   };
 
   return (
@@ -85,6 +96,27 @@ export default function LoginPage(): React.ReactElement {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <div className="mt-6 card card-body">
+          <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-slate-500">
+            NC demo — one-click sign-in
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {DEMO_USERS.filter(u => u.label !== 'Responder').map((d) => (
+              <button
+                key={d.email}
+                type="button"
+                className="btn-secondary justify-center px-2 py-2 text-xs"
+                disabled={submitting}
+                onClick={() => void onDemoLogin(d.email)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-xs text-slate-500">
+            Password: <code>{DEMO_PASSWORD}</code>
+          </p>
+        </div>
       </div>
     </div>
   );

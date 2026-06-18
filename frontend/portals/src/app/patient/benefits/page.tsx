@@ -23,8 +23,8 @@ function Inner(): React.ReactElement {
 
   useEffect(() => {
     Promise.all([
-      api.get<Patient>('/v1/patient/me'),
-      api.get<{ coverages: Coverage[] }>('/v1/patient/me/coverages'),
+      api.get<Patient>('/v1/patients/me'),
+      api.get<{ coverages: Coverage[] }>('/v1/patients/me/coverages'),
     ])
     .then(([p, c]) => { setPat(p); setCoverages(c.coverages ?? []); })
     .catch(e => setErr(e.message));

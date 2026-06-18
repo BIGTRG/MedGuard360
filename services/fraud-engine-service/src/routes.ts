@@ -29,6 +29,7 @@ import {
   recordEvent,
 } from './repository';
 import { fraudDetection } from './clients';
+import { toPortalView, toDetailView } from './serialize';
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -110,7 +111,10 @@ router.get(
       phiAccessed: true,
     });
 
-    res.json(result);
+    res.json({
+      cases: result.cases.map(toPortalView),
+      total: result.total,
+    });
   }),
 );
 
@@ -118,7 +122,7 @@ router.get(
 router.get(
   '/fraud/cases/:id',
   requireAuth,
-  requireRole('fraud_investigator', 'compliance_officer'),
+  requireRole('fraud_investigator', 'compliance_officer', 'platform_administrator'),
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const fraudCase = await getFraudCase(id);
@@ -130,7 +134,7 @@ router.get(
       phiAccessed: true,
     });
 
-    res.json(fraudCase);
+    res.json(toDetailView(fraudCase));
   }),
 );
 
@@ -202,7 +206,7 @@ router.post(
       'fraud.case.resolved',
       { caseId: id, status: input.status, claimId: resolved.claim_id },
       { actorUserId: req.auth!.sub, correlationId: req.correlationId },
-    );
+    ).catch(() => undefined);
 
     await auditLog({
       resource: 'fraud_case', resourceId: id, action: 'update',
@@ -211,7 +215,7 @@ router.post(
       context: { status: input.status },
     });
 
-    res.json(resolved);
+    res.json(toDetailView(resolved));
   }),
 );
 
@@ -246,7 +250,7 @@ router.post(
         stateCode:    updated.state_code,
       },
       { actorUserId: req.auth!.sub, correlationId: req.correlationId },
-    );
+    ).catch(() => undefined);
 
     await auditLog({
       resource: 'fraud_case', resourceId: id, action: 'update',
@@ -254,7 +258,7 @@ router.post(
       context: { escalation_target: input.target, escalation_notes: input.notes },
     });
 
-    res.json(updated);
+    res.json(toDetailView(updated));
   }),
 );
 
@@ -275,7 +279,7 @@ router.post(
       context: { assigned_to: input.investigatorId },
     });
 
-    res.json(updated);
+    res.json(toDetailView(updated));
   }),
 );
 

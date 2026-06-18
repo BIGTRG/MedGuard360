@@ -12,7 +12,7 @@ import { PatientRow, CrisisPlanRow } from './types';
 // ── Patient CRUD ──────────────────────────────────────────────────────────────
 
 export async function findPatient(id: string, auth: AuthClaims): Promise<PatientRow | null> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const result = await client.query<PatientRow>(
       'SELECT * FROM patients WHERE id = $1 LIMIT 1',
       [id],
@@ -31,7 +31,7 @@ export async function searchPatients(
   filters: SearchFilters,
   auth: AuthClaims,
 ): Promise<PatientRow[]> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const where: string[] = [];
     const params: unknown[] = [];
 
@@ -97,7 +97,7 @@ export async function updatePatient(
   data: Partial<PatientRow>,
   auth: AuthClaims,
 ): Promise<PatientRow> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const fields: string[] = [];
     const params: unknown[] = [];
 
@@ -138,9 +138,27 @@ export async function getCrisisPlan(
   patientId: string,
   auth: AuthClaims,
 ): Promise<CrisisPlanRow | null> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const result = await client.query<CrisisPlanRow>(
       'SELECT * FROM crisis_plans WHERE patient_id = $1 LIMIT 1',
+      [patientId],
+    );
+    return result.rows[0] ?? null;
+  });
+}
+
+/** Member portal crisis plan — uses crisis-service schema (migration 0014). */
+export async function getMemberCrisisPlan(
+  patientId: string,
+  auth: AuthClaims,
+): Promise<Record<string, unknown> | null> {
+  return withRlsContext(auth, async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT warning_signs, internal_coping_strategies, emergency_contacts,
+              social_supports, professional_supports, safe_environment_steps, status
+       FROM crisis_plans
+       WHERE patient_id = $1 AND status = 'active'
+       LIMIT 1`,
       [patientId],
     );
     return result.rows[0] ?? null;
@@ -154,7 +172,7 @@ export async function upsertCrisisPlan(
   data: UpsertCrisisPlanData,
   auth: AuthClaims,
 ): Promise<CrisisPlanRow> {
-  return withRlsContext(pool, auth.sub, auth.role, auth.stateCode ?? null, async (client) => {
+  return withRlsContext(auth, async (client) => {
     const result = await client.query<CrisisPlanRow>(
       `INSERT INTO crisis_plans
          (patient_id, triggers, deescalation_strategies, emergency_contacts,
@@ -183,6 +201,56 @@ export async function upsertCrisisPlan(
       ],
     );
     return result.rows[0];
+  });
+}
+
+export interface MemberClaimRow {
+  id: string;
+  service_date: string;
+  service_code: string;
+  service_label: string;
+  provider_name: string;
+  amount_cents: number;
+  status: string;
+}
+
+export async function getMemberClaims(
+  patientId: string,
+  auth: AuthClaims,
+): Promise<MemberClaimRow[]> {
+  return withRlsContext(auth, async (client) => {
+    const result = await client.query<{
+      id: string;
+      service_from: Date;
+      status: string;
+      total_charge_cents: number;
+      service_code: string | null;
+    }>(
+      `SELECT c.id, c.service_from, c.status, c.total_charge_cents,
+              (SELECT cl.service_code FROM claim_lines cl
+               WHERE cl.claim_id = c.id ORDER BY cl.line_number LIMIT 1) AS service_code
+       FROM claims c
+       WHERE c.patient_id = $1
+       ORDER BY c.service_from DESC
+       LIMIT 20`,
+      [patientId],
+    );
+    const labels: Record<string, string> = {
+      '90834': 'Psychotherapy (90834)',
+      '97140': 'Manual therapy (97140)',
+      '99213': 'Office visit (99213)',
+    };
+    return result.rows.map(row => ({
+      id: row.id,
+      service_date: row.service_from instanceof Date
+        ? row.service_from.toISOString().slice(0, 10)
+        : String(row.service_from).slice(0, 10),
+      service_code: row.service_code ?? '—',
+      service_label: labels[row.service_code ?? ''] ?? `Service (${row.service_code ?? 'unknown'})`,
+      provider_name: 'Dr. Demo Provider',
+      amount_cents: Number(row.total_charge_cents),
+      status: row.status,
+    }));
   });
 }
 

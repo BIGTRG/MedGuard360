@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowsRightLeftIcon, DocumentArrowUpIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
@@ -16,8 +16,15 @@ interface Consent {
 function HieInner(): React.ReactElement {
   const [patientId, setPatientId] = useState('');
   const [consents, setConsents] = useState<Consent[]>([]);
+  const [referralCount, setReferralCount] = useState('—');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<{ count: number }>('/v1/hie/referrals?limit=50')
+      .then(r => setReferralCount(String(r.count)))
+      .catch(() => setReferralCount('0'));
+  }, []);
 
   const fetch = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -46,7 +53,7 @@ function HieInner(): React.ReactElement {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Kpi label="Outbound referrals"  value="↗" hint="POST /hie/referrals" />
+        <Kpi label="Outbound referrals"  value={referralCount} hint="GET /hie/referrals" />
         <Kpi label="Active consents"      value="↗" hint="GET /hie/patients/:id/consents" />
         <Kpi label="42 CFR Part 2"        value="✓" hint="Separate consent scope honored" />
       </div>
@@ -56,7 +63,7 @@ function HieInner(): React.ReactElement {
         <form className="flex gap-2" onSubmit={fetch}>
           <input
             className="input max-w-md"
-            placeholder="Patient UUID"
+            placeholder="Patient UUID (demo: 10000000-0000-0000-0000-000000000001)"
             value={patientId}
             onChange={e => setPatientId(e.target.value)}
             required

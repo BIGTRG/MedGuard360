@@ -25,11 +25,7 @@ function NemtInner(): React.ReactElement {
   useEffect(() => {
     api.get<{ trips?: NemtTrip[] }>('/v1/nemt/trips')
       .then(r => setTrips(r.trips ?? []))
-      .catch(err => {
-        setError(err.status === 404
-          ? 'GET /nemt/trips list endpoint not yet exposed.'
-          : err.message);
-      })
+      .catch(err => setError(err.message ?? 'Unable to load NEMT trips.'))
       .finally(() => setLoading(false));
   }, []);
 

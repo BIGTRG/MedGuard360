@@ -11,22 +11,25 @@
  *   - 42 CFR Part 2 (SUD data sharing consent)
  */
 
-import {
-  createLogger,
-  getConfig,
-  getConfigOptional,
-  createServer,
-  startServer,
-} from '@medguard360/shared';
+import { initConfig, createServer, startServer, getPool, getProducer, logger } from '@medguard360/shared';
 import { router } from './routes';
 
-const log = createLogger('hie-service');
-const PORT = Number(getConfigOptional('PORT', '3020'));
+const cfg = initConfig('hie-service');
 
 const app = createServer({
   routes: router,
+  readinessCheck: async () => {
+    try {
+      await getPool().query('SELECT 1');
+      await getProducer();
+      return true;
+    } catch (err) {
+      logger.error('ready check failed', { error: (err as Error).message });
+      return false;
+    }
+  },
 });
 
-startServer(app, PORT, 'hie-service');
+startServer(app, cfg.port, cfg.serviceName);
 
-log.info('hie-service initialising', { port: PORT });
+logger.info('hie-service initialising', { port: cfg.port });

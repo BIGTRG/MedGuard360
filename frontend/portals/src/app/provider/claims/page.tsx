@@ -6,7 +6,7 @@ import { CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
 import { DataTable, type Column } from '@/components/DataTable';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { cn, formatCurrencyCents, formatDateTime } from '@/lib/format';
 
 interface ClaimRow {
@@ -26,11 +26,7 @@ function ClaimsInner(): React.ReactElement {
   useEffect(() => {
     api.get<{ claims?: ClaimRow[] }>('/v1/claims')
       .then(r => setRows(r.claims ?? []))
-      .catch(err => {
-        setError(err.status === 404
-          ? 'GET /claims list endpoint not yet exposed by claims-service.'
-          : err.message);
-      })
+      .catch(err => setError(err instanceof ApiError ? err.message : 'Failed to load claims'))
       .finally(() => setLoading(false));
   }, []);
 

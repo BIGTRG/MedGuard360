@@ -33,7 +33,7 @@ function DenialDetailInner(): React.ReactElement {
   const [editing, setEditing] = useState<{ subject: string; body: string } | null>(null);
 
   const load = (): void => {
-    api.get<DenialDetail>(`/v1/denials/denials/${id}`)
+    api.get<DenialDetail>(`/v1/denials/${id}`)
       .then(setD)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
@@ -43,7 +43,7 @@ function DenialDetailInner(): React.ReactElement {
   const draft = async (): Promise<void> => {
     setDrafting(true); setError(null);
     try {
-      await api.post(`/v1/denials/denials/${id}/draft-appeal`, {});
+      await api.post(`/v1/denials/${id}/draft-appeal`, {});
       load();
     } catch (err) {
       setError((err as Error).message);

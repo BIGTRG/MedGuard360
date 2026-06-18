@@ -81,7 +81,9 @@ export function homePathForRole(role: UserRole): string {
       return '/nemt';
     case 'compliance_officer':
     case 'qa_auditor':
-      return '/audit';
+      return '/compliance';
+    case 'billing_manager':
+      return '/billing';
     case 'emergency_responder':
       return '/responder';
     case 'school_administrator':

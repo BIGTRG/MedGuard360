@@ -36,12 +36,10 @@ function ProviderHome(): React.ReactElement {
     const stateCode = claims?.stateCode ?? '';
     Promise.all([
       api.get<{ patients: PatientRow[] }>(`/v1/patients?stateCode=${stateCode}&limit=10`).catch(() => ({ patients: [] })),
-      // No "my claims" endpoint yet; demo placeholder
-      Promise.resolve<{ data: ClaimRow[] }>({ data: [] }),
-      Promise.resolve<{ data: EncounterRow[] }>({ data: [] }),
-      Promise.resolve<{ data: PaRow[] }>({ data: [] }),
-    ]).then(([p]) => {
-      setPatients(p.patients);
+      api.get<{ claims: ClaimRow[] }>('/v1/claims?limit=10').catch(() => ({ claims: [] })),
+    ]).then(([p, c]) => {
+      setPatients(p.patients ?? []);
+      setClaims(c.claims ?? []);
     }).finally(() => setLoading(false));
   }, []);
 

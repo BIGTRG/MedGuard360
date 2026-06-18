@@ -49,17 +49,17 @@ export async function exportCmsDirectory(stateCode: string): Promise<CmsDirector
 
   const npis = r.rows.map(p => p.id);
 
-  const locs = await query<{ provider_id: string; address_line1: string | null; city: string | null; state_code: string; postal_code: string | null; phone: string | null }>(
+  const locs = await query<{ provider_id: string; address_line1: string | null; city: string | null; state_code: string; postal_code: string | null }>(
     'maDir.locations',
-    `SELECT provider_id, address_line1, city, state_code, postal_code, phone
-       FROM provider_locations WHERE provider_id = ANY($1::uuid[])`,
-    [npis]).catch(() => ({ rows: [] }));
+    `SELECT provider_id, address_line1, city, state_code, postal_code
+       FROM provider_locations WHERE provider_id = ANY($1::uuid[]) AND active = TRUE`,
+    [npis]);
 
-  const specs = await query<{ provider_id: string; specialty_code: string; specialty_description: string }>(
+  const specs = await query<{ provider_id: string; taxonomy_code: string; taxonomy_description: string }>(
     'maDir.specs',
-    `SELECT provider_id, specialty_code, specialty_description
+    `SELECT provider_id, taxonomy_code, taxonomy_description
        FROM provider_specialties WHERE provider_id = ANY($1::uuid[])`,
-    [npis]).catch(() => ({ rows: [] }));
+    [npis]);
 
   return r.rows.map(p => ({
     npi: p.npi,
@@ -72,10 +72,10 @@ export async function exportCmsDirectory(stateCode: string): Promise<CmsDirector
     state_codes: p.enrolled_medicaid_states ?? [],
     locations: locs.rows.filter(l => l.provider_id === p.id).map(l => ({
       address_line1: l.address_line1 ?? undefined, city: l.city ?? undefined,
-      state_code: l.state_code, postal_code: l.postal_code ?? undefined, phone: l.phone ?? undefined,
+      state_code: l.state_code, postal_code: l.postal_code ?? undefined,
     })),
     specialties: specs.rows.filter(s => s.provider_id === p.id).map(s => ({
-      code: s.specialty_code, description: s.specialty_description,
+      code: s.taxonomy_code, description: s.taxonomy_description,
     })),
     accepting_new_patients: null,    // placeholder until provider_locations has this column
     last_attested_at: null,

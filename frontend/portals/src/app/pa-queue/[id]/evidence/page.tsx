@@ -16,23 +16,57 @@ type ApiOutcome = 'met' | 'not_met' | 'indeterminate' | 'unclear';
 interface PaRequestRow {
   id: string;
   patient_id: string;
-  provider_user_id: string;
+  provider_user_id?: string;
+  ordering_provider_id?: string;
   state_code: string;
   payer_id: string;
-  procedure_code: string;
+  procedure_code?: string;
+  service_code?: string;
   diagnosis_codes: string[];
-  clinical_justification: string;
+  clinical_justification?: string;
   urgency: 'standard' | 'expedited' | 'drug';
-  status: 'pending' | 'approved' | 'denied' | 'needs_more_info' | 'expired';
-  ai_recommendation: string | null;
-  ai_confidence: number | null;
-  ai_explanation: string | null;
-  human_reviewer_id: string | null;
-  human_decision: string | null;
-  human_notes: string | null;
+  status: string;
+  ai_recommendation?: string | null;
+  ai_confidence?: number | null;
+  ai_match_score?: string | number | null;
+  ai_explanation?: string | null;
+  decision_explanation?: string | null;
+  ai_engine_version?: string | null;
+  human_reviewer_id?: string | null;
+  human_decision?: string | null;
+  human_notes?: string | null;
   due_at: string;
-  decided_at: string | null;
+  decision_at?: string | null;
+  decided_at?: string | null;
   created_at: string;
+}
+
+function paServiceCode(p: PaRequestRow): string {
+  return p.service_code ?? p.procedure_code ?? '—';
+}
+
+function paProviderId(p: PaRequestRow): string {
+  return (p.ordering_provider_id ?? p.provider_user_id ?? '—').slice(0, 8);
+}
+
+function paAiConfidence(p: PaRequestRow): number | null {
+  if (p.ai_confidence != null) return p.ai_confidence;
+  if (p.ai_match_score == null) return null;
+  return Math.round(Number(p.ai_match_score) * 100);
+}
+
+function paAiExplanation(p: PaRequestRow): string | null {
+  return p.decision_explanation ?? p.ai_explanation ?? null;
+}
+
+function parsePaDetail(
+  r: PaDetailResponse & { criteria?: CriterionEvaluation[] },
+): PaDetailResponse {
+  const paRequest = (r.paRequest ?? r) as PaRequestRow;
+  return {
+    paRequest,
+    criteriaEvaluations: r.criteriaEvaluations ?? r.criteria ?? [],
+  };
 }
 
 interface CriterionEvaluation {
@@ -91,8 +125,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`)
-      .then(setData)
+    api.get<PaDetailResponse & { criteria?: CriterionEvaluation[] }>(`/v1/prior-auth/pa-requests/${paId}`)
+      .then(r => setData(parsePaDetail(r)))
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false));
   }, [paId]);
@@ -116,8 +150,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
       // longer need to carry override breadcrumbs — they're queryable
       // from pa_criterion_evaluations.human_outcome directly.
       await api.post(`/v1/prior-auth/pa-requests/${paId}/decide`, { decision, notes: explanation.trim() });
-      const refreshed = await api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`);
-      setData(refreshed);
+      const refreshed = await api.get<PaDetailResponse & { criteria?: CriterionEvaluation[] }>(`/v1/prior-auth/pa-requests/${paId}`);
+      setData(parsePaDetail(refreshed));
       setDecision(null);
       setExplanation('');
     } catch (e) {
@@ -136,8 +170,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
         `/v1/prior-auth/pa-requests/${paId}/criteria/${criterionId}/override`,
         { outcome: o },
       );
-      const refreshed = await api.get<PaDetailResponse>(`/v1/prior-auth/pa-requests/${paId}`);
-      setData(refreshed);
+      const refreshed = await api.get<PaDetailResponse & { criteria?: CriterionEvaluation[] }>(`/v1/prior-auth/pa-requests/${paId}`);
+      setData(parsePaDetail(refreshed));
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -150,7 +184,10 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
   if (!data) return <div className="text-sm text-slate-500">PA request not found.</div>;
 
   const { paRequest, criteriaEvaluations } = data;
-  const alreadyDecided = paRequest.decided_at !== null;
+  const alreadyDecided = paRequest.decision_at != null || paRequest.decided_at != null
+    || ['approved', 'denied', 'withdrawn', 'expired'].includes(paRequest.status);
+  const aiConf = paAiConfidence(paRequest);
+  const aiExplanation = paAiExplanation(paRequest);
 
   return (
     <div className="space-y-4">
@@ -163,23 +200,23 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">
         <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-xs">
-          <div><dt className="text-slate-500">Procedure</dt><dd className="font-medium">{paRequest.procedure_code}</dd></div>
+          <div><dt className="text-slate-500">Procedure</dt><dd className="font-medium">{paServiceCode(paRequest)}</dd></div>
           <div><dt className="text-slate-500">Diagnoses</dt><dd className="font-medium">{paRequest.diagnosis_codes.join(', ')}</dd></div>
           <div><dt className="text-slate-500">Payer</dt><dd className="font-medium">{paRequest.payer_id}</dd></div>
           <div><dt className="text-slate-500">Patient</dt><dd className="font-medium font-mono">{paRequest.patient_id.slice(0, 8)}…</dd></div>
-          <div><dt className="text-slate-500">Ordering provider</dt><dd className="font-medium font-mono">{paRequest.provider_user_id.slice(0, 8)}…</dd></div>
+          <div><dt className="text-slate-500">Ordering provider</dt><dd className="font-medium font-mono">{paProviderId(paRequest)}…</dd></div>
           <div><dt className="text-slate-500">Urgency / due</dt><dd className="font-medium">{urgencyLabel(paRequest.urgency)} · {new Date(paRequest.due_at).toLocaleString()}</dd></div>
         </dl>
       </div>
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-slate-700"><SparklesIcon className="inline h-4 w-4 text-brand-600 mr-1" />AI summary: <strong>{aiSummary || 'no criteria evaluated yet'}</strong></div>
-        <span className="badge-yellow">pa-nlp-matcher · confidence {paRequest.ai_confidence !== null ? Math.round(paRequest.ai_confidence * 100) + '%' : '—'}</span>
+        <span className="badge-yellow">pa-nlp-matcher · confidence {aiConf != null ? `${aiConf}%` : '—'}</span>
       </div>
 
-      {paRequest.ai_explanation && (
+      {aiExplanation && (
         <div className="rounded border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-          <strong>AI overall:</strong> {paRequest.ai_explanation}
+          <strong>AI overall:</strong> {aiExplanation}
           {paRequest.ai_recommendation && <div className="mt-1"><strong>Recommendation:</strong> {paRequest.ai_recommendation}</div>}
         </div>
       )}
@@ -201,7 +238,7 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
                 <div className="flex-1 pr-4">
                   <p className="text-sm font-medium text-slate-900">{c.criterion_text}</p>
                   <p className="text-xs text-slate-600 mt-1">{c.explanation}</p>
-                  <p className="text-xs text-slate-500 mt-1">AI similarity: {Math.round(c.similarity_score * 100)}%</p>
+                  <p className="text-xs text-slate-500 mt-1">AI similarity: {Math.round(Number(c.similarity_score) * 100)}%</p>
                   {humanOut && c.human_outcome_at && (
                     <p className="text-xs text-amber-700 mt-1">
                       Investigator override: <strong>{humanOut}</strong>
@@ -231,7 +268,7 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
           <h3 className="text-sm font-semibold text-slate-900 mb-2">Decision (final)</h3>
           <dl className="text-xs space-y-1">
             <div><dt className="inline text-slate-500">Decision:</dt> <dd className="inline font-medium">{paRequest.human_decision ?? paRequest.status}</dd></div>
-            <div><dt className="inline text-slate-500">Decided:</dt> <dd className="inline font-medium">{paRequest.decided_at && new Date(paRequest.decided_at).toLocaleString()}</dd></div>
+            <div><dt className="inline text-slate-500">Decided:</dt> <dd className="inline font-medium">{(paRequest.decision_at ?? paRequest.decided_at) && new Date(paRequest.decision_at ?? paRequest.decided_at!).toLocaleString()}</dd></div>
             <div><dt className="inline text-slate-500">Reviewer:</dt> <dd className="inline font-mono">{paRequest.human_reviewer_id?.slice(0, 8)}…</dd></div>
             {paRequest.human_notes && <div className="mt-2"><dt className="text-slate-500 mb-0.5">Notes:</dt> <dd className="text-slate-800 whitespace-pre-wrap">{paRequest.human_notes}</dd></div>}
           </dl>
@@ -268,8 +305,8 @@ function EvidenceInner({ id: paId }: { id: string }): React.ReactElement {
 
       <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         AI generated the criterion outcomes — <strong>human decision is required</strong> before
-        the PA is finalized. Decision emits <code>pa.decided.approved</code> / <code>pa.decided.denied</code> /
-        <code>pa.decided.needs_more_info</code> to Kafka with full audit trail.
+        the PA is finalized. Decision emits <code>pa.approved</code> / <code>pa.denied</code> /
+        <code>pa.needs.more.info</code> to Kafka with full audit trail.
       </div>
     </div>
   );

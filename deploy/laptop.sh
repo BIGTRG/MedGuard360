@@ -66,11 +66,13 @@ docker compose -f "$COMPOSE" run --rm bootstrap
 echo ""
 echo "→ Starting services..."
 docker compose -f "$COMPOSE" up -d
+docker compose -f "$COMPOSE" run --rm kafka-init >/dev/null 2>&1 || true
+docker compose -f "$COMPOSE" up -d --force-recreate nginx
 
 echo ""
 echo "→ Waiting for portal to come up..."
 for i in {1..60}; do
-  if curl -fsS http://localhost:3000 >/dev/null 2>&1; then break; fi
+  if curl -fsS http://localhost/ >/dev/null 2>&1; then break; fi
   printf '.'
   sleep 2
 done
@@ -81,7 +83,7 @@ cat <<'EOF'
 ================================================================
   🎉 MedGuard360 is running
 
-  Portal:        http://localhost:3000
+  Portal:        http://localhost/  (or http://localhost:3080/ direct)
   API gateway:   http://localhost/api/v1
   MinIO console: http://localhost:9001 (medguard / medguard-demo-password)
 
@@ -95,10 +97,13 @@ cat <<'EOF'
                                            criterion-by-criterion AI matching
     fraud@demo.medguard360.com         — fraud investigator queue
                                            ⭐ 2 cases pre-loaded
+    compliance@demo.medguard360.com    — compliance officer / audit log
     denial@demo.medguard360.com        — denials/appeals (1 denial waiting)
     responder@demo.medguard360.com     — emergency responder (biometric-gated)
 
-  Logs:        docker compose -f COMPOSE_FILE logs -f <service-name>
-  Tear down:   ./deploy/laptop.sh --teardown
+  Verify:  powershell -File deploy\smoke-demo.ps1
+           powershell -File deploy\demo-flow.ps1
+  One-shot: powershell -File deploy\demo-up.ps1
+  Stop:    ./deploy/laptop.sh --teardown
 ================================================================
 EOF

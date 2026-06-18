@@ -16,17 +16,9 @@ function PaQueueInner(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // No backend endpoint yet; the queue endpoint can be added to prior-auth-service as a follow-up.
-    // For now we surface the schema and let the user know.
     api.get<{ requests?: PaRequestRow[] }>('/v1/prior-auth/pa-requests/queue')
       .then(r => setItems(r.requests ?? []))
-      .catch(err => {
-        if (err instanceof ApiError && err.status === 404) {
-          setError('PA queue endpoint not yet exposed by prior-auth-service. Add a GET /pa-requests/queue route to surface the in_review items.');
-        } else {
-          setError(err instanceof ApiError ? err.message : 'Failed to load queue');
-        }
-      })
+      .catch(err => setError(err instanceof ApiError ? err.message : 'Failed to load queue'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -105,7 +97,10 @@ function PaQueueInner(): React.ReactElement {
                     </span>
                   </td>
                   <td className="text-xs text-slate-500">{timeSince(p.created_at)}</td>
-                  <td><Link href={`/pa-queue/${p.id}`} className="btn-ghost">Decide</Link></td>
+                  <td className="space-x-1 whitespace-nowrap">
+                    <Link href={`/pa-queue/${p.id}/evidence`} className="btn-ghost text-xs">Evidence</Link>
+                    <Link href={`/pa-queue/${p.id}`} className="btn-ghost text-xs">Decide</Link>
+                  </td>
                 </tr>
               );
             })}
