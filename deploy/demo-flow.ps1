@@ -40,7 +40,9 @@ try {
   $nc = Invoke-RestMethod -Uri "$api/state-config/NC" -Headers $h
   Test-Ok "NC state config" ($null -ne $nc.state_code)
   $plans = Invoke-RestMethod -Uri "$api/state-config/plans" -Headers $h
-  Test-Ok "pilot state plans" ($plans.states.Count -ge 1)
+  Test-Ok "pilot state plans" ($plans.states.Count -ge 3)
+  $planCount = ($plans.states | ForEach-Object { $_.plans.Count } | Measure-Object -Sum).Sum
+  Test-Ok "pilot MCO registry" ($planCount -ge 3)
   Test-Ok "portal /admin" (Test-PortalPage "/admin")
   Test-Ok "portal /admin/pilot-states" (Test-PortalPage "/admin/pilot-states")
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
@@ -147,6 +149,11 @@ try {
     Test-Ok "portal encounter detail" (Test-PortalPage "/provider/encounters/$encId")
     $chart = Invoke-RestMethod -Uri "$api/clinical-doc/ehr/10000000-0000-0000-0000-000000000001" -Headers $h
     Test-Ok "patient EHR chart" ($null -ne $chart.patientId)
+    Test-Ok "EHR active problems" (@($chart.activeProblems).Count -ge 1)
+    try {
+      $cds = Invoke-RestMethod -Uri "$api/clinical-doc/ehr/10000000-0000-0000-0000-000000000001/cds-fire" -Method POST -Headers $h -Body (@{ stateCode = 'NC' } | ConvertTo-Json) -ContentType "application/json"
+      Test-Ok "EHR CDS rules" ($null -ne $cds.firings)
+    } catch { Test-Ok "EHR CDS rules" $false $_.Exception.Message }
     Test-Ok "portal provider chart" (Test-PortalPage "/provider/chart/10000000-0000-0000-0000-000000000001")
   }
   Test-Ok "portal /provider/patients" (Test-PortalPage "/provider/patients")
@@ -162,6 +169,7 @@ try {
     Test-Ok "credentialing application detail" ($null -ne $appDetail.id)
   }
   Test-Ok "portal /credentialing" (Test-PortalPage "/credentialing")
+  Test-Ok "portal /credentialing/workflow" (Test-PortalPage "/credentialing/workflow")
 } catch { Test-Ok "credentialing flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Provider registry + MA directory ===" -ForegroundColor Cyan
@@ -198,6 +206,7 @@ try {
   $orders = Invoke-RestMethod -Uri "$api/dme/orders" -Headers $h
   Test-Ok "DME orders list" ($orders.count -ge 1)
   Test-Ok "portal /dme" (Test-PortalPage "/dme")
+  Test-Ok "portal /dme/workflow" (Test-PortalPage "/dme/workflow")
   if ($orders.orders.Count -ge 1) {
     Test-Ok "portal DME detail" (Test-PortalPage "/dme/$($orders.orders[0].id)")
   }
@@ -207,6 +216,7 @@ try {
   $trips = Invoke-RestMethod -Uri "$api/nemt/trips" -Headers $h
   Test-Ok "NEMT trips list" ($trips.count -ge 1)
   Test-Ok "portal /nemt" (Test-PortalPage "/nemt")
+  Test-Ok "portal /nemt/workflow" (Test-PortalPage "/nemt/workflow")
   if ($trips.trips.Count -ge 1) {
     Test-Ok "portal NEMT detail" (Test-PortalPage "/nemt/$($trips.trips[0].id)")
   }
@@ -221,6 +231,7 @@ try {
   Test-Ok "pharmacy drug PA list" ($drugPa.count -ge 1)
   Test-Ok "portal /pharmacy" (Test-PortalPage "/pharmacy")
   Test-Ok "portal /pharmacy/drug-pa" (Test-PortalPage "/pharmacy/drug-pa")
+  Test-Ok "portal /pharmacy/workflow" (Test-PortalPage "/pharmacy/workflow")
 } catch { Test-Ok "pharmacy flow" $false $_.Exception.Message }
 
 Write-Host "`n=== HIE (NC HealthConnex) ===" -ForegroundColor Cyan
@@ -357,6 +368,7 @@ try {
     Test-Ok "portal denial detail" (Test-PortalPage "/denials/$denId")
   }
   Test-Ok "portal /denials" (Test-PortalPage "/denials")
+  Test-Ok "portal /denials/workflow" (Test-PortalPage "/denials/workflow")
 } catch { Test-Ok "denial flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Reporting rollups ===" -ForegroundColor Cyan

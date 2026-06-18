@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   ServerStackIcon, CpuChipIcon, UserGroupIcon, ShieldCheckIcon, MapIcon, Cog6ToothIcon,
   CircleStackIcon, FlagIcon,
 } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
+import { api } from '@/lib/api-client';
 
 const SERVICES = [
   { name: 'auth-service',         port: 3001 },
@@ -42,7 +44,23 @@ const ENGINES = [
   { name: 'eligibility-intel',port:8010 },
 ];
 
+interface PilotPlans {
+  states: { state_code: string; plans?: unknown[] }[];
+}
+
 function AdminInner(): React.ReactElement {
+  const [pilotSummary, setPilotSummary] = useState('Loading pilot states…');
+
+  useEffect(() => {
+    api.get<PilotPlans>('/v1/state-config/plans')
+      .then((r) => {
+        const codes = r.states.map(s => s.state_code).sort();
+        const planCount = r.states.reduce((n, s) => n + (s.plans?.length ?? 0), 0);
+        setPilotSummary(`${codes.length} pilot states (${codes.join(' · ')}) · ${planCount} MCO plans in registry`);
+      })
+      .catch(() => setPilotSummary('Pilot registry unavailable — run deploy/demo-up.ps1'));
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -50,13 +68,14 @@ function AdminInner(): React.ReactElement {
           <Cog6ToothIcon className="h-5 w-5" /> Platform Administration
         </h2>
         <p className="text-sm text-slate-500">Cross-platform admin surface — 20 services, 10 AI engines, 45 SQL migrations.</p>
+        <p className="mt-2 text-sm text-brand-800">{pilotSummary}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <SectionCard icon={MapIcon}         title="Pilot States"      subtitle="NC / SC / GA — live mco_registry" href="/admin/pilot-states" />
+        <SectionCard icon={MapIcon}         title="Pilot States"      subtitle={pilotSummary} href="/admin/pilot-states" />
         <SectionCard icon={FlagIcon}        title="NC Enterprise"      subtitle="Primary pilot deep dive — divisions, NCTracks, connectors, readiness" href="/admin/nc-enterprise" />
         <SectionCard icon={CircleStackIcon} title="Integrations"       subtitle="8 vendor adapters — env mode + credential vault" href="/admin/integrations" />
-        <SectionCard icon={UserGroupIcon}   title="Users & Roles"      subtitle="20 role types • RLS-scoped" href="/admin/users" />
+        <SectionCard icon={UserGroupIcon}   title="Users & Roles"      subtitle="16 demo users seeded · 20 role types • RLS-scoped" href="/admin/users" />
         <SectionCard icon={ShieldCheckIcon} title="Audit Log"          subtitle="Append-only HIPAA event log" href="/audit" />
       </div>
 
