@@ -11,3 +11,5 @@ __pycache__/
 coverage/
 .nyc_output/
 out/
+frontend/portals/tsconfig.tsbuildinfo
+services/**/package-lock.json

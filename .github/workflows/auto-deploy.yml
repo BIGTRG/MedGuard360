@@ -1,9 +1,7 @@
 name: Auto-deploy to genius-eye-main
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:     # also let you trigger manually from GitHub UI
+  workflow_dispatch:     # manual only until SSH secrets are configured
 
 # Once you've enabled this:
 #   1. SSH to your server fixed (fail2ban whitelisted)

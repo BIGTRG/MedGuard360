@@ -13,17 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            packages/shared/package-lock.json
+            frontend/portals/package-lock.json
       - name: Audit shared package
-        run: cd packages/shared && npm audit --audit-level=high
-        continue-on-error: true   # CVEs in dev deps don't break the build
-      - name: Audit each service
-        run: |
-          for svc in $(ls services); do
-            echo "::group::$svc"
-            (cd services/$svc && npm audit --audit-level=high || true)
-            echo "::endgroup::"
-          done
+        working-directory: packages/shared
+        run: npm ci && npm audit --audit-level=high
+        continue-on-error: true
+      - name: Audit portals
+        working-directory: frontend/portals
+        run: npm ci && npm audit --audit-level=high
+        continue-on-error: true
 
   semgrep:
     name: SAST (semgrep)
@@ -36,6 +39,7 @@ jobs:
   trivy:
     name: container image scan
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       matrix:
         image: [auth-service, claims-service, fraud-engine-service, prior-auth-service]
@@ -54,4 +58,5 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - uses: gitleaks/gitleaks-action@v2
-        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -73,32 +73,17 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build & push (${{ matrix.target.kind }} :: ${{ matrix.target.name }})
+      - name: "Build & push (${{ matrix.target.kind }} :: ${{ matrix.target.name }})"
         uses: docker/build-push-action@v6
         with:
           context: .
           file: infrastructure/docker/Dockerfile.${{ matrix.target.kind }}
           build-args: |
-            ${{ matrix.target.kind == 'node'   && format('SERVICE_NAME={0}', matrix.target.name) || '' }}
-            ${{ matrix.target.kind == 'python' && format('ENGINE_NAME={0}',  matrix.target.name) || '' }}
+            SERVICE_NAME=${{ matrix.target.kind == 'node' && matrix.target.name || '' }}
+            ENGINE_NAME=${{ matrix.target.kind == 'python' && matrix.target.name || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.target.name }}:${{ steps.ver.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.target.name }}:latest
           push: true
           cache-from: type=gha,scope=${{ matrix.target.name }}
           cache-to: type=gha,scope=${{ matrix.target.name }},mode=max
-
-  trigger-deploy:
-    name: bump deploy manifests (GitOps)
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { repository: ${{ github.repository_owner }}/medguard360-deploy, token: ${{ secrets.DEPLOY_REPO_TOKEN }} }
-      - name: Bump image tags
-        run: |
-          tag="${{ github.ref_name }}"
-          find manifests -name "*.yaml" -exec sed -i "s|/medguard360/\([a-z-]*\):.*|/medguard360/\1:${tag}|g" {} \;
-          git config user.name "medguard360-ci"
-          git config user.email "ci@medguard360.local"
-          git commit -am "release ${tag}" && git push
