@@ -33,6 +33,10 @@ if ($token) {
     @{ n = "GET /claims"; u = "$api/claims?limit=5" }
     @{ n = "GET /fraud/cases"; u = "$api/fraud/cases?limit=5" }
     @{ n = "GET /state-config/NC"; u = "$api/state-config/NC" }
+    @{ n = "GET /state-config/plans"; u = "$api/state-config/plans" }
+    @{ n = "GET /providers/directory/export"; u = "$api/providers/directory/export?stateCode=NC${amp}limit=1" }
+    @{ n = "GET /clinical-doc/ehr/chart"; u = "$api/clinical-doc/ehr/10000000-0000-0000-0000-000000000001" }
+    @{ n = "GET /hie/referrals"; u = "$api/hie/referrals?limit=5" }
     @{ n = "GET /reporting/rollups"; u = "$api/reporting/reports/rollups?stateCode=NC${amp}metric=claims_submitted${amp}fromDay=2026-05-15${amp}toDay=2026-06-12" }
     @{ n = "GET /audit/search"; u = "$api/audit/search?limit=5" }
     @{ n = "GET /notifications/logs"; u = "$api/notifications/logs?limit=5" }
@@ -40,7 +44,21 @@ if ($token) {
   foreach ($ep in $urls) {
     try { $r = Invoke-WebRequest -Uri $ep.u -Headers $headers -UseBasicParsing; Test-Ok "$($ep.n) ($($r.StatusCode))" ($r.StatusCode -lt 300) } catch { Test-Ok $ep.n $false }
   }
-  $portalPaths = @("/compliance", "/compliance/hets", "/compliance/audit-search", "/reporting", "/billing", "/fraud/cases", "/fraud/rings", "/state/claims", "/state/credentialing", "/state/fraud", "/state/perm", "/state/engagement", "/state/mco-admin", "/federal-cms", "/admin/users", "/admin/nc-enterprise", "/provider/pa", "/pa-queue/decided", "/provider/encounters", "/provider/patients", "/credentialing", "/dme", "/nemt", "/responder", "/pharmacy", "/pharmacy/drug-pa", "/hie", "/biometric", "/patient/benefits", "/patient/engagement", "/school", "/school/students")
+  $portalPaths = @(
+    "/admin", "/admin/pilot-states", "/admin/integrations", "/admin/nc-enterprise", "/admin/users",
+    "/compliance", "/compliance/hets", "/compliance/audit-search", "/audit", "/reporting", "/billing",
+    "/fraud", "/fraud/cases", "/fraud/rings", "/fraud/cases/60000000-0000-0000-0000-000000000002",
+    "/pa-queue", "/pa-queue/decided", "/pa-queue/40000000-0000-0000-0000-000000000001/evidence",
+    "/provider", "/provider/workflow", "/provider/pa", "/provider/claims", "/provider/encounters",
+    "/provider/patients", "/provider/chart/10000000-0000-0000-0000-000000000001",
+    "/credentialing", "/credentialing/workflow", "/dme", "/dme/workflow", "/nemt", "/nemt/workflow",
+    "/pharmacy", "/pharmacy/drug-pa", "/pharmacy/workflow", "/hie", "/responder", "/biometric",
+    "/patient", "/patient/benefits", "/patient/engagement",
+    "/state", "/state/claims", "/state/credentialing", "/state/fraud", "/state/perm",
+    "/state/engagement", "/state/mco-admin", "/federal-cms",
+    "/school", "/school/students", "/school/services", "/school/lea-agreement", "/school/claims",
+    "/denials", "/denials/workflow", "/denials/70000000-0000-0000-0000-000000000001"
+  )
   foreach ($p in $portalPaths) {
     try { $r = Invoke-WebRequest -Uri "$base$p" -UseBasicParsing -TimeoutSec 10; Test-Ok "portal $p" ($r.StatusCode -eq 200) } catch { Test-Ok "portal $p" $false }
   }

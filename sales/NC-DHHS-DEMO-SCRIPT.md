@@ -16,6 +16,9 @@
 
 | Stop | URL |
 |------|-----|
+| Admin pilot states | http://localhost/admin/pilot-states |
+| Federal CMS dashboard | http://localhost/federal-cms |
+| MCO admin | http://localhost/state/mco-admin |
 | PA evidence | http://localhost/pa-queue/40000000-0000-0000-0000-000000000001/evidence |
 | PA decided history | http://localhost/pa-queue/decided |
 | Fraud case (89/100) | http://localhost/fraud/cases/60000000-0000-0000-0000-000000000002 |
@@ -23,12 +26,19 @@
 | Denial + AI appeal | http://localhost/denials/70000000-0000-0000-0000-000000000001 |
 | Provider PA list | http://localhost/provider/pa |
 | Provider encounters | http://localhost/provider/encounters |
+| Provider EHR chart | http://localhost/provider/chart/10000000-0000-0000-0000-000000000001 |
+| Provider workflow | http://localhost/provider/workflow |
 | Credentialing queue | http://localhost/credentialing |
+| Credentialing workflow | http://localhost/credentialing/workflow |
 | DME orders | http://localhost/dme |
+| DME workflow | http://localhost/dme/workflow |
 | NEMT trips | http://localhost/nemt |
+| NEMT workflow | http://localhost/nemt/workflow |
 | Crisis responder | http://localhost/responder |
 | Pharmacy formulary | http://localhost/pharmacy |
+| Pharmacy workflow | http://localhost/pharmacy/workflow |
 | Drug PA queue | http://localhost/pharmacy/drug-pa |
+| Denials workflow | http://localhost/denials/workflow |
 | HIE consents | http://localhost/hie |
 | HETS compliance | http://localhost/compliance/hets |
 | State engagement | http://localhost/state/engagement |
@@ -98,6 +108,7 @@ Switch role → **Provider** (quick-button or dropdown). Page: `/provider/workfl
 - "Total time from end of visit to submitted claim: about 4 minutes today. Manual today is 20-40 minutes."
 - Show `/provider/pa` — provider's own PA requests (active + historical) from live API.
 - Show `/provider/encounters` — live signed + in-progress encounters from clinical-doc-service (open detail to edit note on in-progress visit).
+- Show `/provider/chart/[patientId]` — live EHR chart with active problems; optional CDS fire from API (`POST /clinical-doc/ehr/{id}/cds-fire`).
 - Optional: switch to **DME** (`dme@demo.medguard360.com`) → `/dme` live orders; **NEMT** (`nemt@demo.medguard360.com`) → `/nemt` scheduled trips with GPS billing.
 
 ### Stop 6 — Member experience (1 min)
