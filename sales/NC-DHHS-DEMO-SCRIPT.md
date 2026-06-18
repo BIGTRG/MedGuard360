@@ -105,6 +105,8 @@ Switch role → **Patient** (quick-button or dropdown). Page: `/patient`
 - 6 tabs: Overview, Coverage, **Claims (live from DB)**, Crisis Plan, Appointments, Messages
 - "This is what your members see. Mobile app has the same surface — offline-first SQLite cache, biometric login, crisis plan accessible in 3 seconds even with no signal."
 - Optional: switch to **Responder** (`responder@demo.medguard360.com`) → `/responder` live alert queue; `/responder/patient/[id]` shows biometric-gated crisis plan (click through `/biometric` in demo).
+- Member portal **Messages** tab — live from `GET /patients/me/messages` (secure messaging surface).
+- **Federal CMS** (`/federal-cms`) — pilot state count from live `state-config/plans` (NC · SC · GA).
 
 ### Stop 7 — Compliance posture (2 min)
 Switch role → **Compliance Officer** (quick-button or dropdown). Page: `/compliance`

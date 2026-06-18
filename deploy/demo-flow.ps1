@@ -24,6 +24,12 @@ function Test-PortalPage($path) {
   } catch { return $false }
 }
 
+Write-Host "Waiting for portal..." -ForegroundColor Cyan
+for ($i = 0; $i -lt 30; $i++) {
+  if (Test-PortalPage "/") { break }
+  Start-Sleep -Seconds 2
+}
+
 function Reset-DemoPa($id) {
   docker compose -f docker-compose.demo.yml exec -T postgres psql -U medguard -d medguard360 -c "UPDATE pa_requests SET status='evaluating', decision_at=NULL, human_reviewer_id=NULL WHERE id='$id';" 2>$null | Out-Null
 }
@@ -159,6 +165,8 @@ try {
   Test-Ok "provider NPI lookup" ($byNpi.npi -eq '1234567893')
   $dir = Invoke-RestMethod -Uri "$api/providers/directory/export?stateCode=NC" -Headers $h
   Test-Ok "MA directory export" ($dir.count -ge 1)
+  Test-Ok "MA directory locations" (@($dir.entries[0].locations).Count -ge 1)
+  Test-Ok "MA directory specialties" (@($dir.entries[0].specialties).Count -ge 1)
   Test-Ok "portal /state/mco-admin" (Test-PortalPage "/state/mco-admin")
 } catch { Test-Ok "provider directory flow" $false $_.Exception.Message }
 $h = @{ Authorization = "Bearer $(Get-Token 'compliance@demo.medguard360.com')" }
@@ -215,6 +223,8 @@ try {
   Test-Ok "HIE patient consents" ($consents.count -ge 2)
   $refs = Invoke-RestMethod -Uri "$api/hie/referrals?patientId=$demoPatient" -Headers $h
   Test-Ok "HIE referrals list" ($refs.count -ge 1)
+  $refDetail = Invoke-RestMethod -Uri "$api/hie/referrals/90000000-0000-0000-0000-000000000001" -Headers $h
+  Test-Ok "HIE referral detail" ($refDetail.status -eq 'pending')
   Test-Ok "portal /hie" (Test-PortalPage "/hie")
 } catch { Test-Ok "HIE flow" $false $_.Exception.Message }
 
@@ -231,6 +241,8 @@ try {
   Test-Ok "patient claims" ($memberClaims.count -ge 1)
   $appts = Invoke-RestMethod -Uri "$api/patients/me/appointments" -Headers $h
   Test-Ok "patient appointments" ($appts.count -ge 1)
+  $msgs = Invoke-RestMethod -Uri "$api/patients/me/messages" -Headers $h
+  Test-Ok "patient messages" ($msgs.count -ge 1)
   Test-Ok "portal /patient" (Test-PortalPage "/patient")
   Test-Ok "portal /patient/benefits" (Test-PortalPage "/patient/benefits")
   $ce = Invoke-RestMethod -Uri "$api/eligibility/community-engagement/00000000-0000-0000-0000-000000000004" -Headers $h
@@ -291,6 +303,7 @@ try {
   Test-Ok "portal /compliance/audit-search" (Test-PortalPage "/compliance/audit-search")
   Test-Ok "portal /audit" (Test-PortalPage "/audit")
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
+  Test-Ok "portal /admin/nc-enterprise" (Test-PortalPage "/admin/nc-enterprise")
 } catch { Test-Ok "compliance flow" $false $_.Exception.Message }
 
 Write-Host "`n=== State dashboard ===" -ForegroundColor Cyan
@@ -310,6 +323,7 @@ try {
   Test-Ok "portal /state/perm" (Test-PortalPage "/state/perm")
   Test-Ok "portal /state/engagement" (Test-PortalPage "/state/engagement")
   Test-Ok "portal /state/credentialing" (Test-PortalPage "/state/credentialing")
+  Test-Ok "portal /federal-cms" (Test-PortalPage "/federal-cms")
 } catch { Test-Ok "state flow" $false $_.Exception.Message }
 
 Write-Host "`n=== School Medicaid ===" -ForegroundColor Cyan

@@ -157,6 +157,19 @@ ON CONFLICT (npi) DO NOTHING;
 
 UPDATE providers SET enrolled_medicare = TRUE WHERE npi = '1234567893';
 
+INSERT INTO provider_specialties (id, provider_id, taxonomy_code, taxonomy_description, is_primary)
+VALUES
+  ('21000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000001', '208000000X', 'Family Medicine', TRUE)
+ON CONFLICT (provider_id, taxonomy_code) DO NOTHING;
+
+INSERT INTO provider_locations (id, provider_id, label, address_line1, city, state_code, postal_code, is_primary, active)
+VALUES
+  ('21000000-0000-0000-0000-000000000002',
+   '20000000-0000-0000-0000-000000000001', 'Raleigh primary care',
+   '123 Main St', 'Raleigh', 'NC', '27601', TRUE, TRUE)
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================================
 -- PA coverage criteria (a real document the BERT engine will match against)
 -- ============================================================

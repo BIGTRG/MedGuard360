@@ -40,7 +40,7 @@ if ($token) {
   foreach ($ep in $urls) {
     try { $r = Invoke-WebRequest -Uri $ep.u -Headers $headers -UseBasicParsing; Test-Ok "$($ep.n) ($($r.StatusCode))" ($r.StatusCode -lt 300) } catch { Test-Ok $ep.n $false }
   }
-  $portalPaths = @("/compliance", "/compliance/hets", "/compliance/audit-search", "/reporting", "/billing", "/fraud/cases", "/fraud/rings", "/state/claims", "/state/credentialing", "/state/fraud", "/state/perm", "/state/engagement", "/state/mco-admin", "/admin/users", "/provider/pa", "/pa-queue/decided", "/provider/encounters", "/provider/patients", "/credentialing", "/dme", "/nemt", "/responder", "/pharmacy", "/pharmacy/drug-pa", "/hie", "/biometric", "/patient/benefits", "/patient/engagement", "/school", "/school/students")
+  $portalPaths = @("/compliance", "/compliance/hets", "/compliance/audit-search", "/reporting", "/billing", "/fraud/cases", "/fraud/rings", "/state/claims", "/state/credentialing", "/state/fraud", "/state/perm", "/state/engagement", "/state/mco-admin", "/federal-cms", "/admin/users", "/admin/nc-enterprise", "/provider/pa", "/pa-queue/decided", "/provider/encounters", "/provider/patients", "/credentialing", "/dme", "/nemt", "/responder", "/pharmacy", "/pharmacy/drug-pa", "/hie", "/biometric", "/patient/benefits", "/patient/engagement", "/school", "/school/students")
   foreach ($p in $portalPaths) {
     try { $r = Invoke-WebRequest -Uri "$base$p" -UseBasicParsing -TimeoutSec 10; Test-Ok "portal $p" ($r.StatusCode -eq 200) } catch { Test-Ok "portal $p" $false }
   }
