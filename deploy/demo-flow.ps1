@@ -207,7 +207,21 @@ try {
   Test-Ok "patient appointments" ($appts.count -ge 1)
   Test-Ok "portal /patient" (Test-PortalPage "/patient")
   Test-Ok "portal /patient/benefits" (Test-PortalPage "/patient/benefits")
+  $ce = Invoke-RestMethod -Uri "$api/eligibility/community-engagement/00000000-0000-0000-0000-000000000004" -Headers $h
+  Test-Ok "patient engagement summary" ($ce.required -eq $true -and $ce.compliance_status -eq 'compliant')
+  Test-Ok "portal /patient/engagement" (Test-PortalPage "/patient/engagement")
 } catch { Test-Ok "patient flow" $false $_.Exception.Message }
+
+Write-Host "`n=== Billing manager ===" -ForegroundColor Cyan
+$h = @{ Authorization = "Bearer $(Get-Token 'billing@demo.medguard360.com')" }
+try {
+  $claims = Invoke-RestMethod -Uri "$api/claims?limit=50&stateCode=NC" -Headers $h
+  Test-Ok "billing NC claims list" ($claims.count -ge 8)
+  $draft = @($claims.claims | Where-Object { $_.status -eq 'draft' }).Count
+  Test-Ok "billing draft worklist" ($draft -ge 1)
+  Test-Ok "portal /billing" (Test-PortalPage "/billing")
+  Test-Ok "portal /provider/claims" (Test-PortalPage "/provider/claims")
+} catch { Test-Ok "billing flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Crisis responder ===" -ForegroundColor Cyan
 $h = @{ Authorization = "Bearer $(Get-Token 'responder@demo.medguard360.com')" }

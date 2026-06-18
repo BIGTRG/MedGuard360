@@ -70,8 +70,22 @@ INSERT INTO users (id, email, password_hash, role, status, state_code, created_b
   ('00000000-0000-0000-0000-000000000015', 'school@demo.medguard360.com',
    '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
    'school_administrator', 'active', 'NC',
+   '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000016', 'billing@demo.medguard360.com',
+   '$2b$12$8S0dPI6y67sbRcH2qQ07YuAjWJf1PLCHo3qroKqt4zxGjs6Tq6.gm',
+   'billing_manager', 'active', 'NC',
    '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (email) DO NOTHING;
+
+-- Re-seed must repair billing if a partial insert left a bad password hash
+UPDATE users SET
+  password_hash = (SELECT password_hash FROM users WHERE email = 'admin@demo.medguard360.com'),
+  role = 'billing_manager',
+  status = 'active',
+  state_code = 'NC',
+  failed_login_count = 0,
+  locked_until = NULL
+WHERE email = 'billing@demo.medguard360.com';
 
 -- ============================================================
 -- Patients (10 demos in NC)
@@ -452,7 +466,7 @@ VALUES
    'Atorvastatin 40mg tablet', 1, false, false, 30, CURRENT_DATE),
   ('97000000-0000-0000-0000-000000000002', 'NC', 'NCMEDPAY', '00093721498',
    'Aripiprazole 10mg tablet (Abilify)', 3, true, true, NULL, CURRENT_DATE)
-ON CONFLICT (state_code, payer_id, ndc, effective_from) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Active crisis alerts for emergency responder queue (Stop 6 — mobile crisis talking point)
 INSERT INTO crisis_alerts (id, patient_id, state_code, source, severity, signals, status,
@@ -541,19 +555,54 @@ ON CONFLICT (state_code, metric, day) DO NOTHING;
 -- ============================================================
 -- Community engagement overdue (state /state/engagement stop)
 -- ============================================================
+-- CE IDs use 98000000-* namespace (formulary uses 97000000-*)
 INSERT INTO community_engagement_records (
   id, patient_id, state_code, reporting_period, hours_documented,
   engagement_type, verification_source, status, next_renewal_due_at, created_by)
 VALUES
-  ('97000000-0000-0000-0000-000000000001',
+  ('98000000-0000-0000-0000-000000000001',
    '10000000-0000-0000-0000-000000000002', 'NC', '2026-04',
    62, 'employed', 'payroll_attestation', 'verified',
    now() - interval '12 days', '00000000-0000-0000-0000-000000000002'),
-  ('97000000-0000-0000-0000-000000000002',
+  ('98000000-0000-0000-0000-000000000002',
    '10000000-0000-0000-0000-000000000005', 'NC', '2026-05',
    48, 'job_training', 'self_attestation', 'submitted',
    now() - interval '5 days', '00000000-0000-0000-0000-000000000002')
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO community_engagement_records (
+  id, patient_id, state_code, reporting_period, hours_documented,
+  engagement_type, verification_source, status, next_renewal_due_at, verified_at, created_by)
+VALUES
+  ('98000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000004', 'NC', '2026-06',
+   82, 'employed', 'payroll_attestation', 'verified',
+   now() + interval '120 days', now(), '00000000-0000-0000-0000-000000000002')
+ON CONFLICT (id) DO NOTHING;
+
+-- Billing worklist: draft + validated claims awaiting submit
+INSERT INTO claims (id, claim_control_number, patient_id, billing_provider_id, payer_id,
+                     state_code, claim_type, service_from, service_to, diagnosis_codes,
+                     total_charge_cents, status, submitted_at,
+                     fraud_score, fraud_recommendation, created_by)
+VALUES
+  ('50000000-0000-0000-0000-000000000009', '260517-000109',
+   '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
+   'NCMEDPAY', 'NC', '837P', '2026-06-10', '2026-06-10', ARRAY['F32.9'],
+   15000, 'draft', NULL, 5, 'auto_pay', '00000000-0000-0000-0000-000000000001'),
+  ('50000000-0000-0000-0000-000000000010', '260517-000110',
+   '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001',
+   'NCMEDPAY', 'NC', '837P', '2026-06-11', '2026-06-11', ARRAY['I10'],
+   12500, 'validated', NULL, 6, 'auto_pay', '00000000-0000-0000-0000-000000000001')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO claim_lines (claim_id, line_number, service_code, service_code_type,
+                          units, charge_cents, diagnosis_pointers,
+                          service_date, place_of_service)
+VALUES
+  ('50000000-0000-0000-0000-000000000009', 1, '99213', 'CPT', 1, 15000, ARRAY[1], '2026-06-10', '11'),
+  ('50000000-0000-0000-0000-000000000010', 1, '99213', 'CPT', 1, 12500, ARRAY[1], '2026-06-11', '11')
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- Provider encounters (clinical-doc stop) + credentialing queue

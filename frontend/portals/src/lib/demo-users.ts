@@ -18,6 +18,7 @@ export const DEMO_USERS = [
   { label: 'Pharmacy', email: 'pharmacy@demo.medguard360.com', role: 'pharmacy' as UserRole, area: 'Formulary + drug PA' },
   { label: 'HIE', email: 'hie@demo.medguard360.com', role: 'hie_administrator' as UserRole, area: 'NC HealthConnex consents' },
   { label: 'School', email: 'school@demo.medguard360.com', role: 'school_administrator' as UserRole, area: 'School-based Medicaid' },
+  { label: 'Billing', email: 'billing@demo.medguard360.com', role: 'billing_manager' as UserRole, area: 'Revenue cycle / claims' },
   { label: 'Responder', email: 'responder@demo.medguard360.com', role: 'emergency_responder' as UserRole, area: 'Crisis (biometric-gated)' },
 ] as const;
 

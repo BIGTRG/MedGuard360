@@ -33,6 +33,8 @@
 | HETS compliance | http://localhost/compliance/hets |
 | State engagement | http://localhost/state/engagement |
 | School Medicaid | http://localhost/school |
+| Billing / RCM | http://localhost/billing |
+| Patient engagement | http://localhost/patient/engagement |
 | Member crisis plan | http://localhost/responder/patient/00000000-0000-0000-0000-000000000004 |
 | Provider home | http://localhost/provider |
 | Member portal | http://localhost/patient |

@@ -26,7 +26,7 @@ const DEMO_ROLES: { role: UserRole; home: string }[] = [
   { role: 'federal_cms',               home: '/state' },
   { role: 'credentialing_specialist',  home: '/credentialing' },
   { role: 'prior_auth_specialist',     home: '/pa-queue' },
-  { role: 'billing_manager',           home: '/admin' },
+  { role: 'billing_manager',           home: '/billing' },
   { role: 'compliance_officer',        home: '/compliance' },
   { role: 'fraud_investigator',        home: '/fraud' },
   { role: 'denial_appeals_specialist', home: '/denials' },
