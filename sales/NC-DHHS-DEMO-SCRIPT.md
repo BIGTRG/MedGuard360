@@ -109,6 +109,8 @@ Switch role → **Patient** (quick-button or dropdown). Page: `/patient`
 ### Stop 7 — Compliance posture (2 min)
 Switch role → **Compliance Officer** (quick-button or dropdown). Page: `/compliance`
 - Live audit feed from `audit_log_events` — PHI access, failed logins, PA overrides
+- **Notification delivery log** (same page) — seeded PA/crisis/fraud/claim emails + SMS from `notification-service` stub mode
+- Optional: `GET /api/v1/notifications/logs` and `POST /api/v1/notifications/send` (compliance role) — demo-flow verifies both
 - Open `/admin/integrations` — "Every vendor surface. Status column shows stub vs partial vs live. Real credentials live in `/opt/credential-vault/`, never .env files."
 - Show `compliance/controls.md` if asked — NIST 800-53 mapping ready for auditors.
 

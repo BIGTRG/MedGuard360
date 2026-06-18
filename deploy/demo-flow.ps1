@@ -248,6 +248,18 @@ try {
   Test-Ok "HETS enrollments list" ($hets.count -ge 1)
   $attested = $hets.enrollments | Where-Object { $_.attestation_status -eq 'attested' } | Select-Object -First 1
   Test-Ok "HETS demo provider attested" ($null -ne $attested)
+  $notifs = Invoke-RestMethod -Uri "$api/notifications/logs?limit=10" -Headers $h
+  Test-Ok "notification logs list" ($notifs.count -ge 3)
+  $emailCount = @($notifs.logs | Where-Object { $_.channel -eq 'email' }).Count
+  Test-Ok "notification email deliveries" ($emailCount -ge 2)
+  $sendBody = @{
+    channel = 'email'
+    recipient = 'compliance@demo.medguard360.com'
+    subject = 'MedGuard360 demo notification'
+    body = 'Stub delivery for NC DHHS laptop demo — notification-service vendor stub mode.'
+  } | ConvertTo-Json
+  $sent = Invoke-RestMethod -Uri "$api/notifications/send" -Method POST -Headers $h -Body $sendBody -ContentType "application/json"
+  Test-Ok "notification send stub" ($sent.log.status -eq 'sent')
   Test-Ok "portal /compliance" (Test-PortalPage "/compliance")
   Test-Ok "portal /compliance/hets" (Test-PortalPage "/compliance/hets")
   Test-Ok "portal /audit" (Test-PortalPage "/audit")

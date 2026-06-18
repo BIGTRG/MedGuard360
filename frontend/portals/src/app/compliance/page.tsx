@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   ShieldCheckIcon, DocumentMagnifyingGlassIcon, ClockIcon, ExclamationTriangleIcon,
+  BellAlertIcon,
 } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
@@ -21,6 +21,16 @@ interface AuditRow {
   action: string;
   outcome: string;
   context: Record<string, unknown>;
+}
+
+interface NotificationLogRow {
+  id: string;
+  channel: 'email' | 'sms' | 'push';
+  template_key: string | null;
+  subject: string | null;
+  body: string;
+  status: string;
+  sent_at: string;
 }
 
 function describeEvent(row: AuditRow): string {
@@ -46,12 +56,22 @@ function describeEvent(row: AuditRow): string {
 
 function ComplianceInner(): React.ReactElement {
   const [events, setEvents] = useState<AuditRow[]>([]);
+  const [notifications, setNotifications] = useState<NotificationLogRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<{ rows: AuditRow[] }>('/v1/audit/search?limit=10')
-      .then(r => setEvents(r.rows))
-      .catch(() => setEvents([]))
+    Promise.all([
+      api.get<{ rows: AuditRow[] }>('/v1/audit/search?limit=10'),
+      api.get<{ logs: NotificationLogRow[] }>('/v1/notifications/logs?limit=6'),
+    ])
+      .then(([audit, notifs]) => {
+        setEvents(audit.rows);
+        setNotifications(notifs.logs);
+      })
+      .catch(() => {
+        setEvents([]);
+        setNotifications([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -107,6 +127,32 @@ function ComplianceInner(): React.ReactElement {
               </li>
             );
           })}
+        </ul>
+      </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <BellAlertIcon className="h-4 w-4" /> Notification delivery log
+          </h3>
+          <span className="text-xs text-slate-500">SES / Twilio / FCM stub mode in demo</span>
+        </div>
+        {loading && <p className="text-sm text-slate-500">Loading notification log…</p>}
+        {!loading && notifications.length === 0 && (
+          <p className="text-sm text-slate-500">No notification logs — apply migration 0036 and re-seed.</p>
+        )}
+        <ul className="space-y-2 text-sm">
+          {notifications.map(row => (
+            <li key={row.id} className="flex justify-between items-start border-b border-slate-100 pb-2 last:border-0">
+              <span className="text-slate-700">
+                <span className="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs uppercase">{row.channel}</span>
+                {row.subject ?? row.template_key ?? row.body.slice(0, 60)}
+              </span>
+              <span className="text-xs text-slate-500 whitespace-nowrap ml-2">
+                <ClockIcon className="inline h-3 w-3 mr-1" />
+                {timeSince(row.sent_at)}
+              </span>
+            </li>
+          ))}
         </ul>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -22,7 +22,7 @@ export PGPASSWORD="${PG_PASSWORD}"
 # variants when applied in glob order. Skip them during docker bootstrap.
 skip_migration() {
   case "$1" in
-    0006_fraud_cases.sql|0007_providers.sql|0008_clinical.sql|0012_notifications.sql|0013_hub.sql|0014_pharmacy.sql|0015_dme.sql|0016_nemt.sql|0017_crisis.sql|0018_reporting.sql)
+    0006_fraud_cases.sql|0007_providers.sql|0008_clinical.sql|0012_notification_schema.sql|0013_hub.sql|0014_pharmacy.sql|0015_dme.sql|0016_nemt.sql|0017_crisis.sql|0018_reporting.sql)
       return 0
       ;;
     *)

@@ -35,6 +35,7 @@ if ($token) {
     @{ n = "GET /state-config/NC"; u = "$api/state-config/NC" }
     @{ n = "GET /reporting/rollups"; u = "$api/reporting/reports/rollups?stateCode=NC${amp}metric=claims_submitted${amp}fromDay=2026-05-15${amp}toDay=2026-06-12" }
     @{ n = "GET /audit/search"; u = "$api/audit/search?limit=5" }
+    @{ n = "GET /notifications/logs"; u = "$api/notifications/logs?limit=5" }
   )
   foreach ($ep in $urls) {
     try { $r = Invoke-WebRequest -Uri $ep.u -Headers $headers -UseBasicParsing; Test-Ok "$($ep.n) ($($r.StatusCode))" ($r.StatusCode -lt 300) } catch { Test-Ok $ep.n $false }

@@ -727,6 +727,38 @@ INSERT INTO audit_log_events (id, occurred_at, actor_user_id, actor_role, actor_
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
+-- Notification delivery log (compliance / notification-service stop)
+-- ============================================================
+INSERT INTO notification_logs (
+  id, recipient_user_id, channel, template_key, subject, body,
+  status, vendor_message_id, sent_at)
+VALUES
+  ('99000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000003', 'email', 'pa.approved.email',
+   'Prior Authorization Approved — 72148',
+   'Dear Demo Provider,\n\nYour prior authorization request for MRI lumbar (72148) has been approved.\n\nPA Reference: 40000000-0000-0000-0000-000000000001\n\nThe MedGuard360 Team',
+   'sent', 'stub-pa-approved-001', now() - interval '2 hours'),
+  ('99000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000008', 'sms', 'crisis.alert.sms', NULL,
+   'URGENT MedGuard360 CRISIS ALERT: Patient Alex Member — hub_chat critical. Crisis plan activated.',
+   'sent', 'stub-crisis-sms-001', now() - interval '45 minutes'),
+  ('99000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000006', 'sms', 'fraud.alert.sms', NULL,
+   'MedGuard360 FRAUD ALERT: Claim 50000000-0000-0000-0000-000000000003 scored 92/100. Assigned to investigator.',
+   'sent', 'stub-fraud-sms-001', now() - interval '90 minutes'),
+  ('99000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000003', 'email', 'claim.submitted.email',
+   'Claim Submitted — 260517-000108',
+   'Dear Demo Provider,\n\nYour claim has been submitted successfully.\n\nClaim Control Number: 260517-000108\nTotal Amount: $185.00\n\nThe MedGuard360 Team',
+   'sent', 'stub-claim-email-001', now() - interval '4 hours'),
+  ('99000000-0000-0000-0000-000000000005',
+   '00000000-0000-0000-0000-000000000007', 'email', 'denial.appeal.submitted.email',
+   'Appeal Submitted — Denial 80000000-0000-0000-0000-000000000001',
+   'Dear Appeals Specialist,\n\nYour appeal for denial 80000000-0000-0000-0000-000000000001 has been submitted.\n\nExpected response within 30-60 days.',
+   'sent', 'stub-appeal-email-001', now() - interval '6 hours')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
 -- HETS attestation (demo provider attested for compliance stop)
 -- ============================================================
 UPDATE hets_enrollments
@@ -756,5 +788,6 @@ UNION ALL SELECT 'Crisis alerts',COUNT(*) FROM crisis_alerts
 UNION ALL SELECT 'Formulary',    COUNT(*) FROM formulary_entries
 UNION ALL SELECT 'HETS enroll',  COUNT(*) FROM hets_enrollments
 UNION ALL SELECT 'CE overdue',   COUNT(*) FROM community_engagement_records WHERE next_renewal_due_at < now()
+UNION ALL SELECT 'Notif logs',   COUNT(*) FROM notification_logs
 UNION ALL SELECT 'Audit events', COUNT(*) FROM audit_log_events
 UNION ALL SELECT 'Daily rollups',COUNT(*) FROM daily_rollups;
