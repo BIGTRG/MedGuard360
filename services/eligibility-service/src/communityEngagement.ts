@@ -98,7 +98,7 @@ export async function getEngagementSummary(patientId: string): Promise<Engagemen
     [patientId],
   );
   const history = histRes.rows;
-  const current = history.find(r => r.status === 'verified') ?? history[0] ?? null;
+  const current = history.find((r: EngagementRecord) => r.status === 'verified') ?? history[0] ?? null;
   const nextRenewal = current?.next_renewal_due_at ?? null;
   const daysUntil = nextRenewal
     ? Math.ceil((new Date(nextRenewal).getTime() - Date.now()) / 86_400_000)

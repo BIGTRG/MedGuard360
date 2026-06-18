@@ -142,8 +142,8 @@ export async function runClinicalDecisionEngine(params: {
     );
 
     if (criteriaResult.rows.length) {
-      criteriaTexts = criteriaResult.rows.map(r => r.criterion_text);
-      criticalFlags = criteriaResult.rows.map(r => r.is_critical);
+      criteriaTexts = criteriaResult.rows.map((r: PaCriteriaDocRow) => r.criterion_text);
+      criticalFlags = criteriaResult.rows.map((r: PaCriteriaDocRow) => r.is_critical);
     } else {
       // No criteria documents on file — specialist must review
       return {
