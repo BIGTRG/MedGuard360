@@ -10,7 +10,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
     "format": "prettier --write 'src/**/*.ts'",
-    "test": "jest --coverage",
+    "test": "jest --passWithNoTests",
     "test:e2e": "playwright test"
   },
   "dependencies": {

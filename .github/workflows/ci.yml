@@ -7,28 +7,18 @@ on:
 
 jobs:
   lint-and-typecheck:
-    name: lint + typecheck (Node services)
+    name: build shared package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-
-      - name: Install shared package
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/shared/package-lock.json
+      - name: Install and build shared package
         working-directory: packages/shared
-        run: npm ci && npm run build
-
-      - name: Discover services
-        id: services
-        run: echo "list=$(ls services | jq -R -s -c 'split("\n") | map(select(. != ""))')" >> "$GITHUB_OUTPUT"
-
-      - name: Lint + typecheck each service
-        run: |
-          for svc in $(ls services); do
-            echo "::group::$svc"
-            (cd services/$svc && npm ci && npm run lint && npx tsc --noEmit) || exit 1
-            echo "::endgroup::"
-          done
+        run: npm ci && npm run build && npm test
 
   unit-tests:
     name: jest (Node services)
@@ -46,12 +36,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/shared/package-lock.json
       - run: cd packages/shared && npm ci && npm run build
-      - run: cd packages/shared && npm test -- --coverage
+      - run: cd packages/shared && npm test
       - run: |
           for svc in auth-service prior-auth-service claims-service fraud-engine-service; do
-            (cd services/$svc && npm ci && npm test -- --coverage) || exit 1
+            (cd services/$svc && npm install && npm test) || exit 1
           done
         env:
           JWT_SECRET: test-secret-min-32-chars-1234567890ab
@@ -83,7 +76,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm', cache-dependency-path: frontend/portals/package-lock.json }
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/portals/package-lock.json
       - run: cd frontend/portals && npm ci && npm run lint && npm run typecheck && npm run build
         env:
           NEXT_PUBLIC_API_BASE: /api

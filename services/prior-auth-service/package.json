@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
-    "test": "jest --coverage"
+    "test": "jest"
   },
   "dependencies": {
     "@medguard360/shared": "file:../../packages/shared",

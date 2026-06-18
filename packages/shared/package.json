@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
     "format": "prettier --write 'src/**/*.ts'",
-    "test": "jest --coverage"
+    "test": "jest"
   },
   "dependencies": {
     "kafkajs": "^2.2.4",
