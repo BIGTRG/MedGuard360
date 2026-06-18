@@ -38,6 +38,10 @@ Get-Content infrastructure\postgres\migrations\0017_hie_schema.sql -Raw | docker
 Get-Content infrastructure\postgres\migrations\0019_hie.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
 Get-Content infrastructure\postgres\migrations\0025_hets_enrollment.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
 Get-Content infrastructure\postgres\migrations\0026_community_engagement.sql -Raw | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 2>&1 | Out-Null
+docker compose -f $compose cp infrastructure/postgres/migrations/0028_ehr_core.sql postgres:/tmp/0028_ehr_core.sql 2>&1 | Out-Null
+docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 -f /tmp/0028_ehr_core.sql 2>&1 | Out-Null
+docker compose -f $compose cp infrastructure/postgres/migrations/0029_ehr_specialty.sql postgres:/tmp/0029_ehr_specialty.sql 2>&1 | Out-Null
+docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 -f /tmp/0029_ehr_specialty.sql 2>&1 | Out-Null
 docker compose -f $compose cp infrastructure/postgres/migrations/0036_notification_logs_schema.sql postgres:/tmp/0036_notification_logs_schema.sql 2>&1 | Out-Null
 docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 -f /tmp/0036_notification_logs_schema.sql 2>&1 | Out-Null
 Get-Content deploy\seed-demo.sql -Raw -Encoding UTF8 | docker compose -f $compose exec -T postgres psql -U medguard -d medguard360 | Out-Null

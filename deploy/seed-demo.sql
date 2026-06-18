@@ -702,6 +702,15 @@ VALUES
    '00000000-0000-0000-0000-000000000012')
 ON CONFLICT (id) DO NOTHING;
 
+-- EHR chart seed (clinical-doc / provider chart stop)
+INSERT INTO ehr_problems (id, patient_id, state_code, icd10_code, problem_text, clinical_status, recorded_by)
+VALUES
+  ('22000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000001', 'NC', 'F32.9',
+   'Major depressive disorder, single episode', 'active',
+   '00000000-0000-0000-0000-000000000003')
+ON CONFLICT (id) DO NOTHING;
+
 -- ============================================================
 -- HIE consents + referrals (NC HealthConnex demo)
 -- ============================================================

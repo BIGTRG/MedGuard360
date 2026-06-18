@@ -51,7 +51,12 @@ router.get(`${enc}/:id`, requireAuth, async (req, res, next) => {
     const encounter = await repo.findEncounter(req.params.id);
     if (!encounter) { res.status(404).json({ error: 'Not found' }); return; }
     const documents = await repo.getDocuments(req.params.id);
-    await auditLog({ userId: req.auth!.sub, action: 'read', resourceType: 'clinical_encounter', resourceId: req.params.id, stateCode: encounter.state_code, phiAccessed: true });
+    await auditLog({
+      resource: 'clinical_encounter', resourceId: req.params.id, action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId,
+      context: { stateCode: encounter.state_code },
+    });
     res.json({ encounter, documents });
   } catch (err) { next(err); }
 });
@@ -116,9 +121,10 @@ router.get('/clinical-doc/ehr/:patientId', requireAuth, async (req, res, next) =
     const patientId = z.string().uuid().parse(req.params.patientId);
     const chart = await ehr.getChart(patientId);
     await auditLog({
-      userId: req.auth!.sub, action: 'read', resourceType: 'ehr_chart',
-      resourceId: patientId, stateCode: 'NC', phiAccessed: true,
-    } as never);
+      resource: 'ehr_chart', resourceId: patientId, action: 'read',
+      actor: req.auth!, outcome: 'success', phiAccessed: true,
+      correlationId: req.correlationId,
+    });
     res.json(chart);
   } catch (err) { next(err); }
 });

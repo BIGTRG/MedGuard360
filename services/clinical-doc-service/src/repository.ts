@@ -97,7 +97,7 @@ export async function addDocument(
 
 export async function getDocuments(encounterId: string): Promise<ClinicalDocumentRow[]> {
   const { rows } = await pool.query<ClinicalDocumentRow>(
-    'SELECT * FROM clinical_documents WHERE encounter_id=$1 ORDER BY created_at',
+    'SELECT * FROM clinical_documents WHERE encounter_id=$1 ORDER BY uploaded_at',
     [encounterId],
   );
   return rows;

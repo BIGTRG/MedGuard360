@@ -138,8 +138,16 @@ try {
   $enc = Invoke-RestMethod -Uri "$api/clinical-doc/encounters" -Headers $h
   Test-Ok "provider encounters list" ($enc.encounters.Count -ge 1)
   Test-Ok "portal /provider/encounters" (Test-PortalPage "/provider/encounters")
-  if ($enc.encounters.Count -ge 1) {
-    Test-Ok "portal encounter detail" (Test-PortalPage "/provider/encounters/$($enc.encounters[0].id)")
+  if (@($enc.encounters).Count -ge 1) {
+    $encRow = @($enc.encounters | Where-Object { $_.status -eq 'signed' } | Select-Object -First 1)[0]
+    if (-not $encRow) { $encRow = $enc.encounters[0] }
+    $encId = $encRow.id
+    $encDetail = Invoke-RestMethod -Uri "$api/clinical-doc/encounters/$encId" -Headers $h
+    Test-Ok "encounter detail API" ($null -ne $encDetail.encounter.id)
+    Test-Ok "portal encounter detail" (Test-PortalPage "/provider/encounters/$encId")
+    $chart = Invoke-RestMethod -Uri "$api/clinical-doc/ehr/10000000-0000-0000-0000-000000000001" -Headers $h
+    Test-Ok "patient EHR chart" ($null -ne $chart.patientId)
+    Test-Ok "portal provider chart" (Test-PortalPage "/provider/chart/10000000-0000-0000-0000-000000000001")
   }
   Test-Ok "portal /provider/patients" (Test-PortalPage "/provider/patients")
 } catch { Test-Ok "provider flow" $false $_.Exception.Message }
