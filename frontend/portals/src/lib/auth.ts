@@ -6,6 +6,9 @@
  * Refresh tokens are in localStorage with an `mg_*` prefix so they survive
  * tab reload; they're hashed server-side so leakage is the user's exposure,
  * not the platform's.
+ *
+ * The access token is also mirrored into a short-lived same-site cookie so
+ * Next.js edge middleware can protect direct browser requests.
  */
 
 import type { AuthClaims, Tokens, UserRole } from './types';
@@ -26,11 +29,32 @@ function decodeJwtPayload(token: string): AuthClaims | null {
   }
 }
 
+function accessCookieMaxAge(expiresAt: string): number | null {
+  const expiresMs = Date.parse(expiresAt);
+  if (!Number.isFinite(expiresMs)) return null;
+  return Math.max(0, Math.floor((expiresMs - Date.now()) / 1000));
+}
+
+function secureCookieAttribute(): string {
+  return window.location.protocol === 'https:' ? '; Secure' : '';
+}
+
+function saveAccessCookie(token: string, expiresAt: string): void {
+  const maxAge = accessCookieMaxAge(expiresAt);
+  const maxAgeAttribute = maxAge === null ? '' : `; Max-Age=${maxAge}`;
+  document.cookie = `${ACCESS_KEY}=${encodeURIComponent(token)}; Path=/; SameSite=Lax${maxAgeAttribute}${secureCookieAttribute()}`;
+}
+
+function clearAccessCookie(): void {
+  document.cookie = `${ACCESS_KEY}=; Path=/; SameSite=Lax; Max-Age=0${secureCookieAttribute()}`;
+}
+
 export function saveTokens(t: Tokens): void {
   if (typeof window === 'undefined') return;
   sessionStorage.setItem(ACCESS_KEY, t.accessToken);
   sessionStorage.setItem(SESSION_KEY, t.sessionId);
   localStorage.setItem(REFRESH_KEY, t.refreshToken);
+  saveAccessCookie(t.accessToken, t.accessExpiresAt);
 }
 
 export function clearTokens(): void {
@@ -38,6 +62,7 @@ export function clearTokens(): void {
   sessionStorage.removeItem(ACCESS_KEY);
   sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(REFRESH_KEY);
+  clearAccessCookie();
 }
 
 export function getAccessToken(): string | null {
