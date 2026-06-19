@@ -1,8 +1,11 @@
 import { Edi837PInput, generateEdi837P } from './edi837p';
 
 describe('generateEdi837P', () => {
+  let payload = '';
+
   beforeAll(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-19T10:00:00.000Z'));
+    payload = generateEdi837P(input);
   });
 
   afterAll(() => {
@@ -38,8 +41,6 @@ describe('generateEdi837P', () => {
       place_of_service: '11',
     }],
   };
-
-  const payload = generateEdi837P(input);
 
   it('emits a well-formed ISA envelope', () => {
     expect(payload.startsWith('ISA*')).toBe(true);
