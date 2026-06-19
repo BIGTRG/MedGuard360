@@ -8,7 +8,7 @@
  * Reference: migration 0026, CMS guidance, state_configs.community_engagement_rules
  */
 
-import { query } from '@medguard360/shared';
+import { AuthClaims, ForbiddenError, NotFoundError, query } from '@medguard360/shared';
 
 export type EngagementType =
   | 'employed' | 'self_employed' | 'job_training' | 'education' | 'volunteer'
@@ -75,14 +75,15 @@ export interface EngagementStatusSummary {
   notification_window: '60_day' | '30_day' | '7_day' | 'overdue' | 'none';
 }
 
-export async function getEngagementSummary(patientId: string): Promise<EngagementStatusSummary> {
-  const patRes = await query<{ id: string; state_code: string }>(
-    'ce.getPatient',
-    `SELECT id, state_code FROM patients WHERE id = $1`,
-    [patientId],
-  );
-  const pat = patRes.rows[0];
-  if (!pat) throw new Error('patient not found');
+const READ_CROSS_STATE_ROLES = ['federal_cms', 'platform_administrator'];
+const WRITE_CROSS_STATE_ROLES = ['platform_administrator'];
+const STATE_SCOPED_ROLES = ['state_medicaid_agency', 'mco_admin', 'compliance_officer'];
+
+export async function getEngagementSummary(
+  patientId: string,
+  auth: AuthClaims,
+): Promise<EngagementStatusSummary> {
+  const pat = await getAccessiblePatient(patientId, auth, READ_CROSS_STATE_ROLES);
 
   const ruleRes = await query<{ community_engagement_rules: Record<string, unknown> }>(
     'ce.getRule',
@@ -134,7 +135,12 @@ export async function getEngagementSummary(patientId: string): Promise<Engagemen
   };
 }
 
-export async function submitRecord(input: SubmitInput): Promise<EngagementRecord> {
+export async function submitRecord(input: SubmitInput, auth: AuthClaims): Promise<EngagementRecord> {
+  const pat = await getAccessiblePatient(input.patientId, auth, WRITE_CROSS_STATE_ROLES);
+  if (input.stateCode !== pat.state_code) {
+    throw new ForbiddenError('Community engagement state does not match patient state');
+  }
+
   const renewal = computeNextRenewal();
   const r = await query<EngagementRecord>(
     'ce.submit',
@@ -153,6 +159,36 @@ export async function submitRecord(input: SubmitInput): Promise<EngagementRecord
     ],
   );
   return r.rows[0];
+}
+
+async function getAccessiblePatient(
+  patientId: string,
+  auth: AuthClaims,
+  crossStateRoles: readonly string[],
+): Promise<{ id: string; state_code: string }> {
+  const patRes = await query<{ id: string; state_code: string }>(
+    'ce.getPatient',
+    `SELECT id, state_code
+       FROM patients
+      WHERE id = $1
+        AND (
+          $2 = ANY($5::text[])
+          OR ($2 = 'patient' AND id = $4::uuid)
+          OR ($2 = ANY($6::text[]) AND state_code = $3)
+        )
+      LIMIT 1`,
+    [
+      patientId,
+      auth.role,
+      auth.stateCode ?? null,
+      auth.sub,
+      crossStateRoles,
+      STATE_SCOPED_ROLES,
+    ],
+  );
+  const pat = patRes.rows[0];
+  if (!pat) throw new NotFoundError('Patient');
+  return pat;
 }
 
 export async function listOverdue(stateCode?: string): Promise<EngagementRecord[]> {
