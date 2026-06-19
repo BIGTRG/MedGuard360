@@ -1,5 +1,5 @@
 global:
-  registry: ghcr.io/medguard360
+  registry: ghcr.io/bigtrg/medguard360
   tag: latest
   pullPolicy: IfNotPresent
   imagePullSecrets:

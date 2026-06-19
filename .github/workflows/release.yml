@@ -2,16 +2,16 @@ name: Release
 
 on:
   push:
-    tags: ['v*.*.*']
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: Version tag (e.g. v1.2.3)
+        description: Version tag (e.g. v1.0.1-demo)
         required: true
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/medguard360
 
 jobs:
   build-and-push:
@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: read, packages: write }
     strategy:
+      fail-fast: false
       matrix:
         target:
           # Node services
@@ -64,6 +65,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image prefix (GHCR requires lowercase)
+        id: image
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "prefix=${{ env.REGISTRY }}/${owner}/medguard360" >> "$GITHUB_OUTPUT"
+
       - name: Resolve version
         id: ver
         run: |
@@ -82,8 +89,23 @@ jobs:
             SERVICE_NAME=${{ matrix.target.kind == 'node' && matrix.target.name || '' }}
             ENGINE_NAME=${{ matrix.target.kind == 'python' && matrix.target.name || '' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.target.name }}:${{ steps.ver.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.target.name }}:latest
+            ${{ steps.image.outputs.prefix }}/${{ matrix.target.name }}:${{ steps.ver.outputs.tag }}
+            ${{ steps.image.outputs.prefix }}/${{ matrix.target.name }}:latest
           push: true
           cache-from: type=gha,scope=${{ matrix.target.name }}
           cache-to: type=gha,scope=${{ matrix.target.name }},mode=max
+
+  github-release:
+    name: publish GitHub release
+    if: github.event_name == 'push'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: MedGuard360 ${{ github.ref_name }}
+          generate_release_notes: true
