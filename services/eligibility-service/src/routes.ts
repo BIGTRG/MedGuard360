@@ -204,8 +204,26 @@ router.post('/eligibility/hets-status/upsert',
  *   GET  /eligibility/community-engagement/:patientId — full status summary + history
  *   GET  /eligibility/community-engagement/overdue/list — state-agency dashboard list
  */
+const communityEngagementReadRoles = [
+  'patient',
+  'state_medicaid_agency',
+  'mco_admin',
+  'compliance_officer',
+  'federal_cms',
+  'platform_administrator',
+] as const;
+
+const communityEngagementSubmitRoles = [
+  'patient',
+  'state_medicaid_agency',
+  'mco_admin',
+  'compliance_officer',
+  'platform_administrator',
+] as const;
+
 router.post('/eligibility/community-engagement/verify',
   requireAuth,
+  requireRole(...communityEngagementSubmitRoles),
   ah(async (req, res) => {
     const body = z.object({
       patientId: z.string().uuid(),
@@ -224,7 +242,7 @@ router.post('/eligibility/community-engagement/verify',
       ]),
       notes: z.string().max(2000).optional(),
     }).parse(req.body);
-    const row = await ce.submitRecord({ ...body, createdBy: req.auth!.sub });
+    const row = await ce.submitRecord({ ...body, createdBy: req.auth!.sub }, req.auth!);
     await auditLog({
       resource: 'community_engagement_record', resourceId: row.id, action: 'create',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
@@ -250,9 +268,10 @@ router.get('/eligibility/community-engagement/overdue/list',
 
 router.get('/eligibility/community-engagement/:patientId',
   requireAuth,
+  requireRole(...communityEngagementReadRoles),
   ah(async (req, res) => {
     const patientId = z.string().uuid().parse(req.params.patientId);
-    const summary = await ce.getEngagementSummary(patientId);
+    const summary = await ce.getEngagementSummary(patientId, req.auth!);
     await auditLog({
       resource: 'community_engagement_summary', resourceId: patientId, action: 'read',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
