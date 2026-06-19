@@ -16,7 +16,7 @@
  * Reference: migrations 0028, 0029.
  */
 
-import { query } from '@medguard360/shared';
+import { AuthClaims, NotFoundError, query, withRlsContext } from '@medguard360/shared';
 
 // ─── Type definitions ──────────────────────────────────────────────────────
 export interface ProblemRow {
@@ -104,41 +104,84 @@ export interface ChartSnapshot {
   smokingStatus: { status: string; recorded_at: string; cessation_counseling_provided: boolean } | null;
 }
 
+interface ChartQueryClient {
+  query<R>(sql: string, params?: ReadonlyArray<unknown>): Promise<{ rows: R[] }>;
+}
+
 // ─── Read functions ─────────────────────────────────────────────────────────
 
-export async function getChart(patientId: string): Promise<ChartSnapshot> {
-  const [probs, meds, alls, imms, vits, labs, imgs, cps, smk] = await Promise.all([
-    query<ProblemRow>('ehr.problems',
+export async function getChart(patientId: string, auth: AuthClaims): Promise<ChartSnapshot> {
+  return withRlsContext(auth, async (client) => {
+    await assertChartAccess(client, patientId, auth);
+
+    const [probs, meds, alls, imms, vits, labs, imgs, cps, smk] = await Promise.all([
+      client.query<ProblemRow>(
       `SELECT * FROM ehr_problems WHERE patient_id = $1 ORDER BY clinical_status, onset_date DESC LIMIT 200`, [patientId]),
-    query<MedicationRow>('ehr.meds',
+      client.query<MedicationRow>(
       `SELECT * FROM ehr_medications WHERE patient_id = $1 ORDER BY status, start_date DESC LIMIT 200`, [patientId]),
-    query<AllergyRow>('ehr.allergies',
+      client.query<AllergyRow>(
       `SELECT * FROM ehr_allergies WHERE patient_id = $1 ORDER BY clinical_status, reaction_severity NULLS LAST LIMIT 100`, [patientId]),
-    query<ImmunizationRow>('ehr.imms',
+      client.query<ImmunizationRow>(
       `SELECT * FROM ehr_immunizations WHERE patient_id = $1 ORDER BY administered_date DESC LIMIT 100`, [patientId]),
-    query<VitalsRow>('ehr.vitals',
+      client.query<VitalsRow>(
       `SELECT * FROM ehr_vitals WHERE patient_id = $1 ORDER BY recorded_at DESC LIMIT 50`, [patientId]),
-    query<LabRow>('ehr.labs',
+      client.query<LabRow>(
       `SELECT * FROM ehr_lab_results WHERE patient_id = $1 ORDER BY resulted_at DESC LIMIT 100`, [patientId]),
-    query<ImagingRow>('ehr.imaging',
+      client.query<ImagingRow>(
       `SELECT * FROM ehr_imaging_results WHERE patient_id = $1 ORDER BY study_date DESC LIMIT 50`, [patientId]),
-    query<CarePlanRow>('ehr.careplans',
+      client.query<CarePlanRow>(
       `SELECT * FROM ehr_care_plans WHERE patient_id = $1 AND status IN ('active','draft','on_hold') ORDER BY next_review_date NULLS LAST LIMIT 20`, [patientId]),
-    query<{ status: string; recorded_at: string; cessation_counseling_provided: boolean }>('ehr.smoking',
+      client.query<{ status: string; recorded_at: string; cessation_counseling_provided: boolean }>(
       `SELECT status, recorded_at, cessation_counseling_provided FROM ehr_smoking_status WHERE patient_id = $1 ORDER BY recorded_at DESC LIMIT 1`, [patientId]),
-  ]);
-  return {
-    patientId,
-    problems: probs.rows, activeProblems: probs.rows.filter(p => p.clinical_status === 'active'),
-    medications: meds.rows, activeMedications: meds.rows.filter(m => m.status === 'active'),
-    allergies: alls.rows,   activeAllergies:   alls.rows.filter(a => a.clinical_status === 'active'),
-    immunizations: imms.rows,
-    latestVitals: vits.rows[0] ?? null, vitalsHistory: vits.rows,
-    labs: labs.rows,         criticalLabs: labs.rows.filter(l => l.abnormal_flag === 'critical_low' || l.abnormal_flag === 'critical_high'),
-    imaging: imgs.rows,
-    carePlans: cps.rows,
-    smokingStatus: smk.rows[0] ?? null,
-  };
+    ]);
+    return {
+      patientId,
+      problems: probs.rows, activeProblems: probs.rows.filter(p => p.clinical_status === 'active'),
+      medications: meds.rows, activeMedications: meds.rows.filter(m => m.status === 'active'),
+      allergies: alls.rows,   activeAllergies:   alls.rows.filter(a => a.clinical_status === 'active'),
+      immunizations: imms.rows,
+      latestVitals: vits.rows[0] ?? null, vitalsHistory: vits.rows,
+      labs: labs.rows,         criticalLabs: labs.rows.filter(l => l.abnormal_flag === 'critical_low' || l.abnormal_flag === 'critical_high'),
+      imaging: imgs.rows,
+      carePlans: cps.rows,
+      smokingStatus: smk.rows[0] ?? null,
+    };
+  });
+}
+
+async function assertChartAccess(client: ChartQueryClient, patientId: string, auth: AuthClaims): Promise<void> {
+  const result = await client.query<{ id: string }>(
+    `SELECT id
+       FROM patients
+      WHERE id = $1
+        AND (
+          $2 = ANY($5::text[])
+          OR ($2 = ANY($6::text[]) AND state_code = $3)
+          OR ($2 = ANY($7::text[]) AND primary_care_provider_id = $4::uuid)
+        )
+      LIMIT 1`,
+    [
+      patientId,
+      auth.role,
+      auth.stateCode ?? null,
+      auth.sub,
+      ['federal_cms', 'platform_administrator'],
+      [
+        'state_medicaid_agency',
+        'mco_admin',
+        'prior_auth_specialist',
+        'billing_manager',
+        'compliance_officer',
+        'fraud_investigator',
+        'qa_auditor',
+      ],
+      ['individual_provider', 'facility_provider'],
+    ],
+  );
+
+  if (!result.rows[0]) {
+    throw new NotFoundError('Patient chart');
+  }
 }
 
 // ─── Write functions ────────────────────────────────────────────────────────

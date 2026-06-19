@@ -116,10 +116,24 @@ router.post(`${enc}/:id/sign`, requireAuth, requireRole('individual_provider', '
 // POST /v1/clinical-doc/ehr/:patientId/immunizations — add immunization
 // POST /v1/clinical-doc/ehr/:patientId/cds-fire   — run CDS rules and return firings
 
-router.get('/clinical-doc/ehr/:patientId', requireAuth, async (req, res, next) => {
+const chartReadRoles = [
+  'individual_provider',
+  'facility_provider',
+  'state_medicaid_agency',
+  'mco_admin',
+  'prior_auth_specialist',
+  'billing_manager',
+  'compliance_officer',
+  'fraud_investigator',
+  'qa_auditor',
+  'federal_cms',
+  'platform_administrator',
+] as const;
+
+router.get('/clinical-doc/ehr/:patientId', requireAuth, requireRole(...chartReadRoles), async (req, res, next) => {
   try {
     const patientId = z.string().uuid().parse(req.params.patientId);
-    const chart = await ehr.getChart(patientId);
+    const chart = await ehr.getChart(patientId, req.auth!);
     await auditLog({
       resource: 'ehr_chart', resourceId: patientId, action: 'read',
       actor: req.auth!, outcome: 'success', phiAccessed: true,
@@ -225,10 +239,10 @@ router.post('/clinical-doc/ehr/:patientId/immunizations', requireAuth, requireRo
     } catch (err) { next(err); }
   });
 
-router.post('/clinical-doc/ehr/:patientId/cds-fire', requireAuth, async (req, res, next) => {
+router.post('/clinical-doc/ehr/:patientId/cds-fire', requireAuth, requireRole(...chartReadRoles), async (req, res, next) => {
   try {
     const patientId = z.string().uuid().parse(req.params.patientId);
-    const chart = await ehr.getChart(patientId);
+    const chart = await ehr.getChart(patientId, req.auth!);
     const rules = await cds.loadActiveRules();
     const firings = cds.evaluateRules(chart, rules);
     // Persist each firing so they appear in the audit / ack queue
