@@ -1,5 +1,5 @@
-# MedGuard360
-# Requires Python 3.11 (matches CI). On Windows use Docker or py -3.11. â€” pytest for demo-critical AI engines (matches GitHub CI).
+# MedGuard360 - pytest for demo-critical AI engines (matches GitHub CI).
+# Requires Python 3.11 (matches CI). On Windows use Docker or: py -3.11 deploy/run-engine-tests.ps1
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
