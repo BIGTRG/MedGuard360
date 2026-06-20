@@ -109,3 +109,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: MedGuard360 ${{ github.ref_name }}
           generate_release_notes: true
+          make_latest: true
+          overwrite: true

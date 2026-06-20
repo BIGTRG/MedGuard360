@@ -106,6 +106,7 @@ cat <<'EOF'
     responder@demo.medguard360.com     — crisis responder (biometric-gated)
 
   Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
+  Preflight:         powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1
   Verify (scripts):  ./deploy/smoke-demo.ps1  &&  ./deploy/demo-flow.ps1
   Stop:    ./deploy/laptop.sh --teardown
 ================================================================

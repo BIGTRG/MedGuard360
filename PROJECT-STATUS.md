@@ -1,19 +1,23 @@
-# MedGuard360 — Project Status as of 2026-06-18
+# MedGuard360 — Project Status as of 2026-06-19
 
-## NC laptop demo (tag `v1.0-demo`)
+## NC laptop demo (tag `v1.0-demo` @ `8b76e74`)
 
 | Check | Status |
 |-------|--------|
 | `deploy/demo-up.ps1` | One-command Windows bring-up |
+| `deploy/demo-preflight.ps1` | Fast pre-meeting health check |
 | `deploy/smoke-demo.ps1` | 68 HTTP/API/portal checks |
 | `deploy/demo-flow.ps1` | Full role workflow API + portal checks |
-| GitHub CI (`main`) | Green — build, test, Next.js, pytest |
-| GitHub Security scan | Green — npm audit + gitleaks + semgrep (report-only) |
+| GitHub CI (`main`) | Green — shared build, 4 Node services, Next.js, pytest |
+| GitHub Security scan | Green — npm audit, gitleaks, semgrep, Trivy (GHCR images) |
+| GitHub Release | Green — 31 images at `ghcr.io/bigtrg/medguard360/*` |
 | Demo password (all 16 users) | `demo-Password!1` |
 | Portal | http://localhost/ |
 
 **Bring-up:** `powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1`  
-**Walkthrough:** `sales/NC-DHHS-DEMO-SCRIPT.md`
+**Preflight:** `powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1`  
+**Walkthrough:** `sales/NC-DHHS-DEMO-SCRIPT.md`  
+**Release:** https://github.com/BIGTRG/MedGuard360/releases/tag/v1.0-demo
 
 ## What's complete
 
@@ -43,7 +47,8 @@
 | Billing Manager | `/billing` |
 | Compliance Officer | `/compliance` |
 | Platform Admin | `/admin`, `/admin/integrations`, `/admin/pilot-states`, `/admin/nc-enterprise` |
-| School / HIE / Responder / QA Auditor | existing pages |
+| School / LEA | `/school`, `/school/students`, `/school/services`, `/school/lea-agreement`, `/school/claims` |
+| HIE / Responder / QA Auditor | existing pages |
 
 ### Mobile screens
 LoginScreen, DashboardScreen, PatientsScreen (offline fallback), CrisisScreen (biometric-gated), EncounterScreen, ClaimsScreen, BiometricScreen, AudioCaptureScreen, PatientDetailScreen, SettingsScreen, **MemberHomeScreen** (new)
@@ -70,8 +75,8 @@ LoginScreen, DashboardScreen, PatientsScreen (offline fallback), CrisisScreen (b
 - **NC laptop demo** — `docker-compose.demo.yml` + `deploy/demo-up.ps1` (Windows) / `deploy/laptop.sh` (macOS/Linux)
 - **Live on Hetzner** 178.105.21.227:8090 (demo only — not StateRAMP-ready)
 - **GitHub repo** https://github.com/BIGTRG/MedGuard360 (public)
-- **Release tag** `v1.0-demo` — NC DHHS laptop evaluation milestone
-- **GitHub Actions** — CI + Security scan green on `main`; auto-deploy manual-only until SSH secrets configured
+- **Release tag** `v1.0-demo` — NC DHHS laptop evaluation milestone (GHCR images + GitHub Release)
+- **GitHub Actions** — CI + Security scan + Release green on `main`; auto-deploy manual-only until SSH secrets configured
 
 ## What's stubbed (intentionally — needs real vendor relationships)
 - Clerk auth (using bypass for demo)

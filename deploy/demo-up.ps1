@@ -59,3 +59,4 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "MedGuard360 demo ready at http://localhost/" -ForegroundColor Green
+Write-Host "Preflight: powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1" -ForegroundColor DarkGray

@@ -26,8 +26,12 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 | Script | Purpose |
 |--------|---------|
 | `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow |
+| `deploy/demo-preflight.ps1` | Quick pre-meeting health check |
 | `deploy/smoke-demo.ps1` | Fast HTTP/API/portal checks |
 | `deploy/demo-flow.ps1` | Full role workflow verification |
+
+Container images: `ghcr.io/bigtrg/medguard360/*` (tag `v1.0-demo`).  
+Release notes: https://github.com/BIGTRG/MedGuard360/releases/tag/v1.0-demo
 
 See `sales/NC-DHHS-DEMO-SCRIPT.md` for the 15-minute walkthrough.
 
