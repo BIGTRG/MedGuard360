@@ -18,18 +18,18 @@ const StateCodeParam = z.object({
   stateCode: z.string().length(2).toUpperCase(),
 });
 
-const PaRuleQuery = z.object({
+export const PaRuleQuery = z.object({
   state: z.string().length(2),
   payer: z.string().min(1).max(50),
   code:  z.string().min(1).max(20),
 });
 
-const FraudThresholds = z.object({
+export const FraudThresholds = z.object({
   auto_pay_below:   z.number().nonnegative(),
   auto_block_above: z.number().nonnegative(),
 });
 
-const StateConfigBody = z.object({
+export const StateConfigBody = z.object({
   state_name:                   z.string().min(1).max(100).optional(),
   mmis_endpoint:                z.string().url().nullable().optional(),
   mmis_credentials_vault_key:   z.string().max(200).nullable().optional(),

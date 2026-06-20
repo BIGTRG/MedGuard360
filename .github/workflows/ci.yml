@@ -43,7 +43,7 @@ jobs:
       - run: cd packages/shared && npm ci && npm run build
       - run: cd packages/shared && npm test
       - run: |
-          for svc in auth-service prior-auth-service claims-service fraud-engine-service notification-service denial-service eligibility-service nemt-service pharmacy-service hub-service dme-service credentialing-service clinical-doc-service; do
+          for svc in auth-service prior-auth-service claims-service fraud-engine-service notification-service denial-service eligibility-service nemt-service pharmacy-service hub-service dme-service credentialing-service clinical-doc-service hie-service reporting-service state-config-service; do
             (cd services/$svc && npm install && npm test) || exit 1
           done
         env:

@@ -40,7 +40,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 Container images: `ghcr.io/bigtrg/medguard360/*` (tag `v1.0-demo`).  
 Release notes: https://github.com/BIGTRG/MedGuard360/releases/tag/v1.0-demo
 
-CI runs unit tests for 13 demo-critical Node services (auth, prior-auth, claims, fraud-engine, notification, denial, eligibility, nemt, pharmacy, hub, dme, credentialing, clinical-doc).
+CI runs unit tests for 16 demo-critical Node services (auth, prior-auth, claims, fraud-engine, notification, denial, eligibility, nemt, pharmacy, hub, dme, credentialing, clinical-doc, hie, reporting, state-config).
 
 See `sales/NC-DHHS-DEMO-SCRIPT.md` for the 15-minute walkthrough.
 
