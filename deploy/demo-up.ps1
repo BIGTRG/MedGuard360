@@ -1,6 +1,7 @@
 # MedGuard360 - one-command Windows demo bring-up (demo subset).
 param(
   [switch]$SkipBuild,
+  [switch]$RebuildPortals,
   [switch]$Teardown,
   [switch]$VerifyOnly,
   [switch]$SkipVerify
@@ -21,7 +22,10 @@ if ($Teardown) {
   exit 0
 }
 
-if (-not $SkipBuild) {
+if ($RebuildPortals) {
+  Write-Host "Rebuilding portals image..." -ForegroundColor Cyan
+  docker compose -f $compose build portals
+} elseif (-not $SkipBuild) {
   Write-Host "Building demo images..." -ForegroundColor Cyan
   docker compose -f $compose build
 }

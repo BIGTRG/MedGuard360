@@ -108,6 +108,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: MedGuard360 ${{ github.ref_name }}
+          body_path: deploy/DEMO-RELEASE-NOTES.md
           generate_release_notes: true
           make_latest: true
           overwrite: true
