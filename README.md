@@ -27,6 +27,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 |--------|---------|
 | `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow |
 | `deploy/demo-preflight.ps1` | Quick pre-meeting health check |
+| `deploy/verify-demo.ps1` | Preflight + smoke + demo-flow (full verify) |
 | `deploy/smoke-demo.ps1` | Fast HTTP/API/portal checks |
 | `deploy/demo-flow.ps1` | Full role workflow verification |
 

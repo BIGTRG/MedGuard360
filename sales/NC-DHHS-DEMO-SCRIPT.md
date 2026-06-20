@@ -7,7 +7,7 @@
 ## Pre-meeting (5 min before)
 
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
-- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy/demo-up.ps1` or smoke + demo-flow)
+- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1` then `deploy\smoke-demo.ps1` + `deploy\demo-flow.ps1`, or full `deploy\demo-up.ps1`)
 - Sign in at `/login` (one-click role buttons) or use header role dropdown after first login
 - **Role switching:** login quick-buttons or header dropdown re-authenticate with seeded demo accounts
 - Backup: PROJECT-STATUS.md open in second tab
@@ -42,7 +42,11 @@
 | HIE consents | http://localhost/hie |
 | HETS compliance | http://localhost/compliance/hets |
 | State engagement | http://localhost/state/engagement |
-| School Medicaid | http://localhost/school |
+| School Medicaid home | http://localhost/school |
+| School students (IEP roster) | http://localhost/school/students |
+| School services log | http://localhost/school/services |
+| LEA interagency agreement | http://localhost/school/lea-agreement |
+| School claims batch | http://localhost/school/claims |
 | Billing / RCM | http://localhost/billing |
 | Patient engagement | http://localhost/patient/engagement |
 | Member crisis plan | http://localhost/responder/patient/00000000-0000-0000-0000-000000000004 |
@@ -73,7 +77,7 @@
 
 ### Stop 1 — Platform Administration (1 min)
 Page: `/admin`
-- Point out 20 services / 10 AI engines / **45 SQL migrations**
+- Point out 20 services / 10 AI engines / **46 SQL migrations**
 - "This is what runs the platform. **Eight vendor adapters** on `/admin/integrations` — NCTracks, MTM, ModivCare, CGS DMEPOS, Da Vinci PAS, and more — all currently in stub mode, all flip to live with credential rotation."
 
 ### Stop 2 — Pilot States live data (1 min)
@@ -118,6 +122,11 @@ Switch role → **Patient** (quick-button or dropdown). Page: `/patient`
 - Optional: switch to **Responder** (`responder@demo.medguard360.com`) → `/responder` live alert queue; `/responder/patient/[id]` shows biometric-gated crisis plan (click through `/biometric` in demo).
 - Member portal **Messages** tab — live from `GET /patients/me/messages` (secure messaging surface).
 - **Federal CMS** (`/federal-cms`) — pilot state count from live `state-config/plans` (NC · SC · GA).
+
+### Stop 6b — School-based Medicaid (1 min)
+Switch role → **School administrator** (`school@demo.medguard360.com`). Pages: `/school` → `/school/students`, `/school/services`, `/school/lea-agreement`, `/school/claims`
+- Wake County LEA demo roster — IEP/504 students, service logs, LEA interagency agreement (34 CFR 300.154)
+- "School-based Medicaid is payor of last resort — we document primary responsibility before batching claims to NC Medicaid."
 
 ### Stop 7 — Compliance posture (2 min)
 Switch role → **Compliance Officer** (quick-button or dropdown). Page: `/compliance`
