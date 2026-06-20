@@ -43,9 +43,11 @@ jobs:
       - run: cd packages/shared && npm ci && npm run build
       - run: cd packages/shared && npm test
       - run: |
-          for svc in auth-service prior-auth-service claims-service fraud-engine-service notification-service denial-service eligibility-service nemt-service pharmacy-service hub-service dme-service credentialing-service clinical-doc-service hie-service reporting-service state-config-service patient-service provider-service crisis-service audit-log-service; do
-            (cd services/$svc && npm install && npm test) || exit 1
-          done
+          while IFS= read -r svc; do
+            [ -z "$svc" ] && continue
+            case "$svc" in \#*) continue ;; esac
+            (cd "services/$svc" && npm install && npm test) || exit 1
+          done < deploy/ci-node-services.txt
         env:
           JWT_SECRET: test-secret-min-32-chars-1234567890ab
           PG_HOST: localhost

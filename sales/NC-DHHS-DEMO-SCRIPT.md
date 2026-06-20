@@ -7,7 +7,7 @@
 ## Pre-meeting (5 min before)
 
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
-- Stack verified (`powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1` then `deploy\smoke-demo.ps1` + `deploy\demo-flow.ps1`, or full `deploy\demo-up.ps1`)
+- Stack verified (`deploy\demo-preflight.ps1`, optional `deploy\run-service-tests.ps1`, then `deploy\smoke-demo.ps1` + `deploy\demo-flow.ps1`, or full `deploy\verify-demo.ps1` / `deploy\verify-demo.ps1 -UnitTests`)
 - Sign in at `/login` (one-click role buttons) or use header role dropdown after first login
 - **Role switching:** login quick-buttons or header dropdown re-authenticate with seeded demo accounts
 - Backup: PROJECT-STATUS.md open in second tab
