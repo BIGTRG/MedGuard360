@@ -1,6 +1,13 @@
 export type DenialStatus = 'received' | 'reviewing' | 'appealing' | 'appeal_won' | 'appeal_lost' | 'write_off' | 'expired';
 export type AppealStatus = 'draft' | 'submitted' | 'won' | 'lost' | 'withdrawn';
 
+/** Standard appeal filing window from remit received date (default 90 days). */
+export function computeAppealDeadline(from: Date, days = 90): Date {
+  const deadline = new Date(from);
+  deadline.setDate(deadline.getDate() + days);
+  return deadline;
+}
+
 export interface DenialRow {
   id: string;
   claim_id: string;

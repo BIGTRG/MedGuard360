@@ -1,5 +1,5 @@
 import { withRlsContext, AuthClaims, query, NotFoundError } from '@medguard360/shared';
-import { DenialRow, DenialStatus, AppealRow, AppealStatus } from './types';
+import { DenialRow, DenialStatus, AppealRow, AppealStatus, computeAppealDeadline } from './types';
 
 export interface CreateDenialInput {
   claimId: string;
@@ -13,7 +13,7 @@ export interface CreateDenialInput {
 
 /** Called by the consumer — runs with elevated perms (no RLS). */
 export async function persistDenial(input: CreateDenialInput): Promise<DenialRow> {
-  const deadline = new Date(); deadline.setDate(deadline.getDate() + 90);
+  const deadline = computeAppealDeadline(new Date());
   const r = await query<DenialRow>(
     'denial.persist',
     `INSERT INTO denials (claim_id, state_code, carc_code, carc_description,
