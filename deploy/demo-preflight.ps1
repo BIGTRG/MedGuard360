@@ -27,8 +27,9 @@ Test-Ok "demo stack running" ($running.Count -ge 5)
 Test-Ok "postgres healthy" ($running -contains "postgres")
 Test-Ok "nginx running" ($running -contains "nginx")
 Test-Ok "portals running" ($running -contains "portals")
-Test-Warn "denial-predictor running" ($running -contains "denial-predictor") "run deploy\demo-up.ps1 to rebuild demo stack"
-Test-Warn "crisis-detector running" ($running -contains "crisis-detector") "run deploy\demo-up.ps1 to rebuild demo stack"
+Test-Warn "denial-predictor running" ($running -contains "denial-predictor") "run deploy\demo-up.ps1 -RefreshEngines"
+Test-Warn "crisis-detector running" ($running -contains "crisis-detector") "run deploy\demo-up.ps1 -RefreshEngines"
+Test-Warn "crisis-service running" ($running -contains "crisis-service") "free port 3014 if a local Node dev server is bound, then redeploy"
 
 try {
   $r = Invoke-WebRequest -Uri "http://localhost/" -UseBasicParsing -TimeoutSec 10

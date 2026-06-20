@@ -4,7 +4,7 @@
 
 | Check | Status |
 |-------|--------|
-| `deploy/demo-up.ps1` | One-command Windows bring-up |
+| `deploy/demo-up.ps1` | One-command Windows bring-up (`-RefreshEngines` for AI engine incremental rebuild) |
 | `deploy/demo-preflight.ps1` | Fast pre-meeting health check |
 | `deploy/verify-demo.ps1` | Preflight + smoke + demo-flow (`-UnitTests` runs CI parity) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (matches GitHub CI) |
@@ -18,6 +18,7 @@
 | Portal | http://localhost/ |
 
 **Bring-up:** `powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1`  
+**New engines only:** `powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1 -RefreshEngines`  
 **Preflight:** `powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1`  
 **Walkthrough:** `sales/NC-DHHS-DEMO-SCRIPT.md`  
 **Release:** https://github.com/BIGTRG/MedGuard360/releases/tag/v1.0-demo

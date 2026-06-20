@@ -2,6 +2,7 @@
 param(
   [switch]$SkipBuild,
   [switch]$RebuildPortals,
+  [switch]$RefreshEngines,
   [switch]$Teardown,
   [switch]$VerifyOnly,
   [switch]$SkipVerify
@@ -25,6 +26,10 @@ if ($Teardown) {
 if ($RebuildPortals) {
   Write-Host "Rebuilding portals image..." -ForegroundColor Cyan
   docker compose -f $compose build portals
+} elseif ($RefreshEngines) {
+  Write-Host "Rebuilding demo AI engines + dependent Node services..." -ForegroundColor Cyan
+  docker compose -f $compose build denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  docker compose -f $compose up -d denial-predictor crisis-detector denial-service crisis-service prior-auth-service
 } elseif (-not $SkipBuild) {
   Write-Host "Building demo images..." -ForegroundColor Cyan
   docker compose -f $compose build
