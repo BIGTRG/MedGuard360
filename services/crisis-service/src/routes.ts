@@ -6,7 +6,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 
-const CreatePlanSchema = z.object({
+export const CreatePlanSchema = z.object({
   patientId: z.string().uuid(),
   stateCode: z.string().length(2),
   createdByProviderId: z.string().uuid(),
@@ -19,7 +19,7 @@ const CreatePlanSchema = z.object({
   reasonsForLiving: z.string().max(5000).optional(),
 });
 
-const ResolveSchema = z.object({
+export const ResolveSchema = z.object({
   status: z.enum(['resolved','false_alarm']),
   notes: z.string().max(5000).optional(),
 });

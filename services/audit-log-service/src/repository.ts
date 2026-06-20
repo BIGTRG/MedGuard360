@@ -14,23 +14,7 @@
 
 import { query, pool, DomainEvent } from '@medguard360/shared';
 import { AuditLogEventRow } from './types';
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-type Maybe<T> = T | null | undefined;
-
-function pickString(...vals: unknown[]): string | null {
-  for (const v of vals) {
-    if (typeof v === 'string' && v.length > 0) return v;
-  }
-  return null;
-}
-
-function pickRecord(v: unknown): Record<string, unknown> {
-  return (v && typeof v === 'object' && !Array.isArray(v))
-    ? v as Record<string, unknown>
-    : {};
-}
+import { normalizeAuditEvent } from './normalize';
 
 // ── Insert ───────────────────────────────────────────────────────────────────
 
@@ -47,40 +31,7 @@ function pickRecord(v: unknown): Record<string, unknown> {
  * Unknown fields are preserved in the context jsonb so nothing is lost.
  */
 export async function insertEvent(event: DomainEvent): Promise<AuditLogEventRow> {
-  const p = (event.payload ?? {}) as Record<string, unknown>;
-  const actor = pickRecord(p['actor']);
-
-  const actorUserId   = pickString(actor['sub'],        p['actorUserId'], p['userId'],        p['user_id'],        event.actorUserId);
-  const actorRole     = pickString(actor['role'],       p['actorRole'],   p['role']);
-  const actorState    = pickString(actor['stateCode'],  p['stateCode'],   p['state_code']);
-  const actorOrg      = pickString(actor['orgId'],      p['orgId'],       p['org_id']);
-  const sessionId     = pickString(actor['sessionId'],  p['sessionId'],   p['session_id']);
-
-  const resource      = pickString(p['resource'],       p['resourceType'], p['resource_type'], event.eventType.split('.')[0]) ?? 'unknown';
-  const resourceId    = pickString(p['resourceId'],     p['resource_id']) ?? 'unknown';
-  const action        = pickString(p['action'],         event.eventType) ?? 'unknown';
-  const outcome       = pickString(p['outcome'])        ?? 'success';
-  const correlationId = pickString(p['correlationId'],  p['correlation_id'], event.correlationId);
-
-  // Preserve any caller-supplied context AND any flat-shape leftovers so the
-  // jsonb column captures everything we didn't promote to a column.
-  const knownTopLevel = new Set([
-    'actor', 'resource', 'resourceId', 'resource_id', 'resourceType', 'resource_type',
-    'action', 'outcome', 'context', 'correlationId', 'correlation_id',
-    'userId', 'user_id', 'actorUserId', 'actorRole', 'role', 'stateCode', 'state_code',
-    'orgId', 'org_id', 'sessionId', 'session_id',
-  ]);
-  const leftovers: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(p)) {
-    if (!knownTopLevel.has(k)) leftovers[k] = v;
-  }
-  const context: Record<string, unknown> = {
-    ...pickRecord(p['context']),
-    ...leftovers,
-  };
-
-  // Use the event's emitted timestamp if present, else the DB default (now()).
-  const occurredAt: Maybe<string> = typeof event.occurredAt === 'string' ? event.occurredAt : null;
+  const n = normalizeAuditEvent(event);
 
   const result = await query<AuditLogEventRow>(
     'auditLog.insert',
@@ -90,19 +41,19 @@ export async function insertEvent(event: DomainEvent): Promise<AuditLogEventRow>
      VALUES (COALESCE($1::timestamptz, NOW()), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
      RETURNING *`,
     [
-      occurredAt,
-      actorUserId,
-      actorRole,
-      actorState,
-      actorOrg,
-      sessionId,
-      resource,
-      resourceId,
-      action,
-      outcome,
-      JSON.stringify(context),
-      correlationId,
-      event.producer ?? 'unknown',
+      n.occurredAt,
+      n.actorUserId,
+      n.actorRole,
+      n.actorState,
+      n.actorOrg,
+      n.sessionId,
+      n.resource,
+      n.resourceId,
+      n.action,
+      n.outcome,
+      JSON.stringify(n.context),
+      n.correlationId,
+      n.producer,
     ],
   );
   return result.rows[0];

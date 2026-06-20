@@ -18,32 +18,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole, ValidationError, NotFoundError } from '@medguard360/shared';
 import * as repo from './repository';
-
-// ── Zod schemas ──────────────────────────────────────────────────────────────
-
-/**
- * Accept BOTH naming conventions:
- *   - frontend uses { actorUserId, resource, resourceId }
- *   - older callers may pass { userId, resourceType } — kept as aliases
- *
- * The repo normalizes them before query.
- */
-const QuerySchema = z.object({
-  actorUserId:     z.string().uuid().optional(),
-  userId:          z.string().uuid().optional(),       // legacy alias
-  resource:        z.string().min(1).optional(),
-  resourceType:    z.string().min(1).optional(),        // legacy alias
-  resourceId:      z.string().min(1).optional(),
-  correlationId:   z.string().uuid().optional(),
-  stateCode:       z.string().length(2).optional(),
-  startDate:       z.string().datetime().optional(),
-  from:            z.string().datetime().optional(),    // README alias
-  endDate:         z.string().datetime().optional(),
-  to:              z.string().datetime().optional(),    // README alias
-  phiOnly:         z.enum(['true', 'false']).optional(),
-  limit:           z.coerce.number().int().min(1).max(1000).optional(),
-  offset:          z.coerce.number().int().min(0).optional(),
-});
+import { QuerySchema } from './validation';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

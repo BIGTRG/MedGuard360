@@ -5,7 +5,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 
-const CreateSchema = z.object({
+export const CreateSchema = z.object({
   userId: z.string().uuid().optional(),
   npi: z.string().regex(/^\d{10}$/),
   ein: z.string().max(20).optional(),
