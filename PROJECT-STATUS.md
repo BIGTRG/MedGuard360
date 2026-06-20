@@ -9,7 +9,7 @@
 | `deploy/verify-demo.ps1` | Preflight + smoke + demo-flow |
 | `deploy/smoke-demo.ps1` | 68 HTTP/API/portal checks |
 | `deploy/demo-flow.ps1` | Full role workflow API + portal checks |
-| GitHub CI (`main`) | Green — shared build, 7 Node services, Next.js, pytest |
+| GitHub CI (`main`) | Green — shared build, 10 Node services, Next.js, pytest |
 | GitHub Security scan | Green — npm audit, gitleaks, semgrep, Trivy (GHCR images) |
 | GitHub Release | Green — 31 images at `ghcr.io/bigtrg/medguard360/*` |
 | Demo password (all 16 users) | `demo-Password!1` |
