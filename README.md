@@ -19,7 +19,12 @@ and billing platform serving all 50 states.
 ```powershell
 cd medguard360
 powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
+# Fast re-check only:  deploy\demo-up.ps1 -VerifyOnly
+# Skip full verify:     deploy\demo-up.ps1 -SkipVerify
 ```
+
+[![CI](https://github.com/BIGTRG/MedGuard360/actions/workflows/ci.yml/badge.svg)](https://github.com/BIGTRG/MedGuard360/actions/workflows/ci.yml)
+[![Security scan](https://github.com/BIGTRG/MedGuard360/actions/workflows/security-scan.yml/badge.svg)](https://github.com/BIGTRG/MedGuard360/actions/workflows/security-scan.yml)
 
 Open http://localhost/ — password for all demo users: `demo-Password!1`
 

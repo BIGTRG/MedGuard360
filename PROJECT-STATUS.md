@@ -1,6 +1,6 @@
 # MedGuard360 — Project Status as of 2026-06-19
 
-## NC laptop demo (tag `v1.0-demo` @ `8b76e74`)
+## NC laptop demo (tag `v1.0-demo`)
 
 | Check | Status |
 |-------|--------|
