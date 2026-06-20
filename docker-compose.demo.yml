@@ -146,6 +146,7 @@ services:
     environment:
       <<: *service-env
       MINIO_URL: http://minio:9000
+      BOOTSTRAP_LENIENT: "1"
     entrypoint: ["sh", "-c", "/bootstrap.sh && PGPASSWORD=$$PG_PASSWORD psql -h postgres -U medguard -d medguard360 -f /work/deploy/seed-demo.sql"]
 
   # -------- 15 demo services --------

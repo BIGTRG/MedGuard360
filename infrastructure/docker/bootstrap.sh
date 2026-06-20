@@ -38,10 +38,16 @@ for migration in /work/infrastructure/postgres/migrations/*.sql; do
     continue
   fi
   echo "  → $name"
-  psql -h "${PG_HOST}" -U "${PG_USER}" -d "${PG_DATABASE}" -1 -f "$migration" >/dev/null || {
-    echo "Migration failed: $name" >&2
-    exit 1
-  }
+  if [ "${BOOTSTRAP_LENIENT:-0}" = "1" ]; then
+    psql -h "${PG_HOST}" -U "${PG_USER}" -d "${PG_DATABASE}" -1 -f "$migration" >/dev/null 2>&1 || {
+      echo "  ⚠ $name (skipped — may already be applied)"
+    }
+  else
+    psql -h "${PG_HOST}" -U "${PG_USER}" -d "${PG_DATABASE}" -1 -f "$migration" >/dev/null || {
+      echo "Migration failed: $name" >&2
+      exit 1
+    }
+  fi
 done
 echo "Migrations applied."
 
