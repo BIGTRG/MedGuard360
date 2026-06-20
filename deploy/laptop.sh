@@ -107,6 +107,8 @@ cat <<'EOF'
 
   Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
   Preflight:         powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1
+  Unit tests:        ./deploy/run-service-tests.sh
+  Engine tests:      ./deploy/run-engine-tests.sh
   Verify (scripts):  ./deploy/smoke-demo.ps1  &&  ./deploy/demo-flow.ps1
   Stop:    ./deploy/laptop.sh --teardown
 ================================================================

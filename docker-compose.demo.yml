@@ -6,7 +6,8 @@
 #   reporting-service, denial-service, provider-service, notification-service,
 #   crisis-service, clinical-doc-service, credentialing-service,
 #   dme-service, nemt-service, pharmacy-service, hie-service, eligibility-service
-# Plus the 3 most-impressive AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher
+# Plus 5 demo AI engines: fraud-detection, fraud-ring-gnn, pa-nlp-matcher,
+# denial-predictor, crisis-detector
 # Plus infra: postgres, redis, kafka, minio, nginx, portals
 #
 # Host port overrides avoid clashes with other local stacks (e.g. GeniusEye on 5432/6379/3000).
@@ -191,7 +192,10 @@ services:
 
   prior-auth-service:
     build: { <<: *node-build, args: { SERVICE_NAME: prior-auth-service } }
-    environment: { <<: *service-env, PORT: "3006" }
+    environment:
+      <<: *service-env
+      PORT: "3006"
+      PA_NLP_MATCHER_URL: http://pa-nlp-matcher:8006
     ports: ["3006:3006"]
     <<: *node-service
 
@@ -213,7 +217,11 @@ services:
 
   denial-service:
     build: { <<: *node-build, args: { SERVICE_NAME: denial-service } }
-    environment: { <<: *service-env, PORT: "3010" }
+    environment:
+      <<: *service-env
+      PORT: "3010"
+      DENIAL_PREDICTOR_URL: http://denial-predictor:8007
+      CLINICAL_DOC_SERVICE_URL: http://clinical-doc-service:3007/api/v1
     ports: ["3010:3010"]
     <<: *node-service
 
@@ -237,7 +245,11 @@ services:
 
   crisis-service:
     build: { <<: *node-build, args: { SERVICE_NAME: crisis-service } }
-    environment: { <<: *service-env, PORT: "3014" }
+    environment:
+      <<: *service-env
+      PORT: "3014"
+      CRISIS_DETECTOR_URL: http://crisis-detector:8009
+      CLINICAL_DOC_SERVICE_URL: http://clinical-doc-service:3007/api/v1
     ports: ["3014:3014"]
     <<: *node-service
 
@@ -271,7 +283,7 @@ services:
     ports: ["3020:3020"]
     <<: *node-service
 
-  # -------- 3 AI engines (demo) --------
+  # -------- 5 AI engines (demo) --------
   fraud-detection:
     build: { <<: *py-build, args: { ENGINE_NAME: fraud-detection } }
     environment:
@@ -291,6 +303,16 @@ services:
     build: { <<: *py-build, args: { ENGINE_NAME: pa-nlp-matcher } }
     environment: { <<: *service-env, PORT: "8006", SKIP_WARMUP: "1" }
     ports: ["8006:8006"]
+
+  denial-predictor:
+    build: { <<: *py-build, args: { ENGINE_NAME: denial-predictor } }
+    environment: { <<: *service-env, PORT: "8007" }
+    ports: ["8007:8007"]
+
+  crisis-detector:
+    build: { <<: *py-build, args: { ENGINE_NAME: crisis-detector } }
+    environment: { <<: *service-env, PORT: "8009" }
+    ports: ["8009:8009"]
 
   # -------- Gateway + Frontend --------
   nginx:

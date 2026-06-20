@@ -7,12 +7,18 @@ import axios from 'axios';
 import { consumeEvents, logger, DomainEvent, config, UpstreamError } from '@medguard360/shared';
 import { createAlert } from './repository';
 
-const detector = axios.create({ baseURL: 'http://localhost:8009', timeout: 5000,
-  headers: { 'x-service-caller': config.serviceName } });
+const detector = axios.create({
+  baseURL: process.env.CRISIS_DETECTOR_URL ?? 'http://crisis-detector:8009',
+  timeout: 5000,
+  headers: { 'x-service-caller': config.serviceName },
+});
 detector.interceptors.response.use(r => r, err => Promise.reject(new UpstreamError('crisis-detector', err.message)));
 
-const clinicalDoc = axios.create({ baseURL: 'http://localhost:3007/api/v1', timeout: 5000,
-  headers: { 'x-service-caller': config.serviceName } });
+const clinicalDoc = axios.create({
+  baseURL: process.env.CLINICAL_DOC_SERVICE_URL ?? 'http://clinical-doc-service:3007/api/v1',
+  timeout: 5000,
+  headers: { 'x-service-caller': config.serviceName },
+});
 
 interface NoteCreatedPayload {
   encounterId: string; docId: string; charCount: number;

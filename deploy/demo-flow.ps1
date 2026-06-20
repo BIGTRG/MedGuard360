@@ -17,6 +17,11 @@ function Get-Token($email) {
   return $login.accessToken
 }
 
+function Test-Warn($name, $cond, $detail = "") {
+  if ($cond) { Write-Host "[OK] $name" -ForegroundColor Green }
+  else { Write-Host "[WARN] $name $detail" -ForegroundColor Yellow }
+}
+
 function Test-PortalPage($path) {
   try {
     $r = Invoke-WebRequest -Uri "$portal$path" -UseBasicParsing -TimeoutSec 15
@@ -365,6 +370,11 @@ try {
     Test-Ok "denial detail" ($null -ne $den.id)
     Test-Ok "denial AI appeal draft" ($den.appeals.Count -ge 1)
     Test-Ok "denial appeal has subject" ($den.appeals[0].subject.Length -gt 5)
+    try {
+      $draftBody = @{ patientFirstName = 'Jane'; patientLastName = 'Doe'; providerName = 'Dr Demo Provider' } | ConvertTo-Json
+      $draft = Invoke-RestMethod -Uri "$api/denials/$denId/draft-appeal" -Method POST -Headers $h -Body $draftBody -ContentType "application/json"
+      Test-Warn "denial live AI draft" ($draft.subject.Length -gt 5) "(run deploy\demo-up.ps1 if denial-predictor is missing)"
+    } catch { Test-Warn "denial live AI draft" $false "(run deploy\demo-up.ps1 if denial-predictor is missing)" }
     Test-Ok "portal denial detail" (Test-PortalPage "/denials/$denId")
   }
   Test-Ok "portal /denials" (Test-PortalPage "/denials")

@@ -55,11 +55,11 @@ jobs:
           PG_DATABASE: medguard360_test
 
   python-tests:
-    name: pytest (AI engines)
+    name: pytest (optional AI engines)
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        engine: [fraud-detection, pa-nlp-matcher, crisis-detector, clinical-nlp, denial-predictor, eligibility-intel, provider-monitor, ocr-engine, fraud-ring-gnn, speech-to-text]
+        engine: [clinical-nlp, eligibility-intel, provider-monitor, ocr-engine, fraud-ring-gnn, speech-to-text]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -70,7 +70,24 @@ jobs:
         continue-on-error: ${{ matrix.engine == 'speech-to-text' || matrix.engine == 'fraud-ring-gnn' }}
       - name: pytest
         working-directory: ai-engines/${{ matrix.engine }}
-        run: pytest -q || true   # don't block CI on engines without tests yet
+        run: pytest -q || true
+
+  pytest-demo-engines:
+    name: pytest (demo AI engines)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install and test demo engines
+        run: |
+          while IFS= read -r engine; do
+            [ -z "$engine" ] && continue
+            case "$engine" in \#*) continue ;; esac
+            echo "==> $engine"
+            pip install -r "ai-engines/$engine/requirements.txt"
+            (cd "ai-engines/$engine" && SKIP_WARMUP=1 pytest -q)
+          done < deploy/ci-demo-engines.txt
 
   frontend-build:
     name: Next.js build
