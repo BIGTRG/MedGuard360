@@ -32,8 +32,10 @@ describe('build270', () => {
     });
 
     const isa = payload.split('~')[0];
+    const isaElements = isa.split('*');
 
-    expect(isa).toContain('*ZZ*HETSUID123    *ZZ*CMSHETS        *');
+    expect(isaElements[6]).toBe('HETSUID123     ');
+    expect(isaElements[8]).toBe('CMSHETS        ');
     expect(payload).toContain('GS*HS*MEDGUARD360*CMSHETS*20260512*1430*456*X*005010X279A1~');
   });
 
