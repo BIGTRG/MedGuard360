@@ -30,6 +30,8 @@ if ($RebuildPortals) {
   Write-Host "Rebuilding demo AI engines + dependent Node services..." -ForegroundColor Cyan
   docker compose -f $compose build denial-predictor crisis-detector denial-service crisis-service prior-auth-service
   docker compose -f $compose up -d denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  Write-Host "MedGuard360 demo engines refreshed. Run deploy\demo-up.ps1 -VerifyOnly for full checks." -ForegroundColor Green
+  exit 0
 } elseif (-not $SkipBuild) {
   Write-Host "Building demo images..." -ForegroundColor Cyan
   docker compose -f $compose build
