@@ -21,6 +21,7 @@ ENGINE_VERSION = "crisis-detector/0.1.0-rules"
 PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "suicidal_ideation": [
         re.compile(r"\b(?:want|going|plan)(?:ing)?\s+to\s+(?:kill|end)\s+(?:myself|my\s+life)\b", re.I),
+        re.compile(r"\b(?:want|going|plan)(?:ing)?\s+to\s+die\b", re.I),
         re.compile(r"\b(?:suicid|killing myself|ending it|won.?t be here|better off dead)\w*\b", re.I),
         re.compile(r"\b(?:no reason to live|nothing left to live for)\b", re.I),
     ],

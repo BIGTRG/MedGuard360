@@ -293,6 +293,11 @@ try {
   $memberPatient = '00000000-0000-0000-0000-000000000004'
   $plan = Invoke-RestMethod -Uri "$api/crisis/plans/patient/$memberPatient" -Headers $h
   Test-Ok "crisis plan for member" ($plan.warning_signs.Count -ge 1)
+  $detect = Invoke-RestMethod -Uri "http://localhost:8009/v1/detect" -Method POST `
+    -Body (@{ text = "Patient stated they want to die and have given up hope."; context = "clinical_note" } | ConvertTo-Json) `
+    -ContentType "application/json"
+  Test-Ok "crisis-detector flags crisis" ($detect.is_crisis -eq $true)
+  Test-Ok "crisis-detector severity elevated" ($detect.severity -in @('moderate','high','critical'))
   Test-Ok "portal /responder" (Test-PortalPage "/responder")
   Test-Ok "portal responder patient plan" (Test-PortalPage "/responder/patient/$memberPatient")
   $sample = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('PASS'))

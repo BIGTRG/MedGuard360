@@ -6,6 +6,7 @@
 # Usage:
 #   ./deploy/laptop.sh           # demo subset (12 services, ~6 GB RAM)
 #   ./deploy/laptop.sh --full    # the whole platform (~12 GB RAM)
+#   ./deploy/laptop.sh --refresh-engines   # rebuild demo AI engines only
 #   ./deploy/laptop.sh --teardown
 
 set -euo pipefail
@@ -17,6 +18,21 @@ COMPOSE="docker-compose.demo.yml"
 if [[ "${1:-}" == "--full" ]]; then
   COMPOSE="docker-compose.yml"
   echo "→ Full stack mode (all 30 services + 10 AI engines)"
+elif [[ "${1:-}" == "--refresh-engines" ]]; then
+  echo "→ Refreshing demo AI engines + dependent Node services..."
+  docker compose -f "$COMPOSE" build denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  docker compose -f "$COMPOSE" up -d denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  echo "→ Recycling nginx + portals..."
+  docker compose -f "$COMPOSE" up -d --force-recreate nginx portals
+  echo "→ Waiting for portal..."
+  for _ in $(seq 1 30); do
+    curl -fsS http://localhost/ >/dev/null 2>&1 && break
+    sleep 2
+  done
+  curl -fsS http://localhost:8007/health | grep -q '"status":"ok"'
+  curl -fsS http://localhost:8009/health | grep -q '"status":"ok"'
+  echo "✅ Demo AI engines refreshed."
+  exit 0
 elif [[ "${1:-}" == "--teardown" ]]; then
   echo "→ Tearing down both demo + full stacks (volumes wiped)..."
   docker compose -f docker-compose.demo.yml down -v 2>/dev/null || true
@@ -109,6 +125,7 @@ cat <<'EOF'
   Preflight:         powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1
   Unit tests:        ./deploy/run-service-tests.sh
   Engine tests:      ./deploy/run-engine-tests.sh
+  Engine refresh:    ./deploy/laptop.sh --refresh-engines
   Verify (scripts):  ./deploy/smoke-demo.ps1  &&  ./deploy/demo-flow.ps1
   Stop:    ./deploy/laptop.sh --teardown
 ================================================================
