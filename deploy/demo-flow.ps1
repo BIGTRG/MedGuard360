@@ -373,8 +373,8 @@ try {
     try {
       $draftBody = @{ patientFirstName = 'Jane'; patientLastName = 'Doe'; providerName = 'Dr Demo Provider' } | ConvertTo-Json
       $draft = Invoke-RestMethod -Uri "$api/denials/$denId/draft-appeal" -Method POST -Headers $h -Body $draftBody -ContentType "application/json"
-      Test-Warn "denial live AI draft" ($draft.subject.Length -gt 5) "(run deploy\demo-up.ps1 if denial-predictor is missing)"
-    } catch { Test-Warn "denial live AI draft" $false "(run deploy\demo-up.ps1 if denial-predictor is missing)" }
+      Test-Ok "denial live AI draft" ($draft.subject.Length -gt 5)
+    } catch { Test-Ok "denial live AI draft" $false $_.Exception.Message }
     Test-Ok "portal denial detail" (Test-PortalPage "/denials/$denId")
   }
   Test-Ok "portal /denials" (Test-PortalPage "/denials")

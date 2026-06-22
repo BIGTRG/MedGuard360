@@ -30,6 +30,20 @@ if ($RebuildPortals) {
   Write-Host "Rebuilding demo AI engines + dependent Node services..." -ForegroundColor Cyan
   docker compose -f $compose build denial-predictor crisis-detector denial-service crisis-service prior-auth-service
   docker compose -f $compose up -d denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  Write-Host "Recycling nginx + portals after engine refresh..." -ForegroundColor Cyan
+  docker compose -f $compose up -d --force-recreate nginx portals
+  Write-Host "Waiting for portal..." -ForegroundColor Cyan
+  for ($i = 0; $i -lt 30; $i++) {
+    try {
+      if ((Invoke-WebRequest -Uri "http://localhost/" -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200) { break }
+    } catch { Start-Sleep -Seconds 2 }
+  }
+  if (-not $SkipVerify) {
+    & "$PSScriptRoot\verify-demo.ps1"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  }
+  Write-Host "Demo AI engines refreshed." -ForegroundColor Green
+  exit 0
 } elseif (-not $SkipBuild) {
   Write-Host "Building demo images..." -ForegroundColor Cyan
   docker compose -f $compose build

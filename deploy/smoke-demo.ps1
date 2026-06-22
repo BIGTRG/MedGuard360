@@ -20,6 +20,19 @@ if (-not $portalOk) {
 }
 Test-Ok "nginx portal" $portalOk
 try { $r = Invoke-WebRequest -Uri "$base/login" -UseBasicParsing -TimeoutSec 10; Test-Ok "portal /login" ($r.StatusCode -eq 200) } catch { Test-Ok "portal /login" $false }
+Write-Host "`n=== Phase 1b: AI engine health ===" -ForegroundColor Cyan
+try {
+  $dp = Invoke-RestMethod -Uri "http://localhost:8007/health" -TimeoutSec 5
+  Test-Ok "denial-predictor /health" ($dp.status -eq "ok")
+} catch { Test-Ok "denial-predictor /health" $false }
+try {
+  $cd = Invoke-RestMethod -Uri "http://localhost:8009/health" -TimeoutSec 5
+  Test-Ok "crisis-detector /health" ($cd.status -eq "ok")
+} catch { Test-Ok "crisis-detector /health" $false }
+try {
+  $fd = Invoke-RestMethod -Uri "http://localhost:8004/health" -TimeoutSec 5
+  Test-Ok "fraud-detection /health" ($fd.status -eq "ok")
+} catch { Test-Ok "fraud-detection /health" $false }
 Write-Host "`n=== Phase 2: Auth + API via nginx ===" -ForegroundColor Cyan
 $loginBody = @{ email = "admin@demo.medguard360.com"; password = "demo-Password!1" } | ConvertTo-Json
 $token = $null
