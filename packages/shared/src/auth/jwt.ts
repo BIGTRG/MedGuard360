@@ -19,6 +19,7 @@ export interface IssueTokenInput {
   stateCode?: string;
   orgId?: string;
   biometricVerified?: boolean;
+  sessionId?: string;
 }
 
 export interface IssuedTokens {
@@ -30,7 +31,7 @@ export interface IssuedTokens {
 }
 
 export function issueTokens(input: IssueTokenInput): IssuedTokens {
-  const sessionId = uuidv4();
+  const sessionId = input.sessionId ?? uuidv4();
   const now = Math.floor(Date.now() / 1000);
 
   const baseClaims = {
