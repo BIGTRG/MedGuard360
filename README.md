@@ -20,6 +20,7 @@ and billing platform serving all 50 states.
 cd medguard360
 powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
 # Fast re-check only:  deploy\demo-up.ps1 -VerifyOnly
+# Rebuild AI engines:   deploy\demo-up.ps1 -RefreshEngines
 # Rebuild portals only: deploy\demo-up.ps1 -RebuildPortals -SkipBuild
 # Skip full verify:     deploy\demo-up.ps1 -SkipVerify
 ```
@@ -31,7 +32,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 
 | Script | Purpose |
 |--------|---------|
-| `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow |
+| `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow (`-RefreshEngines` for AI-only rebuild) |
 | `deploy/demo-preflight.ps1` | Quick pre-meeting health check |
 | `deploy/verify-demo.ps1` | Preflight + smoke + demo-flow (`-UnitTests` for CI parity) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (same list as GitHub CI) |

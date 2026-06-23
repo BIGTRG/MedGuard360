@@ -42,6 +42,16 @@ try {
 } catch { Test-Ok "crisis-detector health" $false }
 
 try {
+  $pa = Invoke-RestMethod -Uri "http://localhost:8006/health" -TimeoutSec 5
+  Test-Ok "pa-nlp-matcher health" ($pa.status -eq "ok")
+} catch { Test-Ok "pa-nlp-matcher health" $false }
+
+try {
+  $fd = Invoke-RestMethod -Uri "http://localhost:8004/health" -TimeoutSec 5
+  Test-Ok "fraud-detection health" ($fd.status -eq "ok")
+} catch { Test-Ok "fraud-detection health" $false }
+
+try {
   $r = Invoke-WebRequest -Uri "http://localhost/" -UseBasicParsing -TimeoutSec 10
   Test-Ok "portal HTTP 200" ($r.StatusCode -eq 200)
 } catch { Test-Ok "portal HTTP 200" $false }
