@@ -336,6 +336,7 @@ router.post(
         urgency: body.urgency,
         stateCode: body.state_code,
         payerId: body.payer_id,
+        authorizationHeader: req.header('authorization') ?? undefined,
       });
     } catch (err) {
       logger.error('clinical decision engine threw unexpectedly', { error: (err as Error).message });

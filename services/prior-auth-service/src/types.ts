@@ -36,7 +36,7 @@ export interface CriterionEvaluationRow {
 }
 
 export interface PaRuleResponse {
-  requires_pa: boolean;
-  pa_type: 'standard' | 'expedited' | 'drug';
-  criteria_summary: string | null;
+  pa_required: boolean;
+  expedited_eligible: boolean;
+  criteria_document_id: string | null;
 }
