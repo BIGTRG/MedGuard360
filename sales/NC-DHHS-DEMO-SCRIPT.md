@@ -7,7 +7,7 @@
 ## Pre-meeting (5 min before)
 
 - Browser at http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
-- Stack verified (`deploy\demo-preflight.ps1` checks portal + AI engine health on :8007/:8009; full sweep: `deploy\verify-demo.ps1`)
+- Stack verified (`deploy\demo-preflight.ps1` or `./deploy/demo-preflight.sh` — portal + all 5 AI engines on :8004–:8009; full sweep: `deploy\verify-demo.ps1` or `./deploy/laptop.sh --verify`)
 - After engine image updates: `deploy\demo-up.ps1 -RefreshEngines` (Windows) or `./deploy/laptop.sh --refresh-engines` (macOS/Linux)
 - Sign in at `/login` (one-click role buttons) or use header role dropdown after first login
 - **Role switching:** login quick-buttons or header dropdown re-authenticate with seeded demo accounts

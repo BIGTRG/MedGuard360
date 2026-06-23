@@ -20,6 +20,7 @@ and billing platform serving all 50 states.
 cd medguard360
 powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
 # Fast re-check only:  deploy\demo-up.ps1 -VerifyOnly
+# Full verify + CI tests: deploy\demo-up.ps1 -VerifyOnly -UnitTests -EngineTests
 # Rebuild AI engines:   deploy\demo-up.ps1 -RefreshEngines
 # Rebuild portals only: deploy\demo-up.ps1 -RebuildPortals -SkipBuild
 # Skip full verify:     deploy\demo-up.ps1 -SkipVerify

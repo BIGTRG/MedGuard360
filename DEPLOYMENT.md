@@ -25,34 +25,42 @@ You can move to B or C later when you want to share a URL.
 
 ## A. Laptop (docker-compose) — fastest
 
-**You'll get:** the killer-demo flow running locally. Portal at
-http://localhost:3000, API at http://localhost/api/v1/...
+**You'll get:** the NC DHHS demo flow running locally. Portal at
+http://localhost/ (nginx), API at http://localhost/api/v1/...
 
 **You need:**
 - Docker Desktop ([macOS](https://docs.docker.com/desktop/install/mac-install/) /
   [Windows](https://docs.docker.com/desktop/install/windows-install/) /
   [Linux](https://docs.docker.com/desktop/install/linux/))
-- 6 GB free RAM (demo subset) or 12 GB (full stack)
+- ~6 GB free RAM for the demo subset (`docker-compose.demo.yml`)
 
-**Run:**
+**Run (Windows):**
+```powershell
+cd medguard360
+powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
+# Pre-meeting check:  deploy\demo-preflight.ps1
+# Full verify:        deploy\verify-demo.ps1
+```
+
+**Run (macOS / Linux):**
 ```bash
 cd medguard360
-cp .env.example .env
-./deploy/laptop.sh          # demo subset — 12 services, ~6 GB RAM
-# or:
-./deploy/laptop.sh --full   # all 30 services + AI engines, ~12 GB RAM
+cp .env.example .env   # first time only
+./deploy/laptop.sh
+# Pre-meeting check:  ./deploy/demo-preflight.sh
+# Full verify:        ./deploy/laptop.sh --verify   # needs pwsh
 ```
 
 The script:
 1. Boots Postgres + Redis + Kafka + MinIO
-2. Applies all 18 SQL migrations
-3. Seeds demo users + patients + claims + PA requests
-4. Starts the services + portal
-5. Prints the demo logins
+2. Applies migrations + seeds demo users, patients, claims, PA requests
+3. Applies idempotent demo patches for older volumes
+4. Starts services + 5 AI engines + portal (nginx on port 80)
+5. Prints demo logins (password for all: `demo-Password!1`)
 
-When done, open <http://localhost:3000> and sign in as one of the demo users.
+When done, open http://localhost/ and sign in at `/login`.
 
-**Tear down:** `docker compose down -v`
+**Tear down:** `./deploy/laptop.sh --teardown` or `docker compose -f docker-compose.demo.yml down -v`
 
 ---
 
