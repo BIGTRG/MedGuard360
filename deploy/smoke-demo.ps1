@@ -37,6 +37,10 @@ try {
   $pa = Invoke-RestMethod -Uri "http://localhost:8006/health" -TimeoutSec 5
   Test-Ok "pa-nlp-matcher /health" ($pa.status -eq "ok")
 } catch { Test-Ok "pa-nlp-matcher /health" $false }
+try {
+  $fr = Invoke-RestMethod -Uri "http://localhost:8005/health" -TimeoutSec 5
+  Test-Ok "fraud-ring-gnn /health" ($fr.status -eq "ok")
+} catch { Test-Ok "fraud-ring-gnn /health" $false }
 Write-Host "`n=== Phase 2: Auth + API via nginx ===" -ForegroundColor Cyan
 $loginBody = @{ email = "admin@demo.medguard360.com"; password = "demo-Password!1" } | ConvertTo-Json
 $token = $null

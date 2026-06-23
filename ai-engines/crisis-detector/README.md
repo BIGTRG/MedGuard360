@@ -23,3 +23,12 @@ Categories: `suicidal_ideation`, `self_harm`, `homicidal_ideation`,
 
 Biased toward **high recall** — better to over-flag than miss a crisis.
 crisis-service makes the final human-routing call.
+
+## Docker demo vs v2 tests
+
+The demo compose stack runs **v1** (`uvicorn app.main:app` → `app/detector.py`).
+Responses use `is_crisis`, `severity`, and `signals[]`.
+
+CI also runs **v2** tests in `tests/test_detector.py` (`detector_v2.py`) for the
+next-gen pipeline. Demo scripts and `tests/test_rules_detector.py` target **v1**
+so laptop bring-up matches production containers.

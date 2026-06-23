@@ -30,6 +30,7 @@ Test-Ok "portals running" ($running -contains "portals")
 Test-Ok "denial-predictor running" ($running -contains "denial-predictor")
 Test-Ok "crisis-detector running" ($running -contains "crisis-detector")
 Test-Ok "crisis-service running" ($running -contains "crisis-service")
+Test-Ok "fraud-ring-gnn running" ($running -contains "fraud-ring-gnn")
 
 try {
   $dp = Invoke-RestMethod -Uri "http://localhost:8007/health" -TimeoutSec 5
@@ -50,6 +51,11 @@ try {
   $fd = Invoke-RestMethod -Uri "http://localhost:8004/health" -TimeoutSec 5
   Test-Ok "fraud-detection health" ($fd.status -eq "ok")
 } catch { Test-Ok "fraud-detection health" $false }
+
+try {
+  $fr = Invoke-RestMethod -Uri "http://localhost:8005/health" -TimeoutSec 5
+  Test-Ok "fraud-ring-gnn health" ($fr.status -eq "ok")
+} catch { Test-Ok "fraud-ring-gnn health" $false }
 
 try {
   $r = Invoke-WebRequest -Uri "http://localhost/" -UseBasicParsing -TimeoutSec 10
