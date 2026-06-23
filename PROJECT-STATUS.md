@@ -5,8 +5,8 @@
 | Check | Status |
 |-------|--------|
 | `deploy/demo-up.ps1` | One-command Windows bring-up (`-RefreshEngines` for AI engine incremental rebuild) |
-| `deploy/demo-preflight.ps1` | Fast pre-meeting health check (portal + all 5 demo AI engines) |
-| `deploy/verify-demo.ps1` | Preflight + smoke + demo-flow (`-UnitTests` runs CI parity) |
+| `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Fast pre-meeting health check (portal + all 5 demo AI engines) |
+| `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests` runs CI parity) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (matches GitHub CI) |
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
 | `deploy/smoke-demo.ps1` | 74 HTTP/API/portal + AI engine health checks |

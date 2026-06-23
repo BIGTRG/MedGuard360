@@ -33,8 +33,8 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 | Script | Purpose |
 |--------|---------|
 | `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow (`-RefreshEngines` for AI-only rebuild) |
-| `deploy/demo-preflight.ps1` | Quick pre-meeting health check |
-| `deploy/verify-demo.ps1` | Preflight + smoke + demo-flow (`-UnitTests` for CI parity) |
+| `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Quick pre-meeting health check (all 5 AI engines) |
+| `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests` for CI parity) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (same list as GitHub CI) |
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
 | `deploy/smoke-demo.ps1` | Fast HTTP/API/portal checks |
@@ -46,6 +46,18 @@ Release notes: https://github.com/BIGTRG/MedGuard360/releases/tag/v1.0-demo
 CI runs unit tests for all 20 Node microservices.
 
 See `sales/NC-DHHS-DEMO-SCRIPT.md` for the 15-minute walkthrough.
+
+**macOS / Linux:**
+
+```bash
+cd medguard360
+./deploy/laptop.sh
+# Fast re-check:        ./deploy/demo-preflight.sh
+# Full verify:          ./deploy/laptop.sh --verify
+# Rebuild AI engines:   ./deploy/laptop.sh --refresh-engines
+```
+
+Smoke and demo-flow on Unix use PowerShell (`pwsh`) for parity with Windows scripts.
 
 ---
 

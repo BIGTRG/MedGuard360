@@ -7,6 +7,7 @@
 #   ./deploy/laptop.sh           # demo subset (12 services, ~6 GB RAM)
 #   ./deploy/laptop.sh --full    # the whole platform (~12 GB RAM)
 #   ./deploy/laptop.sh --refresh-engines   # rebuild demo AI engines only
+#   ./deploy/laptop.sh --verify            # preflight + smoke + demo-flow
 #   ./deploy/laptop.sh --teardown
 
 set -euo pipefail
@@ -31,8 +32,13 @@ elif [[ "${1:-}" == "--refresh-engines" ]]; then
   done
   curl -fsS http://localhost:8007/health | grep -q '"status":"ok"'
   curl -fsS http://localhost:8009/health | grep -q '"status":"ok"'
+  curl -fsS http://localhost:8006/health | grep -q '"status":"ok"'
+  curl -fsS http://localhost:8004/health | grep -q '"status":"ok"'
+  curl -fsS http://localhost:8005/health | grep -q '"status":"ok"'
   echo "✅ Demo AI engines refreshed."
   exit 0
+elif [[ "${1:-}" == "--verify" ]]; then
+  exec ./deploy/verify-demo.sh
 elif [[ "${1:-}" == "--teardown" ]]; then
   echo "→ Tearing down both demo + full stacks (volumes wiped)..."
   docker compose -f docker-compose.demo.yml down -v 2>/dev/null || true
@@ -80,10 +86,14 @@ echo "→ Running bootstrap (migrations + Kafka topics + MinIO buckets + demo se
 docker compose -f "$COMPOSE" run --rm bootstrap
 
 echo ""
+echo "→ Applying demo patches (idempotent on older volumes)..."
+./deploy/apply-demo-patches.sh "$COMPOSE"
+
+echo ""
 echo "→ Starting services..."
 docker compose -f "$COMPOSE" up -d
 docker compose -f "$COMPOSE" run --rm kafka-init >/dev/null 2>&1 || true
-docker compose -f "$COMPOSE" up -d --force-recreate nginx
+docker compose -f "$COMPOSE" up -d --force-recreate nginx portals
 
 echo ""
 echo "→ Waiting for portal to come up..."
@@ -121,12 +131,12 @@ cat <<'EOF'
     school@demo.medguard360.com        — school-based Medicaid
     responder@demo.medguard360.com     — crisis responder (biometric-gated)
 
-  Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
-  Preflight:         powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1
+  Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\verify-demo.ps1
+  Preflight:         ./deploy/demo-preflight.sh
+  Full verify:       ./deploy/laptop.sh --verify
   Unit tests:        ./deploy/run-service-tests.sh
   Engine tests:      ./deploy/run-engine-tests.sh
   Engine refresh:    ./deploy/laptop.sh --refresh-engines
-  Verify (scripts):  ./deploy/smoke-demo.ps1  &&  ./deploy/demo-flow.ps1
   Stop:    ./deploy/laptop.sh --teardown
 ================================================================
 EOF
