@@ -111,7 +111,7 @@ const OverrideSchema = z.object({
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, input: unknown): T {
   const result = schema.safeParse(input);
   if (!result.success) throw new ValidationError('Invalid input', result.error.flatten());
   return result.data;
