@@ -13,9 +13,12 @@ $ErrorActionPreference = "Stop"
 $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
 $compose = "docker-compose.demo.yml"
+$verifyParams = @{}
+if ($UnitTests) { $verifyParams["UnitTests"] = $true }
+if ($EngineTests) { $verifyParams["EngineTests"] = $true }
 
 if ($VerifyOnly) {
-  & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+  & "$PSScriptRoot\verify-demo.ps1" @verifyParams
   exit $LASTEXITCODE
 }
 
@@ -41,7 +44,7 @@ if ($RebuildPortals) {
     } catch { Start-Sleep -Seconds 2 }
   }
   if (-not $SkipVerify) {
-    & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+    & "$PSScriptRoot\verify-demo.ps1" @verifyParams
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
   Write-Host "Demo AI engines refreshed." -ForegroundColor Green
@@ -83,7 +86,7 @@ for ($i = 0; $i -lt 45; $i++) {
 }
 
 if (-not $SkipVerify) {
-  & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+  & "$PSScriptRoot\verify-demo.ps1" @verifyParams
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
