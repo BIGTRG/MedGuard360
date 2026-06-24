@@ -6,7 +6,7 @@
 |-------|--------|
 | `deploy/demo-up.ps1` | One-command Windows bring-up (`-RefreshEngines` for AI engine incremental rebuild) |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Fast pre-meeting health check (portal + all 5 demo AI engines) |
-| `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests` runs CI parity) |
+| `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests`, `-EngineTests` auto-uses Docker without Python 3.11) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (matches GitHub CI) |
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
 | `deploy/run-engine-tests-docker.ps1` / `.sh` | Same via Python 3.11 Docker when local Python is wrong version |

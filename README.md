@@ -35,7 +35,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 |--------|---------|
 | `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow (`-RefreshEngines` for AI-only rebuild) |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Quick pre-meeting health check (all 5 AI engines) |
-| `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests` for CI parity) |
+| `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests`, `-EngineTests` auto-uses Docker without Python 3.11) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (same list as GitHub CI) |
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
 | `deploy/run-engine-tests-docker.ps1` | Same tests via Python 3.11 Docker when local Python is wrong version |
