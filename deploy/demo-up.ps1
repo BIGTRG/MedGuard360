@@ -30,8 +30,8 @@ if ($RebuildPortals) {
   docker compose -f $compose build portals
 } elseif ($RefreshEngines) {
   Write-Host "Rebuilding demo AI engines + dependent Node services..." -ForegroundColor Cyan
-  docker compose -f $compose build denial-predictor crisis-detector denial-service crisis-service prior-auth-service
-  docker compose -f $compose up -d denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  docker compose -f $compose build fraud-detection fraud-ring-gnn pa-nlp-matcher denial-predictor crisis-detector fraud-engine-service prior-auth-service denial-service crisis-service
+  docker compose -f $compose up -d fraud-detection fraud-ring-gnn pa-nlp-matcher denial-predictor crisis-detector fraud-engine-service prior-auth-service denial-service crisis-service
   Write-Host "Recycling nginx + portals after engine refresh..." -ForegroundColor Cyan
   docker compose -f $compose up -d --force-recreate nginx portals
   Write-Host "Waiting for portal..." -ForegroundColor Cyan

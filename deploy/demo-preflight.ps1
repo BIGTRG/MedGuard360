@@ -27,10 +27,12 @@ Test-Ok "demo stack running" ($running.Count -ge 5)
 Test-Ok "postgres healthy" ($running -contains "postgres")
 Test-Ok "nginx running" ($running -contains "nginx")
 Test-Ok "portals running" ($running -contains "portals")
+Test-Ok "fraud-detection running" ($running -contains "fraud-detection")
+Test-Ok "fraud-ring-gnn running" ($running -contains "fraud-ring-gnn")
+Test-Ok "pa-nlp-matcher running" ($running -contains "pa-nlp-matcher")
 Test-Ok "denial-predictor running" ($running -contains "denial-predictor")
 Test-Ok "crisis-detector running" ($running -contains "crisis-detector")
 Test-Ok "crisis-service running" ($running -contains "crisis-service")
-Test-Ok "fraud-ring-gnn running" ($running -contains "fraud-ring-gnn")
 
 try {
   $dp = Invoke-RestMethod -Uri "http://localhost:8007/health" -TimeoutSec 5

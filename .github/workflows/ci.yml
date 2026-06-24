@@ -89,6 +89,16 @@ jobs:
             (cd "ai-engines/$engine" && SKIP_WARMUP=1 pytest -q)
           done < deploy/ci-demo-engines.txt
 
+  deploy-script-tests:
+    name: deploy script regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Run deploy script tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+
   frontend-build:
     name: Next.js build
     runs-on: ubuntu-latest
