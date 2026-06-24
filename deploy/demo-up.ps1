@@ -14,8 +14,8 @@ $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
 $compose = "docker-compose.demo.yml"
 $verifyParams = @{}
-if ($UnitTests) { $verifyParams.UnitTests = $true }
-if ($EngineTests) { $verifyParams.EngineTests = $true }
+if ($UnitTests) { $verifyParams["UnitTests"] = $true }
+if ($EngineTests) { $verifyParams["EngineTests"] = $true }
 
 if ($VerifyOnly) {
   & "$PSScriptRoot\verify-demo.ps1" @verifyParams
