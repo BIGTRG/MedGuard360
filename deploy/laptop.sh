@@ -21,8 +21,8 @@ if [[ "${1:-}" == "--full" ]]; then
   echo "→ Full stack mode (all 30 services + 10 AI engines)"
 elif [[ "${1:-}" == "--refresh-engines" ]]; then
   echo "→ Refreshing demo AI engines + dependent Node services..."
-  docker compose -f "$COMPOSE" build denial-predictor crisis-detector denial-service crisis-service prior-auth-service
-  docker compose -f "$COMPOSE" up -d denial-predictor crisis-detector denial-service crisis-service prior-auth-service
+  docker compose -f "$COMPOSE" build fraud-detection fraud-ring-gnn pa-nlp-matcher denial-predictor crisis-detector fraud-engine-service prior-auth-service denial-service crisis-service
+  docker compose -f "$COMPOSE" up -d fraud-detection fraud-ring-gnn pa-nlp-matcher denial-predictor crisis-detector fraud-engine-service prior-auth-service denial-service crisis-service
   echo "→ Recycling nginx + portals..."
   docker compose -f "$COMPOSE" up -d --force-recreate nginx portals
   echo "→ Waiting for portal..."
