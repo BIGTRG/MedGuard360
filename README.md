@@ -38,6 +38,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 | `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests` for CI parity) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (same list as GitHub CI) |
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
+| `deploy/run-engine-tests-docker.ps1` | Same tests via Python 3.11 Docker when local Python is wrong version |
 | `deploy/smoke-demo.ps1` | Fast HTTP/API/portal checks |
 | `deploy/demo-flow.ps1` | Full role workflow verification |
 

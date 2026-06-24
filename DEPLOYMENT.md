@@ -118,9 +118,9 @@ demo.
 - Upstash Kafka free: 10k messages/day
 - **Can't realistically run all 30 services on free tiers**
 
-**Practical strategy:** deploy only the demo subset (12 services). I'll write
-the Render `render.yaml` and Vercel config if you go this route — ask me when
-you're ready.
+**Practical strategy:** deploy only the demo subset (`docker-compose.demo.yml` —
+20 Node services + 5 AI engines). I'll write the Render `render.yaml` and Vercel
+config if you go this route — ask me when you're ready.
 
 ---
 
@@ -129,8 +129,8 @@ you're ready.
 1. **All paths use the same code.** No demo-only forks. The only difference is
    how the containers run and where Postgres lives.
 
-2. **The full stack needs ~12 GB RAM.** The demo subset trims down to 12
-   services + 2 AI engines (~6 GB), enough to demonstrate:
+2. **The full stack needs ~12 GB RAM.** The demo subset trims down to 20
+   services + 5 AI engines (~6 GB), enough to demonstrate:
    - login + biometric
    - patient browse + record
    - PA submission → AI evaluation → specialist decision

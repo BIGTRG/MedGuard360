@@ -33,15 +33,15 @@ def predict(req: PredictRequest) -> PredictResponse:
     risks: list[DenialRisk] = []
     prob = _BASELINE_DENIAL_RATE
 
-    # Heuristic 1 — PA required but missing/denied
-    if not req.pa_present:
-        risks.append(DenialRisk(code="197", description="Precertification/authorization absent",
-                                probability=0.40))
-        prob += 0.30
-    elif req.pa_status == "denied":
+    # Heuristic 1 — PA denied or missing
+    if req.pa_status == "denied":
         risks.append(DenialRisk(code="197", description="Prior authorization was denied",
                                 probability=0.85))
         prob = max(prob, 0.85)
+    elif not req.pa_present:
+        risks.append(DenialRisk(code="197", description="Precertification/authorization absent",
+                                probability=0.40))
+        prob += 0.30
 
     # Heuristic 2 — no diagnosis codes
     if not req.diagnosis_codes:

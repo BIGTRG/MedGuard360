@@ -46,9 +46,9 @@ npm install
 NEXT_PUBLIC_API_BASE=/api MEDGUARD_API_BASE=http://localhost npm run dev
 ```
 
-Visit `http://localhost:3000`. You'll need a backend running (auth-service +
-the services you'll hit) — the easiest path is the planned `docker-compose`
-that boots the whole stack locally.
+Visit `http://localhost:3000` (Next dev server). For the **NC laptop demo**, use
+`deploy/demo-up.ps1` or `./deploy/laptop.sh` instead — portal at http://localhost/
+via nginx with all role pages live.
 
 ## Architecture decisions
 

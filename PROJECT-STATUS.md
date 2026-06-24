@@ -9,6 +9,7 @@
 | `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests` runs CI parity) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (matches GitHub CI) |
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
+| `deploy/run-engine-tests-docker.ps1` / `.sh` | Same via Python 3.11 Docker when local Python is wrong version |
 | `deploy/smoke-demo.ps1` | 74 HTTP/API/portal + AI engine health checks |
 | `deploy/demo-flow.ps1` | Full role workflow API + portal checks |
 | GitHub CI (`main`) | Green — shared build, script UTF-8 check, 20 Node services, 4 demo AI engines, Next.js, pytest |

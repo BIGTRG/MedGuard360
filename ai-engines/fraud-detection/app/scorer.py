@@ -32,7 +32,7 @@ AUTO_PAY_BELOW = 30     # score < 30 AND no high/critical flags → auto_pay
 AUTO_BLOCK_AT = 85      # score >= 85 → auto_block
 
 # Flag weights (sum of all → up to 25+20+20+15+10+15 = 105, clamped to 100)
-W_UNUSUAL_VOLUME          = 25
+W_UNUSUAL_VOLUME          = 55   # alone pushes typical outlier into review band (10+55=65)
 W_CHARGE_OUTLIER          = 20
 W_DISTANCE_ANOMALY        = 20
 W_PATIENT_OVERUTILIZATION = 15
@@ -63,7 +63,7 @@ def score_claim(features: ClaimFeatures, state_threshold: float = 30.0) -> Fraud
     5. off_hours_submission  — submission_hour in [0, 4] (midnight–4 am)
     6. duplicate_lines       — same procedure code appears more than once
 
-    Weights: unusual_volume +25, charge_outlier +20, distance_anomaly +20,
+    Weights: unusual_volume +55, charge_outlier +20, distance_anomaly +20,
              patient_overutilization +15, off_hours +10, duplicate_lines +15
     Base score: 10.  Clamped to [1, 100].
     """
