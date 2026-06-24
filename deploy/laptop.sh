@@ -4,7 +4,7 @@
 # seeds demo users + data, and tells you where to log in.
 #
 # Usage:
-#   ./deploy/laptop.sh           # demo subset (12 services, ~6 GB RAM)
+#   ./deploy/laptop.sh           # demo subset (20 services + 5 AI engines, ~6 GB RAM)
 #   ./deploy/laptop.sh --full    # the whole platform (~12 GB RAM)
 #   ./deploy/laptop.sh --refresh-engines   # rebuild demo AI engines only
 #   ./deploy/laptop.sh --verify            # preflight + smoke + demo-flow

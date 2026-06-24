@@ -16,8 +16,8 @@ docker compose run --rm bootstrap
 docker compose up -d
 ```
 
-After this:
-- **Portal**: <http://localhost:3000>
+After this (demo stack via `docker-compose.demo.yml` or `./deploy/laptop.sh`):
+- **Portal**: http://localhost/ (nginx) or http://localhost:3080/ (portals direct)
 - **API gateway**: <http://localhost/api/v1/...> (via nginx)
 - **MinIO console**: <http://localhost:9001> (medguard / from .env)
 - **Postgres**: localhost:5432 (medguard / from .env)
