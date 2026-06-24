@@ -8,7 +8,7 @@ export interface PaRequestRow {
   diagnosis_codes: string[];
   clinical_justification: string | null;
   urgency: 'standard' | 'expedited' | 'drug';
-  status: 'pending' | 'approved' | 'denied' | 'needs_more_info' | 'expired';
+  status: 'received' | 'evaluating' | 'pending' | 'approved' | 'denied' | 'needs_more_info' | 'expired';
   ai_recommendation: string | null;
   ai_confidence: number | null;
   ai_explanation: string | null;
@@ -36,7 +36,7 @@ export interface CriterionEvaluationRow {
 }
 
 export interface PaRuleResponse {
-  requires_pa: boolean;
-  pa_type: 'standard' | 'expedited' | 'drug';
-  criteria_summary: string | null;
+  pa_required: boolean;
+  expedited_eligible: boolean;
+  criteria_document_id: string | null;
 }
