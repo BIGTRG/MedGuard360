@@ -11,7 +11,7 @@
 | `deploy/run-engine-tests.ps1` | Demo AI engine pytest (fraud, PA NLP, denial, crisis) |
 | `deploy/smoke-demo.ps1` | 74 HTTP/API/portal + AI engine health checks |
 | `deploy/demo-flow.ps1` | Full role workflow API + portal checks |
-| GitHub CI (`main`) | Green — shared build, 20 Node services, 4 demo AI engines, Next.js, pytest |
+| GitHub CI (`main`) | Green — shared build, script UTF-8 check, 20 Node services, 4 demo AI engines, Next.js, pytest |
 | GitHub Security scan | Green — npm audit, gitleaks, semgrep, Trivy (GHCR images) |
 | GitHub Release | Green — 31 images at `ghcr.io/bigtrg/medguard360/*` |
 | Demo password (all 16 users) | `demo-Password!1` |
