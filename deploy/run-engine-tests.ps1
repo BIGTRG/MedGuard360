@@ -1,7 +1,20 @@
 # MedGuard360 - pytest for demo-critical AI engines (matches GitHub CI).
-# Requires Python 3.11 (matches CI). On Windows without 3.11: deploy/run-engine-tests-docker.ps1
+# Uses Python 3.11 locally when available; otherwise Docker (see run-engine-tests-docker.ps1).
 $ErrorActionPreference = "Stop"
+$env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
+
+$useDocker = $true
+try {
+  & py -3.11 -c "import sys" 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) { $useDocker = $false }
+} catch { }
+
+if ($useDocker) {
+  Write-Host "Python 3.11 not found - using Docker..." -ForegroundColor DarkGray
+  & "$PSScriptRoot\run-engine-tests-docker.ps1"
+  exit $LASTEXITCODE
+}
 
 $listPath = Join-Path $PSScriptRoot "ci-demo-engines.txt"
 $engines = Get-Content $listPath | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') }

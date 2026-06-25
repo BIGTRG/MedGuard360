@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
-# MedGuard360 — pytest for demo-critical AI engines (matches GitHub CI).
+# MedGuard360 - pytest for demo-critical AI engines (matches GitHub CI).
 set -euo pipefail
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+if ! command -v python3.11 >/dev/null 2>&1; then
+  echo "Python 3.11 not found - using Docker..."
+  exec "$SCRIPT_DIR/run-engine-tests-docker.sh"
+fi
+
+cd "$SCRIPT_DIR/.."
 
 mapfile -t engines < <(grep -v '^\s*#' deploy/ci-demo-engines.txt | grep -v '^\s*$')
 if [ "${#engines[@]}" -ne 4 ]; then
