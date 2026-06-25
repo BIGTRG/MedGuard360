@@ -4,7 +4,7 @@
 
 | Check | Status |
 |-------|--------|
-| `deploy/meeting-day.ps1` | Fast pre-meeting check (encoding + preflight); `-Full` runs verify-demo |
+| `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` / `--full` for verify-demo |
 | `deploy/check-script-encoding.ps1` | Blocks UTF-16 deploy scripts (also first step of verify-demo) |
 | `deploy/demo-up.ps1` | One-command Windows bring-up (`-RefreshEngines` for AI engine incremental rebuild) |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Fast pre-meeting health check (portal + all 5 demo AI engines) |

@@ -13,7 +13,8 @@ try {
 if ($useDocker) {
   Write-Host "Python 3.11 not found - using Docker..." -ForegroundColor DarkGray
   & "$PSScriptRoot\run-engine-tests-docker.ps1"
-  exit $LASTEXITCODE
+  if (-not $?) { exit 1 }
+  exit 0
 }
 
 $listPath = Join-Path $PSScriptRoot "ci-demo-engines.txt"

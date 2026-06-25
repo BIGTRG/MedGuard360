@@ -8,6 +8,8 @@
 #   ./deploy/laptop.sh --full    # the whole platform (~12 GB RAM)
 #   ./deploy/laptop.sh --refresh-engines   # rebuild demo AI engines only
 #   ./deploy/laptop.sh --verify            # preflight + smoke + demo-flow
+#   ./deploy/laptop.sh --meeting           # fast pre-meeting check
+#   ./deploy/laptop.sh --meeting --full    # full verify
 #   ./deploy/laptop.sh --teardown
 
 set -euo pipefail
@@ -39,6 +41,9 @@ elif [[ "${1:-}" == "--refresh-engines" ]]; then
   exit 0
 elif [[ "${1:-}" == "--verify" ]]; then
   exec ./deploy/verify-demo.sh
+elif [[ "${1:-}" == "--meeting" ]]; then
+  shift
+  exec ./deploy/meeting-day.sh "$@"
 elif [[ "${1:-}" == "--teardown" ]]; then
   echo "→ Tearing down both demo + full stacks (volumes wiped)..."
   docker compose -f docker-compose.demo.yml down -v 2>/dev/null || true
@@ -131,9 +136,10 @@ cat <<'EOF'
     school@demo.medguard360.com        — school-based Medicaid
     responder@demo.medguard360.com     — crisis responder (biometric-gated)
 
-  Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\verify-demo.ps1
-  Preflight:         ./deploy/demo-preflight.sh
-  Full verify:       ./deploy/laptop.sh --verify
+  Verify (Windows):  powershell -ExecutionPolicy Bypass -File deploy\meeting-day.ps1
+  Meeting (macOS):   ./deploy/laptop.sh --meeting
+  Full verify:       ./deploy/laptop.sh --meeting --full
+  Preflight only:    ./deploy/demo-preflight.sh
   Unit tests:        ./deploy/run-service-tests.sh
   Engine tests:      ./deploy/run-engine-tests.sh
   Engine refresh:    ./deploy/laptop.sh --refresh-engines

@@ -89,6 +89,7 @@ if (-not $SkipVerify) {
 }
 
 Write-Host "MedGuard360 demo ready at http://localhost/" -ForegroundColor Green
+Write-Host "Meeting:    powershell -ExecutionPolicy Bypass -File deploy\meeting-day.ps1" -ForegroundColor DarkGray
 Write-Host "Preflight:  powershell -ExecutionPolicy Bypass -File deploy\demo-preflight.ps1" -ForegroundColor DarkGray
 Write-Host "Full verify: powershell -ExecutionPolicy Bypass -File deploy\verify-demo.ps1" -ForegroundColor DarkGray
 Write-Host "CI parity:  powershell -ExecutionPolicy Bypass -File deploy\verify-demo.ps1 -UnitTests -EngineTests" -ForegroundColor DarkGray
