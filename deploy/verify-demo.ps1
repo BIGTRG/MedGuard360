@@ -4,9 +4,14 @@ param(
   [switch]$EngineTests
 )
 $ErrorActionPreference = "Stop"
+$env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
+
+& "$PSScriptRoot\check-script-encoding.ps1"
+if (-not $?) { exit 1 }
+
 if ($UnitTests) {
   & "$PSScriptRoot\run-service-tests.ps1"
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  if (-not $?) { exit 1 }
 }
 if ($EngineTests) {
   $useDocker = $true
@@ -20,11 +25,13 @@ if ($EngineTests) {
   } else {
     & "$PSScriptRoot\run-engine-tests.ps1"
   }
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  if (-not $?) { exit 1 }
 }
+
 & "$PSScriptRoot\demo-preflight.ps1"
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not $?) { exit 1 }
 & "$PSScriptRoot\smoke-demo.ps1"
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not $?) { exit 1 }
 & "$PSScriptRoot\demo-flow.ps1"
-exit $LASTEXITCODE
+if (-not $?) { exit 1 }
+exit 0

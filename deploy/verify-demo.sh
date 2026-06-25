@@ -36,6 +36,7 @@ for arg in "$@"; do
   esac
 done
 
+"$SCRIPT_DIR/check-script-encoding.sh"
 "$SCRIPT_DIR/demo-preflight.sh"
 run_pwsh "$SCRIPT_DIR/smoke-demo.ps1"
 run_pwsh "$SCRIPT_DIR/demo-flow.ps1"

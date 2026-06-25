@@ -16,7 +16,8 @@ $compose = "docker-compose.demo.yml"
 
 if ($VerifyOnly) {
   & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
-  exit $LASTEXITCODE
+  if (-not $?) { exit 1 }
+  exit 0
 }
 
 if ($Teardown) {
@@ -42,7 +43,7 @@ if ($RebuildPortals) {
   }
   if (-not $SkipVerify) {
     & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    if (-not $?) { exit 1 }
   }
   Write-Host "Demo AI engines refreshed." -ForegroundColor Green
   exit 0
@@ -84,7 +85,7 @@ for ($i = 0; $i -lt 45; $i++) {
 
 if (-not $SkipVerify) {
   & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  if (-not $?) { exit 1 }
 }
 
 Write-Host "MedGuard360 demo ready at http://localhost/" -ForegroundColor Green

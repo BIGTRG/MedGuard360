@@ -20,8 +20,8 @@ Portal: http://localhost/ — password for all demo users: `demo-Password!1`
 ## Verify before a meeting
 
 ```powershell
-deploy\demo-preflight.ps1
-deploy\verify-demo.ps1
+deploy\meeting-day.ps1
+deploy\meeting-day.ps1 -Full
 deploy\verify-demo.ps1 -UnitTests -EngineTests
 ```
 
