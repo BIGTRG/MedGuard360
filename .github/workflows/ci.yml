@@ -25,7 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: chmod +x deploy/check-script-encoding.sh && ./deploy/check-script-encoding.sh
+      - run: |
+          chmod +x deploy/check-script-encoding.sh deploy/test-verify-demo.sh
+          ./deploy/check-script-encoding.sh
+          ./deploy/test-verify-demo.sh
 
   unit-tests:
     name: jest (Node services)
