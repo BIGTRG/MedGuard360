@@ -5,6 +5,8 @@ param(
   [switch]$RefreshEngines,
   [switch]$Teardown,
   [switch]$VerifyOnly,
+  [switch]$MeetingDay,
+  [switch]$MeetingDayFull,
   [switch]$SkipVerify,
   [switch]$UnitTests,
   [switch]$EngineTests
@@ -16,6 +18,16 @@ $compose = "docker-compose.demo.yml"
 
 if ($VerifyOnly) {
   & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+  if (-not $?) { exit 1 }
+  exit 0
+}
+
+if ($MeetingDay -or $MeetingDayFull) {
+  if ($MeetingDayFull) {
+    & "$PSScriptRoot\meeting-day.ps1" -Full
+  } else {
+    & "$PSScriptRoot\meeting-day.ps1"
+  }
   if (-not $?) { exit 1 }
   exit 0
 }

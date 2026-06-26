@@ -25,7 +25,12 @@ deploy\meeting-day.ps1 -Full
 deploy\verify-demo.ps1 -UnitTests -EngineTests
 ```
 
-macOS/Linux: `./deploy/laptop.sh` and `./deploy/laptop.sh --verify`
+macOS/Linux:
+```bash
+./deploy/laptop.sh --meeting
+./deploy/laptop.sh --meeting --full
+./deploy/laptop.sh --verify
+```
 
 ## Walkthrough
 

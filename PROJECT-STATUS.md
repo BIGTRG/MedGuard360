@@ -6,7 +6,7 @@
 |-------|--------|
 | `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` / `--full` for verify-demo |
 | `deploy/check-script-encoding.ps1` | Blocks UTF-16 deploy scripts (also first step of verify-demo) |
-| `deploy/demo-up.ps1` | One-command Windows bring-up (`-RefreshEngines` for AI engine incremental rebuild) |
+| `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-RefreshEngines`) |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Fast pre-meeting health check (portal + all 5 demo AI engines) |
 | `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests`, `-EngineTests` auto-uses Docker without Python 3.11) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (matches GitHub CI) |

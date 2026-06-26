@@ -19,8 +19,9 @@ and billing platform serving all 50 states.
 ```powershell
 cd medguard360
 powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
-# Fast re-check only:  deploy\demo-up.ps1 -VerifyOnly
-# Full verify + CI tests: deploy\demo-up.ps1 -VerifyOnly -UnitTests -EngineTests
+# Fast re-check only:  deploy\demo-up.ps1 -MeetingDay
+# Full verify:         deploy\demo-up.ps1 -MeetingDayFull
+# Full verify + tests: deploy\demo-up.ps1 -VerifyOnly -UnitTests -EngineTests
 # Rebuild AI engines:   deploy\demo-up.ps1 -RefreshEngines
 # Rebuild portals only: deploy\demo-up.ps1 -RebuildPortals -SkipBuild
 # Skip full verify:     deploy\demo-up.ps1 -SkipVerify
@@ -55,8 +56,8 @@ See `sales/NC-DHHS-DEMO-SCRIPT.md` for the 15-minute walkthrough.
 ```bash
 cd medguard360
 ./deploy/laptop.sh
-# Fast re-check:        ./deploy/demo-preflight.sh
-# Full verify:          ./deploy/laptop.sh --verify
+# Pre-meeting check:    ./deploy/laptop.sh --meeting
+# Full verify:          ./deploy/laptop.sh --meeting --full
 # Rebuild AI engines:   ./deploy/laptop.sh --refresh-engines
 ```
 
