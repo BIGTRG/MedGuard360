@@ -25,6 +25,12 @@ deploy\meeting-day.ps1 -Full
 deploy\verify-demo.ps1 -UnitTests -EngineTests
 ```
 
+Full completion gate (all of the above in one command):
+
+```powershell
+deploy\complete-demo.ps1
+```
+
 macOS/Linux:
 ```bash
 ./deploy/laptop.sh --meeting

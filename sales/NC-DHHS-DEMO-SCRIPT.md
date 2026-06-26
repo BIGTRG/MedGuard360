@@ -13,7 +13,8 @@
 - After engine image updates: `deploy\demo-up.ps1 -RefreshEngines` (Windows) or `./deploy/laptop.sh --refresh-engines` (macOS/Linux)
 - Sign in at `/login` (one-click role buttons) or use header role dropdown after first login
 - **Role switching:** login quick-buttons or header dropdown re-authenticate with seeded demo accounts
-- Full CI parity before a big meeting: `deploy\verify-demo.ps1 -UnitTests -EngineTests`
+- Full CI parity before a big meeting: `deploy\complete-demo.ps1`
+- Or stepwise: `deploy\verify-demo.ps1 -UnitTests -EngineTests`
 - Backup: PROJECT-STATUS.md open in second tab
 
 ## Quick links (seeded demo IDs)

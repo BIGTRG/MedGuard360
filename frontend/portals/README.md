@@ -26,19 +26,18 @@ role calls home (`homePathForRole` in `src/lib/auth.ts`).
 | `/pa-queue` | prior_auth_specialist | ✅ Queue with SLA-aware sorting |
 | `/pa-queue/[id]` | prior_auth_specialist | ✅ **Flagship**: criterion-by-criterion AI explanation + decision UI |
 
-## What's NOT built yet (placeholder routes)
+## NC laptop demo (`v1.0-demo`)
 
-Sub-pages for each portal: `/provider/patients`, `/provider/encounters`,
-`/provider/claims`, `/provider/pa`, `/state/perm`, `/state/fraud`, etc.
-The auth + AppShell + AuthGate already work for these — each page just needs
-its own data fetching + table/form components.
+The Docker demo stack (`deploy/demo-up.ps1` / `./deploy/laptop.sh`) ships **live
+API-backed pages for all 16 seeded roles**, including provider EHR chart, school
+Medicaid, crisis responder, denials + AI appeal draft, HIE, pharmacy/DME/NEMT
+workflows, and platform admin. Verified by `deploy/verify-demo.ps1` (74 smoke +
+demo-flow checks).
 
-Other portal entry points (still 404):
-`/patient`, `/pharmacy`, `/dme`, `/nemt`, `/credentialing`, `/denials`, `/audit`,
-`/responder`, `/school`, `/hie`, `/admin`. Each one follows the same pattern:
-wrap in `<AuthGate allowedRoles={...}><AppShell>...</AppShell></AuthGate>`.
+For local Next.js dev (without Docker), only a subset of routes may be wired;
+use the Docker demo for NC DHHS presentations.
 
-## Local dev
+## Local dev (optional)
 
 ```bash
 cd frontend/portals

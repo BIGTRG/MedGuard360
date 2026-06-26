@@ -35,6 +35,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 | Script | Purpose |
 |--------|---------|
 | `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-RefreshEngines`) |
+| `deploy/complete-demo.ps1` / `complete-demo.sh` | Full completion gate: unit + engine tests + live verify (~25 min) |
 | `deploy/demo-down.ps1` | Tear down demo stack and volumes |
 | `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` for verify-demo |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Quick health check (all 5 AI engines) |

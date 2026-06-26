@@ -14,10 +14,10 @@ Tracks what's been built across sessions so the next one picks up cleanly.
 > operations layer (GitHub Actions CI/CD, Kubernetes Helm chart, DR runbook,
 > security scan workflows). Total **~25,150 lines**.
 >
-> **Session 13 — deployment kit:** DEPLOYMENT.md comparison, slim
-> docker-compose.demo.yml (12 services / ~6 GB RAM), seed-demo.sql with
-> realistic users/patients/PAs/claims/fraud cases, and one-command
-> `deploy/laptop.sh` + `deploy/cloud-vm.sh`. **~25,850 lines.**
+> **2026-06-12 — NC DHHS laptop demo (`v1.0-demo`) production-ready:** 20 Node
+> services + 5 demo AI engines in `docker-compose.demo.yml`, full portal smoke +
+> demo-flow, CI on `main`, GHCR release. Run `deploy\complete-demo.ps1` for the
+> full gate (~25 min) or `deploy\meeting-day.ps1 -Full` before meetings.
 
 ---
 

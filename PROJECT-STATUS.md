@@ -1,9 +1,20 @@
-# MedGuard360 — Project Status as of 2026-06-24
+# MedGuard360 — Project Status as of 2026-06-12
 
-## NC laptop demo (tag `v1.0-demo`)
+## NC laptop demo (tag `v1.0-demo`) — COMPLETE
+
+**Last full completion gate:** 2026-06-12 — `deploy\complete-demo.ps1` green (20 Jest + 4 engine pytest + 18 preflight + 74 smoke + demo-flow).
+
+| Gate | Command | Expected |
+|------|---------|----------|
+| Pre-meeting (30 sec) | `deploy\meeting-day.ps1` | 18 preflight checks green |
+| Live demo verify (~2 min) | `deploy\meeting-day.ps1 -Full` | smoke + demo-flow green |
+| **Full completion gate (~25 min)** | `deploy\complete-demo.ps1` | 20 Jest suites + 4 engine pytest + live verify |
+| Tear down | `deploy\demo-down.ps1` | Removes demo volumes |
 
 | Check | Status |
 |-------|--------|
+| `deploy/complete-demo.ps1` / `complete-demo.sh` | Full completion gate (unit + engine + live verify) |
+| `deploy/demo-down.ps1` | Tear down demo stack and volumes |
 | `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` / `--full` for verify-demo |
 | `deploy/check-script-encoding.ps1` | Blocks UTF-16 deploy scripts (also first step of verify-demo) |
 | `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-RefreshEngines`) |

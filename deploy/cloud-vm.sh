@@ -156,7 +156,8 @@ docker compose -f "$COMPOSE" up -d
 # ============================================================
 echo "→ Waiting for portal to come up..."
 for i in {1..120}; do
-  if curl -fsS http://localhost:3000 >/dev/null 2>&1; then break; fi
+  if curl -fsS http://localhost/ >/dev/null 2>&1; then break; fi
+  if curl -fsS http://localhost:3080/ >/dev/null 2>&1; then break; fi
   printf '.'
   sleep 2
 done
