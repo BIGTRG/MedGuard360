@@ -7,6 +7,7 @@ param(
   [switch]$VerifyOnly,
   [switch]$MeetingDay,
   [switch]$MeetingDayFull,
+  [switch]$Complete,
   [switch]$SkipVerify,
   [switch]$UnitTests,
   [switch]$EngineTests
@@ -38,6 +39,12 @@ if ($MeetingDay -or $MeetingDayFull) {
   } else {
     & "$PSScriptRoot\meeting-day.ps1"
   }
+  if (-not $?) { exit 1 }
+  exit 0
+}
+
+if ($Complete) {
+  & "$PSScriptRoot\complete-demo.ps1"
   if (-not $?) { exit 1 }
   exit 0
 }

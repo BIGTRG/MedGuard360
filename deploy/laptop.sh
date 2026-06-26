@@ -10,6 +10,7 @@
 #   ./deploy/laptop.sh --verify            # preflight + smoke + demo-flow
 #   ./deploy/laptop.sh --meeting           # fast pre-meeting check
 #   ./deploy/laptop.sh --meeting --full    # full verify
+#   ./deploy/laptop.sh --complete          # full completion gate (~25 min)
 #   ./deploy/laptop.sh --teardown
 
 set -euo pipefail
@@ -41,6 +42,8 @@ elif [[ "${1:-}" == "--refresh-engines" ]]; then
   exit 0
 elif [[ "${1:-}" == "--verify" ]]; then
   exec ./deploy/verify-demo.sh
+elif [[ "${1:-}" == "--complete" ]]; then
+  exec ./deploy/complete-demo.sh
 elif [[ "${1:-}" == "--meeting" ]]; then
   shift
   exec ./deploy/meeting-day.sh "$@"

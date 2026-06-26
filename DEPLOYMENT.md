@@ -38,8 +38,9 @@ http://localhost/ (nginx), API at http://localhost/api/v1/...
 ```powershell
 cd medguard360
 powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
-# Pre-meeting check:  deploy\demo-preflight.ps1
-# Full verify:        deploy\verify-demo.ps1
+# Pre-meeting (30 sec):  deploy\meeting-day.ps1
+# Full verify (~2 min):   deploy\meeting-day.ps1 -Full
+# Full completion gate:   deploy\complete-demo.ps1   # ~25 min, CI parity
 ```
 
 **Run (macOS / Linux):**
@@ -47,8 +48,9 @@ powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
 cd medguard360
 cp .env.example .env   # first time only
 ./deploy/laptop.sh
-# Pre-meeting check:  ./deploy/demo-preflight.sh
-# Full verify:        ./deploy/laptop.sh --verify   # needs pwsh
+# Pre-meeting (30 sec):  ./deploy/laptop.sh --meeting
+# Full verify (~2 min):   ./deploy/laptop.sh --meeting --full
+# Full completion gate:   ./deploy/laptop.sh --complete
 ```
 
 The script:

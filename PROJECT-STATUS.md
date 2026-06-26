@@ -2,7 +2,9 @@
 
 ## NC laptop demo (tag `v1.0-demo`) — COMPLETE
 
-**Last full completion gate:** 2026-06-12 — `deploy\complete-demo.ps1` green (20 Jest + 4 engine pytest + 18 preflight + 74 smoke + demo-flow).
+**Last full completion gate:** 2026-06-12 — `deploy\complete-demo.ps1` green (20 Jest + 4 engine pytest + live verify).
+
+**Last meeting-day verify:** 2026-06-12 — `deploy\meeting-day.ps1 -Full` green (18 preflight + 74 smoke + demo-flow).
 
 | Gate | Command | Expected |
 |------|---------|----------|
@@ -17,7 +19,7 @@
 | `deploy/demo-down.ps1` | Tear down demo stack and volumes |
 | `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` / `--full` for verify-demo |
 | `deploy/check-script-encoding.ps1` | Blocks UTF-16 deploy scripts (also first step of verify-demo) |
-| `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-RefreshEngines`) |
+| `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-Complete`, `-RefreshEngines`) |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Fast pre-meeting health check (portal + infra + all 5 demo AI engines) |
 | `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests`, `-EngineTests` auto-uses Docker without Python 3.11) |
 | `deploy/run-service-tests.ps1` | All 20 Node service Jest suites (matches GitHub CI) |
