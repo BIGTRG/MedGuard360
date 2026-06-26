@@ -34,7 +34,8 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 
 | Script | Purpose |
 |--------|---------|
-| `deploy/demo-up.ps1` | Build, seed, smoke + demo-flow (`-RefreshEngines` for AI-only rebuild) |
+| `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-RefreshEngines`) |
+| `deploy/demo-down.ps1` | Tear down demo stack and volumes |
 | `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` for verify-demo |
 | `deploy/demo-preflight.ps1` / `demo-preflight.sh` | Quick health check (all 5 AI engines) |
 | `deploy/verify-demo.ps1` / `verify-demo.sh` | Preflight + smoke + demo-flow (`-UnitTests`, `-EngineTests` auto-uses Docker without Python 3.11) |

@@ -16,6 +16,16 @@ $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
 $compose = "docker-compose.demo.yml"
 
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+  Write-Host "Docker not installed. Install Docker Desktop first." -ForegroundColor Red
+  exit 1
+}
+docker info 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "Docker daemon not running. Start Docker Desktop, then retry." -ForegroundColor Red
+  exit 1
+}
+
 if ($VerifyOnly) {
   & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
   if (-not $?) { exit 1 }

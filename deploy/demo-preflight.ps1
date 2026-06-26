@@ -38,6 +38,8 @@ if ($LASTEXITCODE -ne 0) {
 $running = @(docker compose -f docker-compose.demo.yml ps --services --filter "status=running" 2>$null)
 Test-Ok "demo stack running" ($running.Count -ge 5)
 Test-Ok "postgres healthy" ($running -contains "postgres")
+Test-Ok "redis running" ($running -contains "redis")
+Test-Ok "kafka running" ($running -contains "kafka")
 Test-Ok "nginx running" ($running -contains "nginx")
 Test-Ok "portals running" ($running -contains "portals")
 Test-Ok "denial-predictor running" ($running -contains "denial-predictor")
@@ -84,7 +86,7 @@ try {
 
 Write-Host ""
 if ($failures.Count -eq 0) {
-  Write-Host "Preflight passed - run deploy\smoke-demo.ps1 for full checks." -ForegroundColor Green
+  Write-Host "Preflight passed - run deploy\meeting-day.ps1 -Full for smoke + demo-flow." -ForegroundColor Green
   exit 0
 }
 Write-Host "$($failures.Count) preflight failure(s). Run: deploy\demo-up.ps1" -ForegroundColor Yellow

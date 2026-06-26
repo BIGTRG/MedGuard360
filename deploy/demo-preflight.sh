@@ -40,6 +40,8 @@ running="$(docker compose -f "$COMPOSE" ps --services --filter status=running 2>
 running_count="$(printf '%s\n' "$running" | sed '/^$/d' | wc -l | tr -d ' ')"
 [[ "$running_count" -ge 5 ]] && ok 1 "demo stack running" || ok 0 "demo stack running"
 printf '%s\n' "$running" | grep -qx postgres && ok 1 "postgres healthy" || ok 0 "postgres healthy"
+printf '%s\n' "$running" | grep -qx redis && ok 1 "redis running" || ok 0 "redis running"
+printf '%s\n' "$running" | grep -qx kafka && ok 1 "kafka running" || ok 0 "kafka running"
 printf '%s\n' "$running" | grep -qx nginx && ok 1 "nginx running" || ok 0 "nginx running"
 printf '%s\n' "$running" | grep -qx portals && ok 1 "portals running" || ok 0 "portals running"
 printf '%s\n' "$running" | grep -qx denial-predictor && ok 1 "denial-predictor running" || ok 0 "denial-predictor running"
@@ -62,7 +64,7 @@ login="$(curl -fsS -X POST http://localhost/api/v1/auth/login \
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then
-  echo "Preflight passed - run deploy/smoke-demo.ps1 or ./deploy/verify-demo.sh for full checks."
+  echo "Preflight passed - run ./deploy/meeting-day.sh --full for smoke + demo-flow."
   exit 0
 fi
 echo "$failures preflight failure(s). Run: ./deploy/laptop.sh"
