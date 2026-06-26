@@ -21,6 +21,7 @@ cd medguard360
 powershell -ExecutionPolicy Bypass -File deploy\demo-up.ps1
 # Fast re-check only:  deploy\demo-up.ps1 -MeetingDay
 # Full verify:         deploy\demo-up.ps1 -MeetingDayFull
+# Full completion gate: deploy\demo-up.ps1 -Complete
 # Full verify + tests: deploy\demo-up.ps1 -VerifyOnly -UnitTests -EngineTests
 # Rebuild AI engines:   deploy\demo-up.ps1 -RefreshEngines
 # Rebuild portals only: deploy\demo-up.ps1 -RebuildPortals -SkipBuild
@@ -34,7 +35,7 @@ Open http://localhost/ — password for all demo users: `demo-Password!1`
 
 | Script | Purpose |
 |--------|---------|
-| `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-RefreshEngines`) |
+| `deploy/demo-up.ps1` | One-command Windows bring-up (`-MeetingDay`, `-MeetingDayFull`, `-Complete`, `-RefreshEngines`) |
 | `deploy/complete-demo.ps1` / `complete-demo.sh` | Full completion gate: unit + engine tests + live verify (~25 min) |
 | `deploy/demo-down.ps1` | Tear down demo stack and volumes |
 | `deploy/meeting-day.ps1` / `meeting-day.sh` | Fast pre-meeting check (encoding + preflight); `-Full` for verify-demo |

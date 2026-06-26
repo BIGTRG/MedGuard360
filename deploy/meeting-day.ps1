@@ -16,4 +16,13 @@ if ($Full) {
   & "$PSScriptRoot\demo-preflight.ps1"
 }
 if (-not $?) { exit 1 }
+
+Write-Host ""
+if ($Full) {
+  Write-Host "MEETING READY - smoke + demo-flow green." -ForegroundColor Green
+} else {
+  Write-Host "MEETING READY - preflight green (run -Full for smoke + demo-flow)." -ForegroundColor Green
+}
+Write-Host "Portal: http://localhost/  Password: demo-Password!1" -ForegroundColor DarkGray
+Write-Host "Walkthrough: sales\NC-DHHS-DEMO-SCRIPT.md" -ForegroundColor DarkGray
 exit 0
