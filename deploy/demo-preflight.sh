@@ -24,6 +24,17 @@ if [[ "$tag" != "unknown" && "$head" != "unknown" && "$tag" != "$head" ]]; then
 fi
 
 command -v docker >/dev/null 2>&1 && ok 1 "docker available" || ok 0 "docker available"
+if ! command -v docker >/dev/null 2>&1; then
+  echo ""
+  echo "Install/start Docker, then run: ./deploy/laptop.sh"
+  exit 1
+fi
+if ! docker info >/dev/null 2>&1; then
+  echo "[FAIL] Docker daemon not running"
+  echo ""
+  echo "Start Docker Desktop, then run: ./deploy/laptop.sh"
+  exit 1
+fi
 
 running="$(docker compose -f "$COMPOSE" ps --services --filter status=running 2>/dev/null || true)"
 running_count="$(printf '%s\n' "$running" | sed '/^$/d' | wc -l | tr -d ' ')"

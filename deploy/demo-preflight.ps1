@@ -22,6 +22,19 @@ function Test-Warn($name, $cond, $hint) {
 }
 
 Test-Ok "docker available" ([bool](Get-Command docker -ErrorAction SilentlyContinue))
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+  Write-Host ""
+  Write-Host "Start Docker Desktop, then run: deploy\demo-up.ps1" -ForegroundColor Yellow
+  exit 1
+}
+docker info 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "[FAIL] Docker daemon not running" -ForegroundColor Red
+  Write-Host ""
+  Write-Host "Start Docker Desktop, then run: deploy\demo-up.ps1" -ForegroundColor Yellow
+  exit 1
+}
+
 $running = @(docker compose -f docker-compose.demo.yml ps --services --filter "status=running" 2>$null)
 Test-Ok "demo stack running" ($running.Count -ge 5)
 Test-Ok "postgres healthy" ($running -contains "postgres")
