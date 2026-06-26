@@ -2,9 +2,9 @@
 
 ## NC laptop demo (tag `v1.0-demo`) — COMPLETE
 
-**Last full completion gate:** 2026-06-12 — `deploy\complete-demo.ps1` green (20 Jest + 4 engine pytest + live verify).
+**Last full completion gate:** 2026-06-12 — `deploy\complete-demo.ps1` green @ `530a4f5` (20 Jest + 69 engine pytest + 18 preflight + 74 smoke + demo-flow).
 
-**Last meeting-day verify:** 2026-06-12 — `deploy\meeting-day.ps1 -Full` green (18 preflight + 74 smoke + demo-flow).
+**Last meeting-day verify:** 2026-06-12 — `deploy\meeting-day.ps1 -Full` green.
 
 | Gate | Command | Expected |
 |------|---------|----------|
