@@ -12,8 +12,8 @@ function makeRequest(auth?: AuthClaims): Request {
 
 function makeResponse(): Response {
   const res = {
-    status: jest.fn<(code: number) => Response>().mockReturnThis(),
-    json: jest.fn<(body: unknown) => Response>().mockReturnThis(),
+    status: jest.fn<Response, [number]>().mockReturnThis(),
+    json: jest.fn<Response, [unknown]>().mockReturnThis(),
   };
   return res as unknown as Response;
 }
@@ -46,7 +46,7 @@ describe('auth middleware permission gates', () => {
     requireRole('compliance_officer')(makeRequest(baseClaims), makeResponse(), next);
 
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
-    const error = next.mock.calls[0]?.[0] as ForbiddenError;
+    const error = next.mock.calls[0]?.[0] as unknown as ForbiddenError;
     expect(error.message).toContain('prior_auth_specialist');
   });
 

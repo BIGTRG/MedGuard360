@@ -2,8 +2,8 @@ import { PoolClient } from 'pg';
 import { AuthClaims } from '../types';
 import { setRlsContext, withRlsContext } from './pool';
 
-const mockConnect = jest.fn<() => Promise<PoolClient>>();
-const mockPoolEnd = jest.fn<() => Promise<void>>();
+const mockConnect = jest.fn<Promise<PoolClient>, []>();
+const mockPoolEnd = jest.fn<Promise<void>, []>();
 const mockPoolOn = jest.fn();
 
 jest.mock('pg', () => ({
@@ -16,13 +16,13 @@ jest.mock('pg', () => ({
 
 function makeClient(): PoolClient {
   return {
-    query: jest.fn<() => Promise<{ rows: unknown[] }>>().mockResolvedValue({ rows: [] }),
-    release: jest.fn<() => void>(),
+    query: jest.fn<Promise<{ rows: unknown[] }>, [string]>().mockResolvedValue({ rows: [] }),
+    release: jest.fn<void, []>(),
   } as unknown as PoolClient;
 }
 
 function queryMock(client: PoolClient): jest.MockedFunction<(sql: string) => Promise<{ rows: unknown[] }>> {
-  return client.query as jest.MockedFunction<(sql: string) => Promise<{ rows: unknown[] }>>;
+  return client.query as unknown as jest.MockedFunction<(sql: string) => Promise<{ rows: unknown[] }>>;
 }
 
 function releaseMock(client: PoolClient): jest.MockedFunction<() => void> {
