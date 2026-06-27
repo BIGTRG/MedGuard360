@@ -17,6 +17,14 @@ $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
 $compose = "docker-compose.demo.yml"
 
+function Invoke-DemoVerification {
+  $verifyParams = @{}
+  if ($UnitTests) { $verifyParams.UnitTests = $true }
+  if ($EngineTests) { $verifyParams.EngineTests = $true }
+  & "$PSScriptRoot\verify-demo.ps1" @verifyParams
+  if (-not $?) { exit 1 }
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Write-Host "Docker not installed. Install Docker Desktop first." -ForegroundColor Red
   exit 1
@@ -28,8 +36,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if ($VerifyOnly) {
-  & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
-  if (-not $?) { exit 1 }
+  Invoke-DemoVerification
   exit 0
 }
 
@@ -71,8 +78,7 @@ if ($RebuildPortals) {
     } catch { Start-Sleep -Seconds 2 }
   }
   if (-not $SkipVerify) {
-    & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
-    if (-not $?) { exit 1 }
+    Invoke-DemoVerification
   }
   Write-Host "Demo AI engines refreshed." -ForegroundColor Green
   exit 0
@@ -91,18 +97,22 @@ for ($i = 0; $i -lt 60; $i++) {
 }
 
 Write-Host "Running bootstrap (migrations + MinIO + seed)..." -ForegroundColor Cyan
-$ErrorActionPreference = 'Continue'
-docker compose -f $compose run --rm bootstrap 2>&1 | Out-Null
-$ErrorActionPreference = 'Stop'
+docker compose -f $compose run --rm bootstrap
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "Bootstrap failed; demo database/storage may be incomplete." -ForegroundColor Red
+  exit 1
+}
 
 Write-Host "Applying demo patches (idempotent on older volumes)..." -ForegroundColor Cyan
 & "$PSScriptRoot\apply-demo-patches.ps1" $compose
 
 Write-Host "Starting services..." -ForegroundColor Cyan
 docker compose -f $compose up -d
-$ErrorActionPreference = 'Continue'
-docker compose -f $compose run --rm kafka-init 2>&1 | Out-Null
-$ErrorActionPreference = 'Stop'
+docker compose -f $compose run --rm kafka-init
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "Kafka initialization failed; required demo topics may be missing." -ForegroundColor Red
+  exit 1
+}
 docker compose -f $compose up -d --force-recreate nginx portals
 
 Write-Host "Waiting for portal..." -ForegroundColor Cyan
@@ -113,8 +123,7 @@ for ($i = 0; $i -lt 45; $i++) {
 }
 
 if (-not $SkipVerify) {
-  & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
-  if (-not $?) { exit 1 }
+  Invoke-DemoVerification
 }
 
 Write-Host "MedGuard360 demo ready at http://localhost/" -ForegroundColor Green

@@ -20,12 +20,13 @@ jobs:
         working-directory: packages/shared
         run: npm ci && npm run build && npm test
 
-  script-encoding:
-    name: deploy script encoding (UTF-8)
+  deploy-script-checks:
+    name: deploy script checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: chmod +x deploy/check-script-encoding.sh && ./deploy/check-script-encoding.sh
+      - run: chmod +x deploy/check-demo-up-ps1.sh && ./deploy/check-demo-up-ps1.sh
 
   unit-tests:
     name: jest (Node services)
