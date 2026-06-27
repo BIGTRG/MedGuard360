@@ -33,18 +33,12 @@ describe('saveCriterionEvaluations', () => {
         similarity_score: 0.87,
         outcome: 'met',
         explanation: 'Clinical notes cite a failed first-line medication.',
-        human_outcome: null,
-        human_outcome_at: null,
-        human_reviewer_id: null,
       },
       {
         criterion_text: 'Recent lab result attached',
         similarity_score: null,
         outcome: 'indeterminate',
         explanation: null,
-        human_outcome: null,
-        human_outcome_at: null,
-        human_reviewer_id: null,
       },
     ]);
 

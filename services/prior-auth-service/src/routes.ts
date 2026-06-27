@@ -102,7 +102,10 @@ const DecideSchema = z.object({
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+function parse<TOutput, TInput = unknown>(
+  schema: z.ZodType<TOutput, z.ZodTypeDef, TInput>,
+  input: unknown,
+): TOutput {
   const result = schema.safeParse(input);
   if (!result.success) throw new ValidationError('Invalid input', result.error.flatten());
   return result.data;
