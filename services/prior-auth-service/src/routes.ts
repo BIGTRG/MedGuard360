@@ -28,6 +28,7 @@ import * as repo from './repository';
 import { runClinicalDecisionEngine, computeDueAt } from './engine';
 import { getDaVinciPasAdapter } from '@medguard360/shared';
 import * as drugPa from './drugPa';
+import { CriterionOverrideSchema } from './validation';
 
 const logger = createLogger('prior-auth-service:routes');
 
@@ -99,19 +100,12 @@ const DecideSchema = z.object({
   notes: z.string().min(10).max(5_000),
 });
 
-/**
- * Investigators send 'unclear' from the UI; the canonical DB value is
- * 'indeterminate'. Normalize at the API boundary so the DB never sees
- * 'unclear'.
- */
-const OverrideSchema = z.object({
-  outcome: z.enum(['met', 'not_met', 'unclear', 'indeterminate'])
-            .transform(v => v === 'unclear' ? 'indeterminate' : v),
-});
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+function parse<TOutput, TInput = unknown>(
+  schema: z.ZodType<TOutput, z.ZodTypeDef, TInput>,
+  input: unknown,
+): TOutput {
   const result = schema.safeParse(input);
   if (!result.success) throw new ValidationError('Invalid input', result.error.flatten());
   return result.data;
@@ -546,7 +540,7 @@ router.put(
   ah(async (req, res) => {
     const id  = z.string().uuid().parse(req.params.id);
     const cid = z.string().uuid().parse(req.params.cid);
-    const body = parse(OverrideSchema, req.body);
+    const body = parse(CriterionOverrideSchema, req.body);
     const auth = req.auth!;
 
     const updated = await repo.setCriterionOverride(id, cid, auth.sub, body.outcome);
