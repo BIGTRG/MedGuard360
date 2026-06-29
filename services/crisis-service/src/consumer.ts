@@ -22,7 +22,11 @@ const clinicalDoc = axios.create({
 
 interface NoteCreatedPayload {
   encounterId: string; docId: string; charCount: number;
-  patientId?: string; stateCode?: string;
+  patientId?: string; stateCode?: string; extractedText?: string;
+}
+
+export function extractClinicalNoteText(payload: NoteCreatedPayload): string {
+  return typeof payload.extractedText === 'string' ? payload.extractedText.trim() : '';
 }
 
 export async function startConsumer(): Promise<void> {
@@ -32,18 +36,17 @@ export async function startConsumer(): Promise<void> {
       if (event.eventType === 'clinical.note.created') {
         const p = event.payload as NoteCreatedPayload;
         try {
-          // Note: clinical-doc-service requires auth; in production this is a
-          // service-account JWT issued at startup. For the demo we skip and rely
-          // on the note text being included in a future event-payload upgrade.
-          let text = '';
-          try {
-            const resp = await clinicalDoc.get<{ extractedText: string }>(`/clinical-doc/${p.docId}`, {
-              headers: { authorization: process.env.SERVICE_JWT ? `Bearer ${process.env.SERVICE_JWT}` : '' },
-            });
-            text = resp.data.extractedText ?? '';
-          } catch (err) {
-            logger.debug('cannot fetch clinical doc text for crisis scan', { docId: p.docId });
-            return;
+          let text = extractClinicalNoteText(p);
+          if (!text) {
+            try {
+              const resp = await clinicalDoc.get<{ extractedText: string }>(`/clinical-doc/${p.docId}`, {
+                headers: { authorization: process.env.SERVICE_JWT ? `Bearer ${process.env.SERVICE_JWT}` : '' },
+              });
+              text = resp.data.extractedText?.trim() ?? '';
+            } catch (err) {
+              logger.debug('cannot fetch clinical doc text for crisis scan', { docId: p.docId });
+              return;
+            }
           }
           if (!text) return;
 
