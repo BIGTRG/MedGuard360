@@ -19,7 +19,7 @@ import {
   UnauthorizedError, ValidationError, ConflictError, ALL_USER_ROLES, UserRole, config,
 } from '@medguard360/shared';
 import * as repo from './repository';
-import { verifyBiometric } from './biometric';
+import { enrollBiometric, verifyBiometric } from './biometric';
 
 const BCRYPT_ROUNDS = 12;
 const LOCKOUT_THRESHOLD = 5;
@@ -175,9 +175,9 @@ router.post('/auth/refresh', asyncHandler(async (req, res) => {
     stateCode: user.state_code ?? undefined,
     orgId: user.org_id ?? undefined,
     biometricVerified: session.biometric_verified_at !== null,
+    sessionId: session.id,
   });
   // Rotate refresh token, but reuse the existing session row (sessionId stays).
-  // To keep IDs aligned with JWT claims, we update the row with the new id+token.
   await repo.rotateSessionRefreshToken(
     session.id,
     tokens.refreshToken,
@@ -189,7 +189,7 @@ router.post('/auth/refresh', asyncHandler(async (req, res) => {
     refreshToken: tokens.refreshToken,
     accessExpiresAt: tokens.accessExpiresAt,
     refreshExpiresAt: tokens.refreshExpiresAt,
-    sessionId: session.id,
+    sessionId: tokens.sessionId,
   });
 }));
 
