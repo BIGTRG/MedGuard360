@@ -1,4 +1,5 @@
 import { CreatePlanSchema, ResolveSchema } from './routes';
+import { extractClinicalNoteText } from './consumer';
 
 const planInput = {
   patientId: '10000000-0000-0000-0000-000000000001',
@@ -30,5 +31,26 @@ describe('ResolveSchema', () => {
 
   it('rejects unknown resolution status', () => {
     expect(() => ResolveSchema.parse({ status: 'open' })).toThrow();
+  });
+});
+
+describe('extractClinicalNoteText', () => {
+  it('uses embedded clinical note text from the event payload', () => {
+    expect(extractClinicalNoteText({
+      encounterId: '40000000-0000-0000-0000-000000000001',
+      docId: '50000000-0000-0000-0000-000000000001',
+      charCount: 28,
+      patientId: '10000000-0000-0000-0000-000000000001',
+      stateCode: 'NC',
+      extractedText: '  patient reports suicidal intent  ',
+    })).toBe('patient reports suicidal intent');
+  });
+
+  it('falls back when older events do not include note text', () => {
+    expect(extractClinicalNoteText({
+      encounterId: '40000000-0000-0000-0000-000000000001',
+      docId: '50000000-0000-0000-0000-000000000001',
+      charCount: 28,
+    })).toBe('');
   });
 });

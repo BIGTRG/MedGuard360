@@ -81,9 +81,17 @@ router.post(`${enc}/:id/upload-audio`, requireAuth, requireRole('individual_prov
 router.put(`${enc}/:id/note`, requireAuth, async (req, res, next) => {
   try {
     const { noteText } = z.object({ noteText: z.string() }).parse(req.body);
-    await repo.addDocument(req.params.id, 'note', undefined, noteText);
+    const document = await repo.addDocument(req.params.id, 'note', undefined, noteText);
     const encounter = await repo.findEncounter(req.params.id);
     if (!encounter) { res.status(404).json({ error: 'Not found' }); return; }
+    await emitEvent('clinical.note.created', {
+      encounterId: req.params.id,
+      docId: document.id,
+      charCount: noteText.length,
+      patientId: encounter.patient_id,
+      stateCode: encounter.state_code,
+      extractedText: noteText,
+    }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
     res.json({ encounter });
   } catch (err) { next(err); }
 });
