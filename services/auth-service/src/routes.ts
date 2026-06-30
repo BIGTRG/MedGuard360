@@ -21,7 +21,7 @@ import {
   UnauthorizedError, ValidationError, ConflictError, ALL_USER_ROLES, UserRole, config,
 } from '@medguard360/shared';
 import * as repo from './repository';
-import { verifyBiometric } from './biometric';
+import { enrollBiometric, verifyBiometric } from './biometric';
 
 const BCRYPT_ROUNDS = 12;
 const LOCKOUT_THRESHOLD = 5;
