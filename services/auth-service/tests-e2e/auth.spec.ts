@@ -11,6 +11,8 @@
 import { test, expect, request } from '@playwright/test';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3001';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@demo.medguard360.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'demo-Password!1';
 
 test('liveness + readiness', async () => {
   const ctx = await request.newContext({ baseURL: BASE });
@@ -25,7 +27,15 @@ test('register → login → me → logout', async () => {
   const email = `e2e-${Date.now()}@example.com`;
   const password = 'TestPasswordSecure!1';
 
+  const adminLogin = await ctx.post('/api/v1/auth/login', {
+    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+  });
+  expect(adminLogin.ok()).toBeTruthy();
+  const adminTokens = await adminLogin.json();
+  expect(adminTokens.accessToken).toBeTruthy();
+
   const reg = await ctx.post('/api/v1/auth/register', {
+    headers: { authorization: `Bearer ${adminTokens.accessToken}` },
     data: { email, password, role: 'compliance_officer', stateCode: 'NC' },
   });
   expect(reg.status()).toBe(201);
