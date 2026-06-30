@@ -2,20 +2,22 @@
  * HTTP routes for auth-service.
  *
  * Routes mounted under /api/v1 (set up by createServer in @medguard360/shared).
- * Effective public paths:
- *   POST /api/v1/auth/register
+ * Effective paths:
  *   POST /api/v1/auth/login
  *   POST /api/v1/auth/refresh
  *   POST /api/v1/auth/logout
  *   POST /api/v1/auth/biometric/verify
  *   GET  /api/v1/auth/me
+ *
+ * POST /api/v1/auth/register is intentionally admin-only and is omitted from
+ * the public-path list above.
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import {
-  issueTokens, verifyRefreshToken, requireAuth, auditLog, emitEvent,
+  issueTokens, verifyRefreshToken, requireAuth, requireRole, auditLog, emitEvent,
   UnauthorizedError, ValidationError, ConflictError, ALL_USER_ROLES, UserRole, config,
 } from '@medguard360/shared';
 import * as repo from './repository';
@@ -68,37 +70,40 @@ const asyncHandler =
 // ---------- router ----------
 export const router = Router();
 
-// POST /auth/register — admin-only typically; for bootstrap can be open in dev.
-router.post('/auth/register', asyncHandler(async (req, res) => {
-  const input = parse(RegisterSchema, req.body);
-  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-  const user = await repo.insertUser({
-    email: input.email,
-    passwordHash,
-    role: input.role,
-    stateCode: input.stateCode,
-    orgId: input.orgId,
-    createdBy: req.auth?.sub,
-  });
+// POST /auth/register — administrative user provisioning only.
+router.post(
+  '/auth/register',
+  requireAuth,
+  requireRole('platform_administrator'),
+  asyncHandler(async (req, res) => {
+    const input = parse(RegisterSchema, req.body);
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const user = await repo.insertUser({
+      email: input.email,
+      passwordHash,
+      role: input.role,
+      stateCode: input.stateCode,
+      orgId: input.orgId,
+      createdBy: req.auth!.sub,
+    });
 
-  await emitEvent('user.created', {
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    stateCode: user.state_code,
-    orgId: user.org_id,
-  }, { actorUserId: req.auth?.sub, correlationId: req.correlationId });
+    await emitEvent('user.created', {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      stateCode: user.state_code,
+      orgId: user.org_id,
+    }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
 
-  await auditLog({
-    resource: 'user', resourceId: user.id, action: 'create',
-    actor: req.auth ?? {
-      sub: 'system', role: 'platform_administrator', email: 'system@medguard360', sessionId: 'system',
-    },
-    outcome: 'success', correlationId: req.correlationId,
-  });
+    await auditLog({
+      resource: 'user', resourceId: user.id, action: 'create',
+      actor: req.auth!,
+      outcome: 'success', correlationId: req.correlationId,
+    });
 
-  res.status(201).json({ id: user.id, email: user.email, role: user.role });
-}));
+    res.status(201).json({ id: user.id, email: user.email, role: user.role });
+  }),
+);
 
 // POST /auth/login
 router.post('/auth/login', asyncHandler(async (req, res) => {
