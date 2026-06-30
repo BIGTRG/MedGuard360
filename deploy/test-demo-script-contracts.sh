@@ -48,6 +48,7 @@ write_trace_script() {
 
 write_minimal_path() {
   local bin="$1"
+  ln -s /usr/bin/bash "$bin/bash"
   write_executable "$bin/dirname" \
     'case "$1" in' \
     '  */*) printf "%s\n" "${1%/*}" ;;' \
