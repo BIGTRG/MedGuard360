@@ -17,6 +17,13 @@ $env:Path += ";C:\Program Files\Docker\Docker\resources\bin"
 Set-Location (Join-Path $PSScriptRoot "..")
 $compose = "docker-compose.demo.yml"
 
+function Invoke-VerifyDemo {
+  $verifyArgs = @{}
+  if ($UnitTests) { $verifyArgs.UnitTests = $true }
+  if ($EngineTests) { $verifyArgs.EngineTests = $true }
+  & "$PSScriptRoot\verify-demo.ps1" @verifyArgs
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Write-Host "Docker not installed. Install Docker Desktop first." -ForegroundColor Red
   exit 1
@@ -28,7 +35,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if ($VerifyOnly) {
-  & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+  Invoke-VerifyDemo
   if (-not $?) { exit 1 }
   exit 0
 }
@@ -71,7 +78,7 @@ if ($RebuildPortals) {
     } catch { Start-Sleep -Seconds 2 }
   }
   if (-not $SkipVerify) {
-    & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+    Invoke-VerifyDemo
     if (-not $?) { exit 1 }
   }
   Write-Host "Demo AI engines refreshed." -ForegroundColor Green
@@ -113,7 +120,7 @@ for ($i = 0; $i -lt 45; $i++) {
 }
 
 if (-not $SkipVerify) {
-  & "$PSScriptRoot\verify-demo.ps1" @PSBoundParameters
+  Invoke-VerifyDemo
   if (-not $?) { exit 1 }
 }
 
