@@ -39,6 +39,8 @@ export interface AuditEvent {
   context?: Record<string, unknown>;
   /** Whether the action succeeded. Failed access attempts MUST still be logged. */
   outcome: 'success' | 'denied' | 'error';
+  /** Marks PHI-touching events; audit-log-service preserves this in context for filtering. */
+  phiAccessed?: boolean;
   /** Ties together events from one request/workflow. */
   correlationId?: string;
 }
