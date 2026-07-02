@@ -17,6 +17,7 @@ export type AuditAction =
   | 'read'
   | 'create'
   | 'update'
+  | 'submit'
   | 'delete'
   | 'export'
   | 'print'

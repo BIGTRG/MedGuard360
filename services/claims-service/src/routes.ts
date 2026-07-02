@@ -241,6 +241,7 @@ router.post(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
+    const inboundAuthorization = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
@@ -268,7 +269,7 @@ router.post(
       const patientResp = await fetch(
         `${process.env.PATIENT_SERVICE_URL ?? 'http://patient-service:3004'}/api/v1/patients/${claim.patient_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization: inboundAuthorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -296,7 +297,7 @@ router.post(
       const provResp = await fetch(
         `${process.env.PROVIDER_SERVICE_URL ?? 'http://provider-service:3002'}/api/v1/providers/${claim.provider_user_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization: inboundAuthorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
