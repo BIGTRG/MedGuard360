@@ -24,6 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
+import { canReadClaim, canSubmitClaim, ClaimAccessRecord } from './authorization';
 
 const logger = createLogger('claims-service:routes');
 
@@ -84,6 +85,26 @@ async function billingProviderIdForUser(userId: string): Promise<string | undefi
     [userId],
   );
   return result.rows[0]?.id;
+}
+
+async function assertCanReadClaim(
+  auth: NonNullable<Request['auth']>,
+  claim: ClaimAccessRecord,
+): Promise<void> {
+  const linkedProviderId = await billingProviderIdForUser(auth.sub);
+  if (!canReadClaim(auth, claim, linkedProviderId)) {
+    throw new NotFoundError('Claim');
+  }
+}
+
+async function assertCanSubmitClaim(
+  auth: NonNullable<Request['auth']>,
+  claim: ClaimAccessRecord,
+): Promise<void> {
+  const linkedProviderId = await billingProviderIdForUser(auth.sub);
+  if (!canSubmitClaim(auth, claim, linkedProviderId)) {
+    throw new NotFoundError('Claim');
+  }
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -191,6 +212,7 @@ router.get(
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
+    await assertCanReadClaim(auth, claim);
 
     const lines = await repo.findClaimLines(id);
 
@@ -215,12 +237,14 @@ router.post(
   '/claims/:id/submit',
   requireAuth,
   requireBiometric,
+  requireRole('individual_provider', 'facility_provider', 'billing_manager', 'platform_administrator'),
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
+    await assertCanSubmitClaim(auth, claim);
 
     if (claim.status !== 'draft' && claim.status !== 'validated') {
       throw new ValidationError(`Claim cannot be submitted from status: ${claim.status}`);
