@@ -1,5 +1,7 @@
--- Member portal: patients may read their own claims (patients.id = users.id in demo).
--- Provider users map through providers.user_id; claims store providers.id.
+-- Restore the final claims_read policy after 0035 added patient self-read.
+-- claims.billing_provider_id/rendering_provider_id reference providers.id,
+-- while authenticated provider users are identified by users.id.
+
 DROP POLICY IF EXISTS claims_read ON claims;
 CREATE POLICY claims_read ON claims FOR SELECT USING (
   app_role_is_cross_state()
