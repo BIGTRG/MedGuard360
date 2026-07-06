@@ -12,6 +12,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@medguard360/nctracks": "file:../../integrations/nctracks",
     "@medguard360/shared": "file:../../packages/shared",
     "express": "^4.21.1",
     "zod": "^3.23.8"

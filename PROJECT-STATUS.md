@@ -104,7 +104,7 @@ LoginScreen, DashboardScreen, PatientsScreen (offline fallback), CrisisScreen (b
 - Suprema / NEC biometric vendor
 - Twilio SMS / AWS SES email / FCM push
 - Change Healthcare / Availity / TriZetto clearinghouse
-- NCTracks real SOAP/SFTP transport (adapter typed + 44 unit tests; waiting for TPA)
+- **NCTracks live SOAP/SFTP** — adapter wired to eligibility + claims in stub mode; TPA application ready (`sales/NCTRACKS-TPA-EMAIL-READY.txt`); flip `NCTRACKS_MODE=soap|sftp` after GDIT credentials
 - MTM Link / ModivCare REST APIs
 - CGS DMEPOS real EDI submission
 - Da Vinci PAS real FHIR submit (Bundle builder + CRD stub done)

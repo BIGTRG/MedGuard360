@@ -24,6 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
+import { shouldUseNctracks, submitNcClaim } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -341,6 +342,19 @@ router.post(
     // Update EDI payload
     await repo.updateClaimEdi(id, ediPayload);
 
+    let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
+    if (shouldUseNctracks(claim.state_code)) {
+      nctracksSubmission = await submitNcClaim({
+        ccn: claim.ccn,
+        totalCharge: claim.total_amount,
+        patientMedicaidId,
+        serviceDate: ediInput.serviceDate,
+        billingNpi,
+        diagnosisCodes: ediInput.diagnosisCodes,
+        lines: ediInput.claimLines,
+      });
+    }
+
     // Mark submitted
     const updated = await repo.updateClaimStatus(id, 'submitted', {
       submitted_at: new Date(),
@@ -374,6 +388,14 @@ router.post(
         payerId: claim.payer_id,
         totalAmount: claim.total_amount,
         lineCount: lines.length,
+        nctracks: nctracksSubmission
+          ? {
+              mode: process.env.NCTRACKS_MODE ?? 'stub',
+              fileName: nctracksSubmission.fileName,
+              isa13: nctracksSubmission.interchangeControlNumber,
+              ack999Accepted: nctracksSubmission.ack999?.accepted,
+            }
+          : undefined,
       },
     });
 
@@ -381,6 +403,7 @@ router.post(
       claim: updated,
       ediPayload,
       ccn: claim.ccn,
+      nctracksSubmission,
     });
   }),
 );

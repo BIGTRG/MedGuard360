@@ -187,6 +187,8 @@ services:
       <<: *service-env
       PORT: "3005"
       HETS_SUBMITTER_UID: ${HETS_SUBMITTER_UID:-MEDGUARD360_PENDING_UID}
+      NCTRACKS_MODE: ${NCTRACKS_MODE:-stub}
+      MEDGUARD_BILLING_NPI: ${MEDGUARD_BILLING_NPI:-1234567890}
     ports: ["3005:3005"]
     <<: *node-service
 
@@ -201,7 +203,12 @@ services:
 
   claims-service:
     build: { <<: *node-build, args: { SERVICE_NAME: claims-service } }
-    environment: { <<: *service-env, PORT: "3008" }
+    environment:
+      <<: *service-env
+      PORT: "3008"
+      NCTRACKS_MODE: ${NCTRACKS_MODE:-stub}
+      NCTRACKS_BILLING_TAXONOMY: ${NCTRACKS_BILLING_TAXONOMY:-261Q00000X}
+      MEDGUARD_BILLING_NPI: ${MEDGUARD_BILLING_NPI:-1234567890}
     ports: ["3008:3008"]
     <<: *node-service
 

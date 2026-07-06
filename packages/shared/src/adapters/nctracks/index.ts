@@ -1,7 +1,7 @@
 /**
- * NCTracks adapter — North Carolina MMIS (operated by Gainwell/GDIT).
- *
- * Spec: integrations/nctracks/spec.md
+ * @deprecated Use `@medguard360/nctracks` (`createNctracksAdapter`) instead.
+ * This legacy shim remains for admin UI catalog references only.
+ * Canonical adapter: integrations/nctracks/ (50 unit tests, wired to eligibility + claims).
  *
  * Transports per NCTracks ITF:
  *   - Real-time:  CAQH CORE 2.2.0 SOAP+MIME over mTLS for 270/271, 276/277

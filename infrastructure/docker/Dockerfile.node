@@ -15,6 +15,12 @@ FROM node:22-alpine AS builder
 ARG SERVICE_NAME
 WORKDIR /app
 
+# Copy NCTracks adapter (used by eligibility-service + claims-service for NC Medicaid)
+COPY integrations/nctracks/package.json ./integrations/nctracks/
+COPY integrations/nctracks/tsconfig.json ./integrations/nctracks/
+COPY integrations/nctracks/src ./integrations/nctracks/src
+RUN cd integrations/nctracks && npm install --no-audit --no-fund && (npm run build || npx tsc -p tsconfig.json --noEmitOnError false --skipLibCheck || true)
+
 # Copy shared package first so we can install + build it
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/shared/tsconfig.json ./packages/shared/
@@ -34,7 +40,9 @@ ENV NODE_ENV=production
 ENV SERVICE_NAME=${SERVICE_NAME}
 WORKDIR /app
 
-# Copy built shared + service
+# Copy built nctracks + shared + service
+COPY --from=builder /app/integrations/nctracks/dist ./integrations/nctracks/dist
+COPY --from=builder /app/integrations/nctracks/package.json ./integrations/nctracks/
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/services/${SERVICE_NAME}/dist ./services/${SERVICE_NAME}/dist

@@ -20,7 +20,7 @@ export class NctracksConfigError extends Error {
 /** Source of values — defaults to `process.env`. Injectable for tests. */
 export type EnvSource = Record<string, string | undefined>;
 
-function require(env: EnvSource, key: string): string {
+function requireEnv(env: EnvSource, key: string): string {
   const v = env[key];
   if (v === undefined || v === '') {
     throw new NctracksConfigError(`Missing required env var: ${key}`);
@@ -114,8 +114,8 @@ export function loadNctracksConfig(envSource: EnvSource = process.env): Nctracks
     cfg.batch.sftp = {
       host: sftpHost,
       port: intOpt(envSource, 'NCTRACKS_BATCH_SFTP_PORT', 22),
-      user: require(envSource, 'NCTRACKS_BATCH_SFTP_USER'),
-      keyPem: require(envSource, 'NCTRACKS_SFTP_PRIVATE_KEY'),
+      user: requireEnv(envSource, 'NCTRACKS_BATCH_SFTP_USER'),
+      keyPem: requireEnv(envSource, 'NCTRACKS_SFTP_PRIVATE_KEY'),
       passphrase: optional(envSource, 'NCTRACKS_SFTP_KEY_PASSPHRASE'),
       dirs: {
         in837:    optional(envSource, 'NCTRACKS_BATCH_SFTP_INBOUND_DIR',         '/inbound/837')    ?? '/inbound/837',

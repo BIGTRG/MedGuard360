@@ -84,7 +84,7 @@ router.post('/eligibility/check',
       if (mmis) {
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: 'mmis_270_271',
+          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
           active: mmis.active,
           effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
           planName: mmis.planName,

@@ -1,0 +1,28 @@
+TO:      NCMMIS_EDI_Support@gdit.com
+FROM:    Sainté Robinson <hello@medguard360.com>
+SUBJECT: Trading Partner Agreement Application — MedGuard360 LLC
+DATE:    2026-07-06
+
+Dear NCTracks Trading Partner Operations Team,
+
+MedGuard360 LLC is a HIPAA-architected Medicaid platform pursuing a pilot deployment with NC DHHS Division of Health Benefits beginning Q3 2026. We respectfully request initiation of the Trading Partner Agreement onboarding process so we may submit and receive HIPAA EDI transactions on behalf of contracted NC Medicaid providers.
+
+REQUESTED NEXT STEPS
+1. Onboarding intake call (available within 5 business days)
+2. Contact Information Form
+3. Sandbox endpoint URLs + test SUBMITTER_ID
+4. TLS client certificate provisioning instructions
+5. IP allowlist process
+
+Full packet with technical checklist, authorized reps, SSP summary, and timeline: see sales/NCTRACKS-TPA-PACKET.md in our GitHub repo (BIGTRG/MedGuard360).
+
+Sincerely,
+Sainté Robinson
+Founder, MedGuard360 LLC
+hello@medguard360.com
+[FILL IN phone before send]
+
+SEND CHECKLIST:
+[ ] Fill in EIN, office address, phone
+[ ] Attach W-9 when LLC EIN is issued
+[ ] CC hello@medguard360.com

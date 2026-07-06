@@ -3,7 +3,7 @@
 **Prepared for:** Gainwell Technologies / NC DHHS EDI Support
 **Submitter:** MedGuard360 LLC
 **Contact:** Sainté Robinson, Founder — hello@medguard360.com
-**Date:** ___________
+**Date:** 2026-07-06
 
 ---
 
@@ -69,7 +69,7 @@ hello@medguard360.com
 |---|---|---|
 | Static IP addresses ready for allowlist | ⬜ Pending GovCloud migration | Will provide by [date] |
 | TLS client certificate generation capability | ✅ | Standard X.509 / RSA-4096 |
-| X12 5010 envelope generator | ✅ Implemented | `packages/shared/src/adapters/nctracks/` (44 unit tests) |
+| X12 5010 envelope generator + adapter | ✅ Implemented | `integrations/nctracks/` (50 unit tests); wired to eligibility + claims services |
 | Edifecs Ramp Management access | ⬜ Pending | Awaiting your invitation |
 | SFTP client (Connect:Direct or libssh2 equivalent) | ✅ | Standard tooling |
 | HIPAA Security Risk Assessment | 🟡 In progress | Coalfire engagement letter; issuance Nov 2026 |
