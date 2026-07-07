@@ -4,11 +4,23 @@
  */
 
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+function isNcMedicaidPayer(payerId: string): boolean {
+  const normalized = payerId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return normalized === 'NCXIX'
+    || normalized === 'NCMEDICAID'
+    || normalized === 'NCMEDPAY'
+    || normalized.startsWith('NCSP')
+    || normalized.startsWith('NCTP')
+    || normalized.includes('MEDICAID');
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  if (payerId && !isNcMedicaidPayer(payerId)) return false;
+  return true;
 }
 
 export interface NcClaimSubmitInput {
@@ -20,12 +32,12 @@ export interface NcClaimSubmitInput {
   diagnosisCodes: string[];
   lines: Array<{
     procedure_code: string;
-    modifier_codes: string[];
+    modifier_codes?: string[];
     units: number;
     charge_amount: number;
     service_date: string;
-    place_of_service: string;
-    diagnosis_pointers: number[];
+    place_of_service?: string;
+    diagnosis_pointers?: number[];
   }>;
 }
 
@@ -59,12 +71,12 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     diagnoses: input.diagnosisCodes.map((code) => ({ code, system: 'ICD10CM' as const })),
     lines: input.lines.map((line) => ({
       procedureCode: line.procedure_code,
-      modifiers: line.modifier_codes.length ? line.modifier_codes : undefined,
+      modifiers: line.modifier_codes?.length ? line.modifier_codes : undefined,
       units: line.units,
       charge: line.charge_amount,
       serviceDate: toIsoDate(line.service_date),
-      placeOfService: line.place_of_service,
-      diagnosisPointers: line.diagnosis_pointers,
+      placeOfService: line.place_of_service ?? '11',
+      diagnosisPointers: line.diagnosis_pointers ?? [1],
     })),
   });
 
@@ -75,6 +87,17 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     isa13: result.interchangeControlNumber,
     ack999Accepted: result.ack999?.accepted,
   });
+
+  const ack999Rejected = result.ack999?.accepted === false;
+  const ack277Rejected = result.ack277CA?.status === 'rejected'
+    || result.ack277CA?.perClaim.some((claim) => claim.status === 'rejected') === true;
+  if (ack999Rejected || ack277Rejected) {
+    throw new ValidationError('NCTracks rejected claim submission', {
+      ccn: input.ccn,
+      ack999: result.ack999,
+      ack277CA: result.ack277CA,
+    });
+  }
 
   return result;
 }
