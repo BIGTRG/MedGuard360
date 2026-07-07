@@ -26,6 +26,7 @@ export interface MmisLookupInput {
   medicaidId?: string;
   /** Provider NPI initiating the check (for HETS attestation tracking). */
   providerNpi?: string;
+  coverageType?: 'medicaid' | 'medicare' | 'chip' | 'commercial';
 }
 
 export interface MmisLookupResult {
@@ -41,14 +42,19 @@ export interface MmisLookupResult {
 }
 
 export async function lookupMmis(input: MmisLookupInput, authHeader: string): Promise<MmisLookupResult | null> {
-  if (shouldUseNctracks(input.stateCode)) {
+  if (shouldUseNctracks(input.stateCode, {
+    coverageType: input.coverageType,
+    payerId: input.payerId,
+    medicaidId: input.medicaidId,
+  })) {
     try {
       return await lookupNctracks(input);
     } catch (err) {
-      logger.warn('NCTracks eligibility failed; falling back to generic MMIS path', {
+      logger.error('NCTracks eligibility failed', {
         stateCode: input.stateCode,
         error: (err as Error).message,
       });
+      throw new UpstreamError('nctracks', (err as Error).message);
     }
   }
 

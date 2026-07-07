@@ -8,17 +8,53 @@ import { createNctracksAdapter } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+type CoverageType = 'medicaid' | 'medicare' | 'chip' | 'commercial';
+
+interface NctracksRoutingOptions {
+  coverageType?: CoverageType;
+  payerId?: string;
+  medicaidId?: string;
+}
+
+function isNcMedicaidPayer(payerId: string): boolean {
+  const normalized = payerId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return normalized === 'NCXIX'
+    || normalized === 'NCMEDICAID'
+    || normalized === 'NCMEDPAY'
+    || normalized.startsWith('NCSP')
+    || normalized.startsWith('NCTP')
+    || normalized.includes('MEDICAID');
+}
+
+export function shouldUseNctracks(stateCode: string, options: NctracksRoutingOptions = {}): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  if (options.coverageType && !['medicaid', 'chip'].includes(options.coverageType)) return false;
+  if (options.payerId && !isNcMedicaidPayer(options.payerId)) return false;
+  if (options.medicaidId !== undefined && options.medicaidId.trim().length === 0) return false;
+  return true;
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
+  const subscriberId = input.medicaidId?.trim();
+  if (!subscriberId) {
+    return {
+      active: false,
+      source: 'nctracks_270_271',
+      raw: {
+        source: 'nctracks',
+        status: 'error',
+        payer_id: input.payerId,
+        reason: 'missing_medicaid_id',
+      },
+    };
+  }
+
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,

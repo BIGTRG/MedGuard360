@@ -47,6 +47,9 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
   if (!r.success) throw new ValidationError('Invalid input', r.error.flatten());
   return r.data;
 }
+function isNctracksUpstreamError(err: unknown): boolean {
+  return err instanceof UpstreamError && err.message.startsWith('nctracks:');
+}
 const ah = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
   (req: Request, res: Response, next: NextFunction): void => { fn(req, res, next).catch(next); };
 
@@ -78,6 +81,7 @@ router.post('/eligibility/check',
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
+          coverageType: input.coverageType,
         },
         req.header('authorization') ?? '',
       );
@@ -93,6 +97,7 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (isNctracksUpstreamError(err)) throw err;
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });

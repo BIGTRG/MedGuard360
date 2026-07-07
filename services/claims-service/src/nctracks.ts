@@ -4,11 +4,23 @@
  */
 
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+function isNcMedicaidPayer(payerId: string): boolean {
+  const normalized = payerId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return normalized === 'NCXIX'
+    || normalized === 'NCMEDICAID'
+    || normalized === 'NCMEDPAY'
+    || normalized.startsWith('NCSP')
+    || normalized.startsWith('NCTP')
+    || normalized.includes('MEDICAID');
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  if (payerId && !isNcMedicaidPayer(payerId)) return false;
+  return true;
 }
 
 export interface NcClaimSubmitInput {
@@ -75,6 +87,17 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     isa13: result.interchangeControlNumber,
     ack999Accepted: result.ack999?.accepted,
   });
+
+  const ack999Rejected = result.ack999?.accepted === false;
+  const ack277Rejected = result.ack277CA?.status === 'rejected'
+    || result.ack277CA?.perClaim.some((claim) => claim.status === 'rejected') === true;
+  if (ack999Rejected || ack277Rejected) {
+    throw new ValidationError('NCTracks rejected claim submission', {
+      ccn: input.ccn,
+      ack999: result.ack999,
+      ack277CA: result.ack277CA,
+    });
+  }
 
   return result;
 }
