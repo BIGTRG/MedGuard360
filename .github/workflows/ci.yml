@@ -27,6 +27,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: chmod +x deploy/check-script-encoding.sh && ./deploy/check-script-encoding.sh
 
+  claims-rls-policy:
+    name: claims RLS policy guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash deploy/check-claims-rls-policy.sh
+
   unit-tests:
     name: jest (Node services)
     runs-on: ubuntu-latest
