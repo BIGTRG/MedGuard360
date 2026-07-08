@@ -1,11 +1,14 @@
 import { lookupMmis, type MmisLookupInput, type MmisLookupResult } from './mmis';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
 
-const mockStateConfigGet = jest.fn();
+type StateConfigGetResponse = { data: { mmis_api_endpoint: string | null } };
+type StateConfigGetArgs = [string, { headers: { authorization: string } }];
+
+const mockStateConfigGet = jest.fn<Promise<StateConfigGetResponse>, StateConfigGetArgs>();
 
 jest.mock('axios', () => ({
   create: jest.fn(() => ({
-    get: mockStateConfigGet,
+    get: (...args: StateConfigGetArgs) => mockStateConfigGet(...args),
   })),
   post: jest.fn(),
 }));
