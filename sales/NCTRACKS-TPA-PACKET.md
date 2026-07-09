@@ -3,7 +3,7 @@
 **Prepared for:** Gainwell Technologies / NC DHHS EDI Support
 **Submitter:** MedGuard360 LLC
 **Contact:** Sainté Robinson, Founder — hello@medguard360.com
-**Date:** 2026-07-06
+**Date:** 2026-07-09
 
 ---
 
@@ -37,7 +37,7 @@ MedGuard360 LLC is a HIPAA-architected Medicaid platform pursuing a pilot deploy
 We are filing as both a clearinghouse and a software vendor. Contracted providers using MedGuard360 will be enrolled as our trading partner sub-IDs under our master TPA, with their own NPIs as billing entities.
 
 **Onboarding readiness**
-We have implemented X12 5010 envelope generation against the published NCTracks Companion Guides for 270/271 and 835 (URLs cited in our reference doc). Our adapter is currently in stub mode awaiting your sandbox endpoint and submitter credentials. We are prepared to begin Edifecs Ramp Management testing immediately upon receipt of TPID and SUBMITTER_ID.
+We have implemented the NCTracks adapter (`integrations/nctracks/`, 50 unit tests) and wired eligibility-service and claims-service to it in stub mode. We are prepared to begin Edifecs Ramp Management testing immediately upon receipt of TPID and SUBMITTER_ID.
 
 We have reviewed:
 - NCTracks Trading Partner Connectivity Guide (CG_TPConn.pdf)

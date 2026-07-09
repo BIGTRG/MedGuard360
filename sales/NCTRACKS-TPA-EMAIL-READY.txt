@@ -1,28 +1,81 @@
+================================================================================
+NCTracks TPA — SEND TODAY (Track A)
+================================================================================
+
 TO:      NCMMIS_EDI_Support@gdit.com
 FROM:    Sainté Robinson <hello@medguard360.com>
+CC:      hello@medguard360.com
 SUBJECT: Trading Partner Agreement Application — MedGuard360 LLC
-DATE:    2026-07-06
+
+--- paste below this line into your email client ---
 
 Dear NCTracks Trading Partner Operations Team,
 
 MedGuard360 LLC is a HIPAA-architected Medicaid platform pursuing a pilot deployment with NC DHHS Division of Health Benefits beginning Q3 2026. We respectfully request initiation of the Trading Partner Agreement onboarding process so we may submit and receive HIPAA EDI transactions on behalf of contracted NC Medicaid providers.
 
-REQUESTED NEXT STEPS
-1. Onboarding intake call (available within 5 business days)
+About MedGuard360 LLC
+- Delaware LLC, EIN [FILL IN — or write "pending; will provide upon LLC issuance"]
+- Primary office: [FILL IN — North Carolina street, city, ZIP]
+- HIPAA Security Risk Assessment: in active observation with Coalfire (issuance Nov 2026)
+- SOC 2 Type II: in active observation with A-LIGN (issuance Nov 2026)
+- HITRUST CSF i1: parallel track with A-LIGN
+- Business Associate Agreement template: 45 CFR 164.504(e)-compliant, NC-specific addenda included
+
+Scope of trading-partner activity sought
+- 270/271 — real-time eligibility (production submitter)
+- 837P — professional claim submission (batch via SFTP or Connect:Direct)
+- 837I — institutional claim submission (Phase 2)
+- 276/277 — claim status inquiry (real-time)
+- 835 — remittance advice (batch retrieval)
+- 999 / TA1 — acknowledgments
+
+Vendor relationship
+We are filing as both a clearinghouse and a software vendor. Contracted providers using MedGuard360 will be enrolled as our trading partner sub-IDs under our master TPA, with their own NPIs as billing entities.
+
+Onboarding readiness
+We have implemented the NCTracks adapter (integrations/nctracks/, 50 unit tests) and wired eligibility-service and claims-service to it in stub mode. X12 5010 envelope generation follows the published NCTracks Companion Guides for 270/271 and 837P. We are prepared to begin Edifecs Ramp Management testing immediately upon receipt of TPID and SUBMITTER_ID.
+
+We have reviewed:
+- NCTracks Trading Partner Connectivity Guide (CG_TPConn.pdf)
+- 270/271 Companion Guide v7
+- 835 Companion Guide v3.2021
+- LME/MCO Encounter Data Submission Manual v3
+- All public 5010 Provider Specific Companion Guides
+
+Requested next steps
+1. Onboarding intake call with your team (we can meet within 5 business days)
 2. Contact Information Form
 3. Sandbox endpoint URLs + test SUBMITTER_ID
-4. TLS client certificate provisioning instructions
-5. IP allowlist process
+4. Production TLS client certificate provisioning instructions
+5. IP allowlist process (we will provide static IPs from our AWS GovCloud production region once provisioned)
 
-Full packet with technical checklist, authorized reps, SSP summary, and timeline: see sales/NCTRACKS-TPA-PACKET.md in our GitHub repo (BIGTRG/MedGuard360).
+Thank you for your time. We look forward to a long partnership in service of NC Medicaid members.
 
 Sincerely,
+
 Sainté Robinson
 Founder, MedGuard360 LLC
 hello@medguard360.com
-[FILL IN phone before send]
+[FILL IN phone]
 
-SEND CHECKLIST:
-[ ] Fill in EIN, office address, phone
-[ ] Attach W-9 when LLC EIN is issued
-[ ] CC hello@medguard360.com
+--- end paste ---
+
+ATTACHMENTS (optional for first email — GDIT may request separately):
+  - NCTRACKS-TPA-PACKET.md exported to PDF (Attachments A–E)
+  - Or reply with forms when they send the Contact Information Form
+
+PRE-SEND CHECKLIST
+[ ] Replace [FILL IN phone] and office address (minimum: city + state if no street yet)
+[ ] EIN: fill in or note "Delaware LLC formation in progress; EIN within 10 business days"
+[ ] Send from hello@medguard360.com (or your TRG domain if that is the legal entity contact)
+[ ] BCC or file a copy in compliance/vendor-correspondence/nctracks/
+[ ] Apply for NCID in parallel: https://ncid.nc.gov
+
+AFTER SEND
+[ ] Log date sent in PROJECT-STATUS.md or a spreadsheet
+[ ] Expect 3–10 business days for intake response
+[ ] When Contact Information Form arrives, complete Attachment D items in NCTRACKS-TPA-PACKET.md
+
+Reference repo: https://github.com/BIGTRG/MedGuard360
+Full packet: sales/NCTRACKS-TPA-PACKET.md
+Integration docs: integrations/nctracks/README.md
