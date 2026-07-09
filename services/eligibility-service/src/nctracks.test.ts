@@ -1,3 +1,4 @@
+import { lookupMmis } from './mmis';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
 
 describe('shouldUseNctracks', () => {
@@ -38,5 +39,22 @@ describe('lookupNctracks', () => {
       medicaidId: 'NCMD00100009',
     });
     expect(result.active).toBe(false);
+  });
+
+  it('rejects NCTracks eligibility checks without a Medicaid ID', async () => {
+    await expect(lookupNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+    })).rejects.toThrow('NCTracks eligibility requires a Medicaid ID');
+  });
+
+  it('does not fall back to simulated MMIS coverage when NCTracks fails', async () => {
+    process.env.NCTRACKS_MODE = 'sftp';
+    await expect(lookupMmis({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      medicaidId: 'NCMD00100001',
+    }, '')).rejects.toThrow("NCTRACKS_MODE='sftp' is not yet implemented");
+    delete process.env.NCTRACKS_MODE;
   });
 });

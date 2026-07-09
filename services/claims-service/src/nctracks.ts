@@ -29,6 +29,19 @@ export interface NcClaimSubmitInput {
   }>;
 }
 
+export function isNctracksSubmissionAccepted(result: ClaimSubmitResult): boolean {
+  if (result.ack999 && !result.ack999.accepted) {
+    return false;
+  }
+  if (result.ack277CA && result.ack277CA.status !== 'accepted') {
+    return false;
+  }
+  if (result.ack277CA?.perClaim.some((claim) => claim.status !== 'accepted')) {
+    return false;
+  }
+  return true;
+}
+
 function toIsoDate(raw: string): string {
   const d = raw.replace(/-/g, '');
   if (d.length === 8) return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;

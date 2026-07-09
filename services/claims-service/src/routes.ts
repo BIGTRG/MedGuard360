@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import { isNctracksSubmissionAccepted, shouldUseNctracks, submitNcClaim } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -353,6 +353,28 @@ router.post(
         diagnosisCodes: ediInput.diagnosisCodes,
         lines: ediInput.claimLines,
       });
+      if (!isNctracksSubmissionAccepted(nctracksSubmission)) {
+        await auditLog({
+          resource: 'claim',
+          resourceId: id,
+          action: 'submit',
+          actor: auth,
+          outcome: 'failure',
+          phiAccessed: true,
+          context: {
+            ccn: claim.ccn,
+            payerId: claim.payer_id,
+            nctracks: {
+              mode: process.env.NCTRACKS_MODE ?? 'stub',
+              fileName: nctracksSubmission.fileName,
+              isa13: nctracksSubmission.interchangeControlNumber,
+              ack999Accepted: nctracksSubmission.ack999?.accepted,
+              ack277CAStatus: nctracksSubmission.ack277CA?.status,
+            },
+          },
+        });
+        throw new ValidationError('NCTracks rejected claim submission');
+      }
     }
 
     // Mark submitted
