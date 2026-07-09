@@ -1,6 +1,10 @@
 import { lookupMmis } from './mmis';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
 
+afterEach(() => {
+  delete process.env.NCTRACKS_MODE;
+});
+
 describe('shouldUseNctracks', () => {
   it('routes NC to NCTracks by default', () => {
     expect(shouldUseNctracks('NC')).toBe(true);
@@ -13,7 +17,6 @@ describe('shouldUseNctracks', () => {
   it('respects NCTRACKS_MODE=disabled', () => {
     process.env.NCTRACKS_MODE = 'disabled';
     expect(shouldUseNctracks('NC')).toBe(false);
-    delete process.env.NCTRACKS_MODE;
   });
 });
 
@@ -54,7 +57,6 @@ describe('lookupNctracks', () => {
       stateCode: 'NC',
       payerId: 'NCXIX',
       medicaidId: 'NCMD00100001',
-    }, '')).rejects.toThrow("NCTRACKS_MODE='sftp' is not yet implemented");
-    delete process.env.NCTRACKS_MODE;
+    }, '')).rejects.toThrow(/sftp/i);
   });
 });

@@ -67,7 +67,8 @@ router.post('/eligibility/check',
           patientId: input.patientId, payerId: input.payerId, stateCode: input.stateCode,
           active: cached.active, source: 'cache',
         }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
-        return res.json({ ...cached, cacheHit: true });
+        res.json({ ...cached, cacheHit: true });
+        return;
       }
     }
 
@@ -95,7 +96,7 @@ router.post('/eligibility/check',
     if (mmis) {
       row = await repo.persist(req.auth!, {
         patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-        coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
+        coverageType: input.coverageType ?? 'medicaid', source: mmis.source ?? 'mmis_270_271',
         active: mmis.active,
         effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
         planName: mmis.planName,
@@ -116,7 +117,7 @@ router.post('/eligibility/check',
         });
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: 'ai_prediction',
+          coverageType: input.coverageType ?? 'medicaid', source: 'ai_prediction',
           active: pred.data.likely_eligible,
           planName: pred.data.suggested_program,
           details: { ai: pred.data },
@@ -196,7 +197,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });
