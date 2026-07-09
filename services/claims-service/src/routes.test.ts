@@ -1,4 +1,4 @@
-import { CreateClaimSchema, ClaimLineSchema, UpdateStatusSchema } from './routes';
+import { CreateClaimSchema, ClaimLineSchema, UpdateStatusSchema } from './validation';
 
 const uuid = '00000000-0000-0000-0000-000000000001';
 
