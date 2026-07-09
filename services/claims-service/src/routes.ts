@@ -30,7 +30,7 @@ const logger = createLogger('claims-service:routes');
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 
-const ClaimLineSchema = z.object({
+export const ClaimLineSchema = z.object({
   line_number: z.number().int().positive(),
   procedure_code: z.string().min(1).max(20),
   modifier_codes: z.array(z.string().length(2)).max(4).optional(),
@@ -42,7 +42,7 @@ const ClaimLineSchema = z.object({
   place_of_service: z.string().length(2).optional(),
 });
 
-const CreateClaimSchema = z.object({
+export const CreateClaimSchema = z.object({
   encounter_id: z.string().uuid().optional(),
   patient_id: z.string().uuid(),
   payer_id: z.string().min(1),
@@ -60,7 +60,7 @@ const ListClaimsSchema = z.object({
   state_code: z.string().length(2).optional(),
 });
 
-const UpdateStatusSchema = z.object({
+export const UpdateStatusSchema = z.object({
   status: z.string().min(1),
   fraud_score: z.number().min(0).max(100).optional(),
   paid_at: z.string().datetime().optional(),
