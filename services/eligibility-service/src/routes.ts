@@ -11,7 +11,8 @@ import {
   requireAuth, requireRole, auditLog, emitEvent, ValidationError, logger, UpstreamError, config,
 } from '@medguard360/shared';
 import * as repo from './repository';
-import { lookupMmis } from './mmis';
+import { lookupMmis, type MmisLookupResult } from './mmis';
+import { shouldUseNctracks } from './nctracks';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -66,14 +67,16 @@ router.post('/eligibility/check',
           patientId: input.patientId, payerId: input.payerId, stateCode: input.stateCode,
           active: cached.active, source: 'cache',
         }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
-        return res.json({ ...cached, cacheHit: true });
+        res.json({ ...cached, cacheHit: true });
+        return;
       }
     }
 
     // 2. Try MMIS 270/271
     let row;
+    let mmis: MmisLookupResult | null = null;
     try {
-      const mmis = await lookupMmis(
+      mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
@@ -81,20 +84,24 @@ router.post('/eligibility/check',
         },
         req.header('authorization') ?? '',
       );
-      if (mmis) {
-        row = await repo.persist(req.auth!, {
-          patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
-          active: mmis.active,
-          effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
-          planName: mmis.planName,
-          copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
-          details: mmis.raw,
-        });
-      }
     } catch (err) {
+      if (shouldUseNctracks(input.stateCode)) {
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
+      });
+    }
+
+    if (mmis) {
+      row = await repo.persist(req.auth!, {
+        patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
+        coverageType: input.coverageType ?? 'medicaid', source: mmis.source ?? 'mmis_270_271',
+        active: mmis.active,
+        effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
+        planName: mmis.planName,
+        copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
+        details: mmis.raw,
       });
     }
 
@@ -110,7 +117,7 @@ router.post('/eligibility/check',
         });
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: 'ai_prediction',
+          coverageType: input.coverageType ?? 'medicaid', source: 'ai_prediction',
           active: pred.data.likely_eligible,
           planName: pred.data.suggested_program,
           details: { ai: pred.data },
@@ -190,7 +197,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });
