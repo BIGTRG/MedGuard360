@@ -7,7 +7,8 @@ import { errorHandler, requireAuth, requireBiometric, requireRole } from './midd
 
 type NextMock = jest.Mock<void, [unknown?]>;
 
-interface CapturingResponse extends Response {
+interface CapturedResponse {
+  response: Response;
   statusCode?: number;
   body?: unknown;
 }
@@ -23,21 +24,23 @@ function makeRequest(headers: Record<string, string> = {}): Request {
   } as Request;
 }
 
-function makeResponse(): CapturingResponse {
-  const res = {
-    requestId: 'req-test-1',
-  } as CapturingResponse;
+function makeResponse(): CapturedResponse {
+  const captured: CapturedResponse = {
+    response: {} as Response,
+  };
+  const response = {} as Response;
 
-  res.status = jest.fn<Response, [number]>((status: number) => {
-    res.statusCode = status;
-    return res;
+  response.status = jest.fn<Response, [number]>((status: number) => {
+    captured.statusCode = status;
+    return response;
   });
-  res.json = jest.fn<Response, [unknown]>((body: unknown) => {
-    res.body = body;
-    return res;
+  response.json = jest.fn<Response, [unknown]>((body: unknown) => {
+    captured.body = body;
+    return response;
   });
+  captured.response = response;
 
-  return res;
+  return captured;
 }
 
 function makeNext(): NextMock {
@@ -63,7 +66,7 @@ describe('requireAuth', () => {
   it('rejects missing bearer tokens', () => {
     const next = makeNext();
 
-    requireAuth(makeRequest(), makeResponse(), next as NextFunction);
+    requireAuth(makeRequest(), makeResponse().response, next as NextFunction);
 
     expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
   });
@@ -79,7 +82,7 @@ describe('requireAuth', () => {
     const req = makeRequest({ authorization: `Bearer ${tokens.accessToken}` });
     const next = makeNext();
 
-    requireAuth(req, makeResponse(), next as NextFunction);
+    requireAuth(req, makeResponse().response, next as NextFunction);
 
     expect(next).toHaveBeenCalledWith();
     expect(req.auth).toMatchObject({
@@ -98,7 +101,7 @@ describe('authorization gates', () => {
     req.auth = { ...authClaims, role: 'patient' };
     const next = makeNext();
 
-    requireRole('billing_manager')(req, makeResponse(), next as NextFunction);
+    requireRole('billing_manager')(req, makeResponse().response, next as NextFunction);
 
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });
@@ -108,7 +111,7 @@ describe('authorization gates', () => {
     req.auth = { ...authClaims, biometricVerified: false };
     const next = makeNext();
 
-    requireBiometric(req, makeResponse(), next as NextFunction);
+    requireBiometric(req, makeResponse().response, next as NextFunction);
 
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });
@@ -121,7 +124,7 @@ describe('errorHandler', () => {
     errorHandler(
       new ValidationError('Invalid input', { fieldErrors: { payerId: ['Required'] } }),
       makeRequest(),
-      res,
+      res.response,
       makeNext() as NextFunction,
     );
 
@@ -139,7 +142,7 @@ describe('errorHandler', () => {
   it('maps unexpected errors to a safe 500 response', () => {
     const res = makeResponse();
 
-    errorHandler(new Error('database password leaked'), makeRequest(), res, makeNext() as NextFunction);
+    errorHandler(new Error('database password leaked'), makeRequest(), res.response, makeNext() as NextFunction);
 
     expect(res.statusCode).toBe(500);
     expect(res.body).toEqual({

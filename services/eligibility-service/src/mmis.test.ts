@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { lookupMmis } from './mmis';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
 
@@ -8,8 +7,10 @@ const mockAxiosPost = jest.fn();
 jest.mock('axios', () => ({
   __esModule: true,
   default: {
-    create: jest.fn(() => ({ get: mockStateConfigGet })),
-    post: mockAxiosPost,
+    create: jest.fn(() => ({
+      get: (url: string, config?: unknown) => mockStateConfigGet(url, config),
+    })),
+    post: (url: string, payload: unknown, config?: unknown) => mockAxiosPost(url, payload, config),
   },
 }));
 
@@ -35,7 +36,6 @@ jest.mock('./nctracks', () => ({
 
 const mockedLookupNctracks = jest.mocked(lookupNctracks);
 const mockedShouldUseNctracks = jest.mocked(shouldUseNctracks);
-const mockedAxios = jest.mocked(axios);
 
 describe('lookupMmis NCTracks orchestration', () => {
   beforeEach(() => {
@@ -96,7 +96,7 @@ describe('lookupMmis NCTracks orchestration', () => {
   it('uses a configured endpoint first but falls back to deterministic simulator on X12 submit failure', async () => {
     mockedShouldUseNctracks.mockReturnValue(false);
     mockStateConfigGet.mockResolvedValue({ data: { mmis_api_endpoint: 'https://mmis.example.test/270' } });
-    mockedAxios.post.mockRejectedValue(new Error('connection refused'));
+    mockAxiosPost.mockRejectedValue(new Error('connection refused'));
 
     const result = await lookupMmis({
       stateCode: 'GA',
@@ -107,7 +107,7 @@ describe('lookupMmis NCTracks orchestration', () => {
       patientDateOfBirth: '1980-01-31',
     }, 'Bearer test-token');
 
-    expect(mockedAxios.post).toHaveBeenCalledWith(
+    expect(mockAxiosPost).toHaveBeenCalledWith(
       'https://mmis.example.test/270',
       expect.stringContaining('ISA*'),
       expect.objectContaining({
