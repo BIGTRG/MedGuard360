@@ -24,8 +24,8 @@ export interface NcClaimSubmitInput {
     units: number;
     charge_amount: number;
     service_date: string;
-    place_of_service: string;
-    diagnosis_pointers: number[];
+    place_of_service?: string;
+    diagnosis_pointers?: number[];
   }>;
 }
 
@@ -64,7 +64,7 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
       charge: line.charge_amount,
       serviceDate: toIsoDate(line.service_date),
       placeOfService: line.place_of_service,
-      diagnosisPointers: line.diagnosis_pointers,
+      diagnosisPointers: line.diagnosis_pointers ?? [1],
     })),
   });
 

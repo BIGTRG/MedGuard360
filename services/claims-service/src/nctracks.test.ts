@@ -98,8 +98,6 @@ describe('submitNcClaim', () => {
           units: 2,
           charge_amount: 50,
           service_date: '20260707',
-          place_of_service: '11',
-          diagnosis_pointers: [1, 2],
         },
       ],
     });
@@ -142,8 +140,8 @@ describe('submitNcClaim', () => {
           units: 2,
           charge: 50,
           serviceDate: '2026-07-07',
-          placeOfService: '11',
-          diagnosisPointers: [1, 2],
+          placeOfService: undefined,
+          diagnosisPointers: [1],
         },
       ],
     });
