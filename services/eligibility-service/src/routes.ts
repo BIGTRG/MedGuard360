@@ -11,7 +11,9 @@ import {
   requireAuth, requireRole, auditLog, emitEvent, ValidationError, logger, UpstreamError, config,
 } from '@medguard360/shared';
 import * as repo from './repository';
-import { lookupMmis } from './mmis';
+import { lookupMmis, type MmisLookupResult } from './mmis';
+import { hasNcMedicaidSubscriberId, shouldUseNctracks } from './nctracks';
+import type { EligibilityRow } from './types';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -57,6 +59,10 @@ router.post('/eligibility/check',
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
   ah(async (req, res) => {
     const input = parse(CheckSchema, req.body);
+    const useNctracks = shouldUseNctracks(input.stateCode, input.payerId, input.coverageType);
+    if (useNctracks && !hasNcMedicaidSubscriberId(input.medicaidId)) {
+      throw new ValidationError('NCTracks eligibility checks require a Medicaid member ID');
+    }
 
     // 1. Cache hit (24h TTL)
     if (!input.forceRefresh) {
@@ -71,30 +77,41 @@ router.post('/eligibility/check',
     }
 
     // 2. Try MMIS 270/271
-    let row;
+    let row: EligibilityRow | undefined;
+    let mmisResult: MmisLookupResult | null = null;
     try {
-      const mmis = await lookupMmis(
+      mmisResult = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
+          coverageType: input.coverageType,
         },
         req.header('authorization') ?? '',
       );
-      if (mmis) {
-        row = await repo.persist(req.auth!, {
-          patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
-          active: mmis.active,
-          effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
-          planName: mmis.planName,
-          copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
-          details: mmis.raw,
-        });
-      }
     } catch (err) {
+      if (useNctracks) {
+        logger.error('NCTracks eligibility lookup failed', {
+          stateCode: input.stateCode,
+          payerId: input.payerId,
+          error: (err as Error).message,
+        });
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
+      });
+    }
+
+    if (mmisResult) {
+      row = await repo.persist(req.auth!, {
+        patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
+        coverageType: input.coverageType, source: mmisResult.source ?? 'mmis_270_271',
+        active: mmisResult.active,
+        effectiveFrom: mmisResult.effectiveFrom, effectiveTo: mmisResult.effectiveTo,
+        planName: mmisResult.planName,
+        copayCents: mmisResult.copayCents, deductibleRemainingCents: mmisResult.deductibleRemainingCents,
+        details: mmisResult.raw,
       });
     }
 

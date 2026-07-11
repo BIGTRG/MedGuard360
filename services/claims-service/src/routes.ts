@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import { hasNcMedicaidSubscriberId, shouldUseNctracks, submitNcClaim } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -295,6 +295,11 @@ router.post(
       logger.warn('provider-service lookup failed; using defaults for EDI', { error: (err as Error).message });
     }
 
+    const useNctracks = shouldUseNctracks(claim.state_code, claim.payer_id);
+    if (useNctracks && !hasNcMedicaidSubscriberId(patientMedicaidId)) {
+      throw new ValidationError('NCTracks claim submission requires a Medicaid member ID from patient-service');
+    }
+
     // Build diagnosis codes from lines if not on claim
     const diagnosisCodes: string[] = [];
     for (const line of lines) {
@@ -339,11 +344,8 @@ router.post(
 
     const ediPayload = generateEdi837P(ediInput);
 
-    // Update EDI payload
-    await repo.updateClaimEdi(id, ediPayload);
-
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (useNctracks) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
