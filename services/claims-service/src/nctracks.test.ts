@@ -95,7 +95,6 @@ describe('submitNcClaim', () => {
         },
         {
           procedure_code: 'H0032',
-          modifier_codes: [],
           units: 2,
           charge_amount: 50,
           service_date: '20260707',
