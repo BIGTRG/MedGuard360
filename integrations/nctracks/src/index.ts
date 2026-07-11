@@ -36,6 +36,9 @@
  */
 
 import { loadNctracksConfig, type EnvSource } from './config';
+import { NctracksLiveAdapter } from './live-adapter';
+import { NctracksSftpAdapter } from './sftp-adapter';
+import { NctracksSoapAdapter } from './soap-adapter';
 import { NctracksStubAdapter, type StubOptions } from './stub';
 import type { NctracksAdapter, NctracksConfig } from './types';
 
@@ -61,28 +64,13 @@ export function createNctracksAdapter(opts: CreateOptions = {}): NctracksAdapter
       return new NctracksStubAdapter(config, opts.stubOptions);
 
     case 'soap':
-      // TODO: implement NctracksSoapAdapter — CAQH CORE 2.2.0 over mTLS HTTPS.
-      // Required reading: integrations/nctracks/spec.md §2.5 + README.md §2-4.
-      // Module layout target: src/transport/coreSoap.ts + src/x12/{builder,parser}.ts.
-      throw new Error(
-        `NCTRACKS_MODE='soap' is not yet implemented. ` +
-          `Stub mode satisfies the same NctracksAdapter interface; flip env back to 'stub' ` +
-          `or implement NctracksSoapAdapter in integrations/nctracks/src/soap.ts. ` +
-          `See integrations/nctracks/README.md §2-4 for the GDIT onboarding checklist.`,
-      );
+      return new NctracksSoapAdapter(config);
 
     case 'sftp':
-      // TODO: implement NctracksSftpAdapter — ssh2-sftp-client batch transport.
-      // Required reading: integrations/nctracks/spec.md §3.batch + README.md §2.
-      // Real-mode needs: control-number persistence (Postgres seq),
-      //                  filename watermarking for 835 polling,
-      //                  cert/key rotation hot-reload.
-      throw new Error(
-        `NCTRACKS_MODE='sftp' is not yet implemented. ` +
-          `Stub mode satisfies the same NctracksAdapter interface; flip env back to 'stub' ` +
-          `or implement NctracksSftpAdapter in integrations/nctracks/src/sftp.ts. ` +
-          `See integrations/nctracks/README.md §2-4 for the GDIT onboarding checklist.`,
-      );
+      return new NctracksSftpAdapter(config);
+
+    case 'live':
+      return new NctracksLiveAdapter(config);
 
     default: {
       const _exhaustive: never = config.mode;
@@ -114,4 +102,8 @@ export type {
 } from './types';
 
 export { NctracksStubAdapter } from './stub';
+export { NctracksSoapAdapter, NctracksTransportError } from './soap-adapter';
+export { NctracksSftpAdapter } from './sftp-adapter';
+export { NctracksLiveAdapter } from './live-adapter';
 export { loadNctracksConfig, NctracksConfigError } from './config';
+export { buildCoreSoapEnvelope, extractCoreEnvelopePayload } from './transport/coreSoap';

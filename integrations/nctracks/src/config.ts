@@ -45,9 +45,9 @@ function intOpt(env: EnvSource, key: string, fallback: number): number {
 
 function parseMode(env: EnvSource): NctracksMode {
   const raw = (env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  if (raw !== 'stub' && raw !== 'soap' && raw !== 'sftp') {
+  if (raw !== 'stub' && raw !== 'soap' && raw !== 'sftp' && raw !== 'live') {
     throw new NctracksConfigError(
-      `NCTRACKS_MODE must be one of: stub | soap | sftp (got "${raw}")`,
+      `NCTRACKS_MODE must be one of: stub | soap | sftp | live (got "${raw}")`,
     );
   }
   return raw;
@@ -159,6 +159,21 @@ export function loadNctracksConfig(envSource: EnvSource = process.env): Nctracks
     if (!cfg.batch.sftp) {
       throw new NctracksConfigError(
         `mode=sftp requires NCTRACKS_BATCH_SFTP_HOST, NCTRACKS_BATCH_SFTP_USER, NCTRACKS_SFTP_PRIVATE_KEY`,
+      );
+    }
+  }
+  if (mode === 'live') {
+    if (!cfg.realtime.eligibilityUrl) {
+      throw new NctracksConfigError(`mode=live requires NCTRACKS_REALTIME_ELIGIBILITY_URL`);
+    }
+    if (!cfg.auth.clientCertPem || !cfg.auth.clientKeyPem) {
+      throw new NctracksConfigError(
+        `mode=live requires NCTRACKS_CLIENT_CERT and NCTRACKS_CLIENT_KEY (mTLS)`,
+      );
+    }
+    if (!cfg.batch.sftp) {
+      throw new NctracksConfigError(
+        `mode=live requires NCTRACKS_BATCH_SFTP_HOST, NCTRACKS_BATCH_SFTP_USER, NCTRACKS_SFTP_PRIVATE_KEY`,
       );
     }
   }

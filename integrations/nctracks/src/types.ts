@@ -8,7 +8,7 @@
 
 export type NctracksEnv = 'prod' | 'test';
 
-export type NctracksMode = 'stub' | 'soap' | 'sftp';
+export type NctracksMode = 'stub' | 'soap' | 'sftp' | 'live';
 
 /** Loaded once at boot from env vars. */
 export interface NctracksConfig {

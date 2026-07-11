@@ -27,6 +27,16 @@ jobs:
       - uses: actions/checkout@v4
       - run: chmod +x deploy/check-script-encoding.sh && ./deploy/check-script-encoding.sh
 
+  nctracks-tests:
+    name: jest (@medguard360/nctracks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: cd integrations/nctracks && npm ci && npm run build && npm test
+
   unit-tests:
     name: jest (Node services)
     runs-on: ubuntu-latest

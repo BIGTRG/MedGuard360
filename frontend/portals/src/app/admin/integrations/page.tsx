@@ -20,7 +20,7 @@ const ADAPTERS: Adapter[] = [
   {
     key: 'nctracks', vendor: 'NCTracks (Gainwell/GDIT — NC MMIS)',
     purpose: 'Eligibility 270/271 + claim submit 837P — wired to eligibility-service + claims-service (NC)',
-    envMode: 'NCTRACKS_MODE', modes: ['stub','soap','sftp'], status: 'stub',
+    envMode: 'NCTRACKS_MODE', modes: ['stub','soap','sftp','live'], status: 'stub',
     envVars: ['NCTRACKS_REALTIME_ELIGIBILITY_URL','NCTRACKS_SUBMITTER_ID','NCTRACKS_TPID','NCTRACKS_RECEIVER_ID','NCTRACKS_CLIENT_CERT','NCTRACKS_CLIENT_KEY','NCTRACKS_BATCH_SFTP_HOST','NCTRACKS_BATCH_SFTP_USER','NCTRACKS_SFTP_PRIVATE_KEY','NCTRACKS_USAGE_INDICATOR'],
     spec: 'integrations/nctracks/src/',
   },

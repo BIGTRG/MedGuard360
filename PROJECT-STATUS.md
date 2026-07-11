@@ -1,4 +1,13 @@
-# MedGuard360 — Project Status as of 2026-07-06
+# MedGuard360 — Project Status as of 2026-07-11
+
+## NCTracks integration
+
+| Track | Status |
+|-------|--------|
+| **A — TPA** | Draft emailed to saintellc@gmail.com 2026-07-09 — **forward to NCMMIS_EDI_Support@gdit.com** |
+| **B — Engineering** | Stub wired to eligibility + claims; SOAP/SFTP/live adapter scaffolds (51 unit tests) |
+
+After GDIT credentials: set `NCTRACKS_MODE=live` + env vars → Ramp cert → sandbox round-trip.
 
 ## NC laptop demo (tag `v1.0-demo`) — COMPLETE
 
@@ -104,7 +113,7 @@ LoginScreen, DashboardScreen, PatientsScreen (offline fallback), CrisisScreen (b
 - Suprema / NEC biometric vendor
 - Twilio SMS / AWS SES email / FCM push
 - Change Healthcare / Availity / TriZetto clearinghouse
-- **NCTracks live SOAP/SFTP** — adapter wired to eligibility + claims in stub mode; TPA application ready (`sales/NCTRACKS-TPA-EMAIL-READY.txt`); flip `NCTRACKS_MODE=soap|sftp` after GDIT credentials
+- **NCTracks live SOAP/SFTP** — adapter wired in stub mode; `NCTRACKS_MODE=live` scaffolds CORE SOAP + SFTP (awaiting GDIT sandbox credentials)
 - MTM Link / ModivCare REST APIs
 - CGS DMEPOS real EDI submission
 - Da Vinci PAS real FHIR submit (Bundle builder + CRD stub done)
