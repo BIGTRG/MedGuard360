@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import { hasNcMedicaidSubscriberId, shouldUseNctracks, submitNcClaim } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -226,6 +226,7 @@ router.post(
     if (claim.status !== 'draft' && claim.status !== 'validated') {
       throw new ValidationError(`Claim cannot be submitted from status: ${claim.status}`);
     }
+    const authorization = req.header('authorization') ?? '';
 
     // Fetch service lines
     const linesResult = await pool.query(
@@ -245,7 +246,7 @@ router.post(
       const patientResp = await fetch(
         `${process.env.PATIENT_SERVICE_URL ?? 'http://patient-service:3004'}/api/v1/patients/${claim.patient_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -273,7 +274,7 @@ router.post(
       const provResp = await fetch(
         `${process.env.PROVIDER_SERVICE_URL ?? 'http://provider-service:3002'}/api/v1/providers/${claim.provider_user_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -293,6 +294,11 @@ router.post(
       }
     } catch (err) {
       logger.warn('provider-service lookup failed; using defaults for EDI', { error: (err as Error).message });
+    }
+
+    const useNctracks = shouldUseNctracks(claim.state_code, claim.payer_id);
+    if (useNctracks && !hasNcMedicaidSubscriberId(patientMedicaidId)) {
+      throw new ValidationError('NCTracks claim submission requires a Medicaid member ID from patient-service');
     }
 
     // Build diagnosis codes from lines if not on claim
@@ -339,11 +345,8 @@ router.post(
 
     const ediPayload = generateEdi837P(ediInput);
 
-    // Update EDI payload
-    await repo.updateClaimEdi(id, ediPayload);
-
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (useNctracks) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -351,7 +354,15 @@ router.post(
         serviceDate: ediInput.serviceDate,
         billingNpi,
         diagnosisCodes: ediInput.diagnosisCodes,
-        lines: ediInput.claimLines,
+        lines: ediInput.claimLines.map((line) => ({
+          procedure_code: line.procedure_code,
+          modifier_codes: line.modifier_codes ?? [],
+          units: line.units,
+          charge_amount: line.charge_amount,
+          service_date: line.service_date,
+          place_of_service: line.place_of_service ?? '11',
+          diagnosis_pointers: line.diagnosis_pointers ?? [1],
+        })),
       });
     }
 
@@ -379,10 +390,9 @@ router.post(
     await auditLog({
       resource: 'claim',
       resourceId: id,
-      action: 'submit',
+      action: 'update',
       actor: auth,
       outcome: 'success',
-      phiAccessed: true,
       context: {
         ccn: claim.ccn,
         payerId: claim.payer_id,

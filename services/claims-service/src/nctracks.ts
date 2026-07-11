@@ -4,11 +4,30 @@
  */
 
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const DEFAULT_NC_MEDICAID_PAYER_IDS = ['NCXIX', 'NCMEDPAY', 'NCTRACKS', 'NC_MEDICAID', 'NCMEDICAID'];
+
+function configuredNcMedicaidPayerIds(): Set<string> {
+  const configured = process.env.NCTRACKS_PAYER_IDS?.split(',')
+    .map((payerId) => payerId.trim().toUpperCase())
+    .filter((payerId) => payerId.length > 0);
+
+  return new Set(configured?.length ? configured : DEFAULT_NC_MEDICAID_PAYER_IDS);
+}
+
+export function hasNcMedicaidSubscriberId(medicaidId: string | undefined): boolean {
+  const normalized = medicaidId?.trim();
+  if (!normalized) return false;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return !uuidPattern.test(normalized) && /^[A-Z0-9]{6,}$/i.test(normalized);
+}
+
+export function shouldUseNctracks(stateCode: string, payerId: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return stateCode.toUpperCase() === 'NC'
+    && mode !== 'disabled'
+    && configuredNcMedicaidPayerIds().has(payerId.trim().toUpperCase());
 }
 
 export interface NcClaimSubmitInput {
@@ -37,6 +56,11 @@ function toIsoDate(raw: string): string {
 }
 
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult> {
+  const subscriberId = input.patientMedicaidId.trim();
+  if (!hasNcMedicaidSubscriberId(subscriberId)) {
+    throw new ValidationError('NCTracks claim submission requires a Medicaid member ID');
+  }
+
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
 
@@ -44,7 +68,7 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     claimType: 'professional',
     patientControlNumber: input.ccn,
     totalCharge: input.totalCharge,
-    subscriberId: input.patientMedicaidId,
+    subscriberId,
     serviceDateFrom: serviceIso,
     serviceDateTo: serviceIso,
     billingProvider: {
@@ -75,6 +99,15 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     isa13: result.interchangeControlNumber,
     ack999Accepted: result.ack999?.accepted,
   });
+
+  const rejected277 = result.ack277CA?.status === 'rejected'
+    || result.ack277CA?.perClaim.some((claim) => claim.status === 'rejected') === true;
+  if (result.ack999?.accepted === false || rejected277) {
+    throw new ValidationError('NCTracks rejected claim submission', {
+      ack999: result.ack999,
+      ack277CA: result.ack277CA,
+    });
+  }
 
   return result;
 }
