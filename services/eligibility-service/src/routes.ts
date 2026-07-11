@@ -208,7 +208,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });

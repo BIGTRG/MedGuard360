@@ -226,6 +226,7 @@ router.post(
     if (claim.status !== 'draft' && claim.status !== 'validated') {
       throw new ValidationError(`Claim cannot be submitted from status: ${claim.status}`);
     }
+    const authorization = req.header('authorization') ?? '';
 
     // Fetch service lines
     const linesResult = await pool.query(
@@ -245,7 +246,7 @@ router.post(
       const patientResp = await fetch(
         `${process.env.PATIENT_SERVICE_URL ?? 'http://patient-service:3004'}/api/v1/patients/${claim.patient_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -273,7 +274,7 @@ router.post(
       const provResp = await fetch(
         `${process.env.PROVIDER_SERVICE_URL ?? 'http://provider-service:3002'}/api/v1/providers/${claim.provider_user_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -389,7 +390,7 @@ router.post(
     await auditLog({
       resource: 'claim',
       resourceId: id,
-      action: 'submit',
+      action: 'update',
       actor: auth,
       outcome: 'success',
       phiAccessed: true,
