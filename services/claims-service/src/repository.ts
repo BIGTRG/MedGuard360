@@ -1,8 +1,9 @@
-import { pool } from '@medguard360/shared';
+import { pool, NotFoundError } from '@medguard360/shared';
+import type { QueryResult, QueryResultRow } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 
 interface QueryClient {
-  query<Row>(text: string, values?: unknown[]): Promise<{ rows: Row[] }>;
+  query<Row extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<Row>>;
 }
 
 // ── CCN generation ────────────────────────────────────────────────────────────
