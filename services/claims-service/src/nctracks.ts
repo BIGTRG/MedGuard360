@@ -8,7 +8,10 @@ import { logger } from '@medguard360/shared';
 
 export function shouldUseNctracks(stateCode: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  // Only the stub adapter currently implements 837P submission. SOAP/live/SFTP
+  // modes are safe for eligibility work, but their batch claim upload remains
+  // scaffolded and must not block the generic clearinghouse submission path.
+  return stateCode.toUpperCase() === 'NC' && mode === 'stub';
 }
 
 export interface NcClaimSubmitInput {

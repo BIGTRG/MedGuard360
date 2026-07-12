@@ -1,8 +1,30 @@
 import { shouldUseNctracks, submitNcClaim } from './nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
+  const originalMode = process.env.NCTRACKS_MODE;
+
+  afterEach(() => {
+    if (originalMode === undefined) {
+      delete process.env.NCTRACKS_MODE;
+    } else {
+      process.env.NCTRACKS_MODE = originalMode;
+    }
+  });
+
+  it('routes NC claims through the implemented NCTracks stub', () => {
+    process.env.NCTRACKS_MODE = 'stub';
     expect(shouldUseNctracks('NC')).toBe(true);
+  });
+
+  it('keeps scaffolded live transports off the claim submission path', () => {
+    process.env.NCTRACKS_MODE = 'soap';
+    expect(shouldUseNctracks('NC')).toBe(false);
+
+    process.env.NCTRACKS_MODE = 'sftp';
+    expect(shouldUseNctracks('NC')).toBe(false);
+
+    process.env.NCTRACKS_MODE = 'live';
+    expect(shouldUseNctracks('NC')).toBe(false);
   });
 });
 
