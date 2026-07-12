@@ -14,9 +14,7 @@
   "dependencies": {
     "@medguard360/nctracks": "file:../../integrations/nctracks",
     "@medguard360/shared": "file:../../packages/shared",
-    "@types/pg": "^8.20.0",
     "express": "^4.21.1",
-    "pg": "^8.22.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
