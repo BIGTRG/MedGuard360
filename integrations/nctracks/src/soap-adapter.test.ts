@@ -1,6 +1,6 @@
-import { NctracksSoapAdapter } from './soap-adapter';
+import { NctracksSoapAdapter, NctracksTransportError } from './soap-adapter';
 import { postCoreSoap } from './transport/httpsPost';
-import type { NctracksConfig } from './types';
+import type { ClaimSubmitRequest, NctracksConfig } from './types';
 
 jest.mock('./transport/httpsPost', () => ({
   postCoreSoap: jest.fn(),
@@ -31,6 +31,23 @@ const config: NctracksConfig = {
     clientCertPem: 'cert',
     clientKeyPem: 'key',
   },
+};
+
+const claim: ClaimSubmitRequest = {
+  claimType: 'professional',
+  patientControlNumber: 'PCN-SOAP',
+  totalCharge: 125,
+  subscriberId: 'NCMD00100007',
+  serviceDateFrom: '2026-07-10',
+  serviceDateTo: '2026-07-10',
+  diagnoses: [{ code: 'F41.1', system: 'ICD10CM' }],
+  lines: [{
+    procedureCode: '90834',
+    units: 1,
+    charge: 125,
+    serviceDate: '2026-07-10',
+    diagnosisPointers: [1],
+  }],
 };
 
 describe('NctracksSoapAdapter.checkEligibility', () => {
@@ -90,5 +107,18 @@ describe('NctracksSoapAdapter.checkEligibility', () => {
     expect(response.aaaRejection).toEqual({ code: '72', followUpAction: 'C' });
     expect(response.coverageDetails).toEqual([]);
     expect(response.traceId).toBe('TRACE-AAA');
+  });
+
+  it('throws explicit transport errors for batch and scaffolded operations', async () => {
+    const adapter = new NctracksSoapAdapter(config);
+
+    await expect(adapter.submitClaim(claim)).rejects.toThrow(NctracksTransportError);
+    await expect(adapter.getClaimStatus({
+      patientControlNumber: 'PCN-SOAP',
+      subscriberId: 'NCMD00100007',
+    })).rejects.toThrow(/276\/277 SOAP transport scaffolded/);
+    await expect(adapter.retrieveRemittances()).rejects.toThrow(/835 retrieval requires SFTP/);
+    await expect(adapter.pollAcks('2026-07-01')).rejects.toThrow(/999\/277CA polling requires SFTP/);
+    await expect(adapter.healthCheck()).resolves.toEqual({ realtimeOk: true, sftpOk: false });
   });
 });
