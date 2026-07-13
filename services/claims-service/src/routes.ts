@@ -24,7 +24,14 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import {
+  getNctracksMode,
+  hasNcMemberId,
+  isUnavailableBatchModeConfigured,
+  isNcMedicaidOrChipPayer,
+  shouldUseNctracks,
+  submitNcClaim,
+} from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -264,6 +271,18 @@ router.post(
       logger.warn('patient-service lookup failed; using defaults for EDI', { error: (err as Error).message });
     }
 
+    if (claim.state_code.toUpperCase() === 'NC' && isNcMedicaidOrChipPayer(claim.payer_id)) {
+      const patientServiceMissingId = patientMedicaidId === claim.patient_id;
+      if (!hasNcMemberId(patientMedicaidId) || patientServiceMissingId) {
+        throw new ValidationError('NC Medicaid/CHIP claim submission requires a patient Medicaid/member ID');
+      }
+      if (isUnavailableBatchModeConfigured()) {
+        throw new ValidationError(
+          `NCTracks batch claim submission is not available in NCTRACKS_MODE=${getNctracksMode()}`,
+        );
+      }
+    }
+
     // Fetch provider / billing info
     let billingNpi = '0000000000';
     let billingName = 'Unknown Provider';
@@ -343,7 +362,11 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks({
+      stateCode: claim.state_code,
+      payerId: claim.payer_id,
+      patientMedicaidId,
+    })) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,

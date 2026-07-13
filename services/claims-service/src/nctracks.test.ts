@@ -1,8 +1,50 @@
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import { isUnavailableBatchModeConfigured, shouldUseNctracks, submitNcClaim } from './nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  afterEach(() => {
+    delete process.env.NCTRACKS_MODE;
+  });
+
+  it('routes NC Medicaid claims with a member ID through NCTracks', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      patientMedicaidId: 'NCMD00100001',
+    })).toBe(true);
+  });
+
+  it('skips NC commercial claims', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'COMMERCIAL_BLUE',
+      patientMedicaidId: 'NCMD00100001',
+    })).toBe(false);
+  });
+
+  it('skips NC Medicaid claims without a member ID', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+    })).toBe(false);
+  });
+
+  it('does not route claims when NCTracks is in SOAP-only eligibility mode', () => {
+    process.env.NCTRACKS_MODE = 'soap';
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      patientMedicaidId: 'NCMD00100001',
+    })).toBe(false);
+  });
+
+  it('treats scaffolded SFTP/live batch modes as unavailable for claim submission', () => {
+    process.env.NCTRACKS_MODE = 'live';
+    expect(isUnavailableBatchModeConfigured()).toBe(true);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      patientMedicaidId: 'NCMD00100001',
+    })).toBe(false);
   });
 });
 
