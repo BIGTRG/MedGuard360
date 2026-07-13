@@ -20,6 +20,7 @@ const stateConfigClient = axios.create({
 export interface MmisLookupInput {
   stateCode: string;
   payerId: string;
+  coverageType?: 'medicaid' | 'medicare' | 'chip' | 'commercial';
   patientFirstName?: string;
   patientLastName?: string;
   patientDateOfBirth?: string;
@@ -41,7 +42,7 @@ export interface MmisLookupResult {
 }
 
 export async function lookupMmis(input: MmisLookupInput, authHeader: string): Promise<MmisLookupResult | null> {
-  if (shouldUseNctracks(input.stateCode)) {
+  if (shouldUseNctracks(input)) {
     try {
       return await lookupNctracks(input);
     } catch (err) {

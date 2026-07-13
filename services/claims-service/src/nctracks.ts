@@ -6,9 +6,50 @@
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
-  const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+export interface NctracksClaimRoutingInput {
+  stateCode: string;
+  payerId: string;
+  patientMedicaidId?: string;
+}
+
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDICAID',
+  'NCMEDICAIDDIRECT',
+  'NCMEDICAIDMANAGEDCARE',
+  'NCTRACKS',
+  'NCCHIP',
+  'NCHC',
+  'NCHEALTHCHOICE',
+]);
+
+function normalizePayerId(payerId: string): string {
+  return payerId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function isNcMedicaidOrChipPayer(payerId: string): boolean {
+  return NC_MEDICAID_PAYER_IDS.has(normalizePayerId(payerId));
+}
+
+export function hasNcMemberId(patientMedicaidId?: string): boolean {
+  return Boolean(patientMedicaidId?.trim());
+}
+
+export function getNctracksMode(): string {
+  return (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
+}
+
+export function isUnavailableBatchModeConfigured(): boolean {
+  const mode = getNctracksMode();
+  return mode === 'sftp' || mode === 'live';
+}
+
+export function shouldUseNctracks(input: NctracksClaimRoutingInput): boolean {
+  const mode = getNctracksMode();
+  return input.stateCode.toUpperCase() === 'NC'
+    && mode === 'stub'
+    && isNcMedicaidOrChipPayer(input.payerId)
+    && hasNcMemberId(input.patientMedicaidId);
 }
 
 export interface NcClaimSubmitInput {
