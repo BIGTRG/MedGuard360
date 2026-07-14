@@ -39,4 +39,18 @@ describe('lookupNctracks', () => {
     });
     expect(result.active).toBe(false);
   });
+
+  it('preserves AAA rejection details without marking coverage active', async () => {
+    const result = await lookupNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      medicaidId: 'BADMEM999',
+      patientFirstName: 'Jane',
+      patientLastName: 'Doe',
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.raw.status).toBe('error');
+    expect(result.raw.aaaRejection).toEqual({ code: '75', followUpAction: 'C' });
+  });
 });

@@ -20,12 +20,12 @@ export interface NcClaimSubmitInput {
   diagnosisCodes: string[];
   lines: Array<{
     procedure_code: string;
-    modifier_codes: string[];
+    modifier_codes?: string[];
     units: number;
     charge_amount: number;
     service_date: string;
-    place_of_service: string;
-    diagnosis_pointers: number[];
+    place_of_service?: string;
+    diagnosis_pointers?: number[];
   }>;
 }
 
@@ -59,12 +59,12 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     diagnoses: input.diagnosisCodes.map((code) => ({ code, system: 'ICD10CM' as const })),
     lines: input.lines.map((line) => ({
       procedureCode: line.procedure_code,
-      modifiers: line.modifier_codes.length ? line.modifier_codes : undefined,
+      modifiers: line.modifier_codes?.length ? line.modifier_codes : undefined,
       units: line.units,
       charge: line.charge_amount,
       serviceDate: toIsoDate(line.service_date),
       placeOfService: line.place_of_service,
-      diagnosisPointers: line.diagnosis_pointers,
+      diagnosisPointers: line.diagnosis_pointers ?? [1],
     })),
   });
 
