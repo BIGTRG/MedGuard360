@@ -1,8 +1,27 @@
 import { shouldUseNctracks, submitNcClaim } from './nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid claims with a member ID through NCTracks', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      patientMedicaidId: 'NCMD00100001',
+    })).toBe(true);
+  });
+
+  it('does not route NC commercial claims through NCTracks', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'AETNA',
+      patientMedicaidId: 'NCMD00100001',
+    })).toBe(false);
+  });
+
+  it('does not route NC Medicaid claims without a member ID through NCTracks', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+    })).toBe(false);
   });
 });
 

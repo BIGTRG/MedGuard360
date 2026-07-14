@@ -8,9 +8,52 @@ import { createNctracksAdapter } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+type NctracksCoverageType = 'medicaid' | 'chip' | 'medicare' | 'commercial';
+
+interface NctracksRoutingInput {
+  stateCode: string;
+  payerId?: string;
+  coverageType?: NctracksCoverageType;
+  medicaidId?: string;
+}
+
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDICAID',
+  'NCMEDPAY',
+  'NCMED',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+]);
+
+function normalizePayerId(payerId?: string): string {
+  return (payerId ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+}
+
+function isNcMedicaidPayer(payerId?: string): boolean {
+  const normalized = normalizePayerId(payerId);
+  return NC_MEDICAID_PAYER_IDS.has(normalized)
+    || normalized.startsWith('NCMEDICAID')
+    || normalized.startsWith('NCMEDPAY')
+    || normalized.startsWith('NCCHIP')
+    || normalized.startsWith('NCHEALTHCHOICE');
+}
+
+function hasMemberId(medicaidId?: string): boolean {
+  const normalized = (medicaidId ?? '').trim().toUpperCase();
+  return normalized.length > 0 && normalized !== 'UNKNOWN';
+}
+
+export function shouldUseNctracks(input: NctracksRoutingInput): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  const isMedicaidCoverage = input.coverageType === undefined
+    || input.coverageType === 'medicaid'
+    || input.coverageType === 'chip';
+  return input.stateCode.toUpperCase() === 'NC'
+    && mode !== 'disabled'
+    && isMedicaidCoverage
+    && isNcMedicaidPayer(input.payerId)
+    && hasMemberId(input.medicaidId);
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
