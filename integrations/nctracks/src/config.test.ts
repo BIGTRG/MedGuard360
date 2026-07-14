@@ -135,6 +135,49 @@ describe('loadNctracksConfig', () => {
     it('stub mode tolerates everything missing', () => {
       expect(() => loadNctracksConfig({ NCTRACKS_MODE: 'stub' })).not.toThrow();
     });
+
+    it('mode=live requires SOAP URL and mTLS credentials', () => {
+      expect(() => loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+        NCTRACKS_BATCH_SFTP_USER: 'user',
+        NCTRACKS_SFTP_PRIVATE_KEY: 'k',
+      })).toThrow(/NCTRACKS_REALTIME_ELIGIBILITY_URL/);
+
+      expect(() => loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+        NCTRACKS_BATCH_SFTP_USER: 'user',
+        NCTRACKS_SFTP_PRIVATE_KEY: 'k',
+      })).toThrow(/NCTRACKS_CLIENT_CERT/);
+    });
+
+    it('mode=live requires SFTP credentials for batch flows', () => {
+      expect(() => loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+      })).toThrow(/mode=live requires NCTRACKS_BATCH_SFTP_HOST/);
+    });
+
+    it('mode=live loads both realtime and batch transport config when complete', () => {
+      const c = loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+        NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+        NCTRACKS_BATCH_SFTP_USER: 'user',
+        NCTRACKS_SFTP_PRIVATE_KEY: 'k',
+      });
+
+      expect(c.mode).toBe('live');
+      expect(c.realtime.eligibilityUrl).toBe('https://edi.example.com/CORE/Eligibility');
+      expect(c.auth.clientCertPem).toBe('cert');
+      expect(c.batch.sftp).toMatchObject({ host: 'sftp.example.com', user: 'user' });
+    });
   });
 
   describe('connect:direct block', () => {
