@@ -1,17 +1,61 @@
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC to NCTracks by default', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid with a member ID to NCTracks by default', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'NCMD00100001',
+    })).toBe(true);
   });
 
   it('skips non-NC states', () => {
-    expect(shouldUseNctracks('GA')).toBe(false);
+    expect(shouldUseNctracks({
+      stateCode: 'GA',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'NCMD00100001',
+    })).toBe(false);
+  });
+
+  it('skips NC commercial and Medicare payers', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'AETNA',
+      coverageType: 'commercial',
+      medicaidId: 'NCMD00100001',
+    })).toBe(false);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'MEDICARE_NC',
+      coverageType: 'medicare',
+      medicaidId: 'NCMD00100001',
+    })).toBe(false);
+  });
+
+  it('skips NC Medicaid payer requests without a member ID', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+    })).toBe(false);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'UNKNOWN',
+    })).toBe(false);
   });
 
   it('respects NCTRACKS_MODE=disabled', () => {
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'NCMD00100001',
+    })).toBe(false);
     delete process.env.NCTRACKS_MODE;
   });
 });

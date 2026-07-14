@@ -6,9 +6,45 @@
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+interface NctracksClaimRoutingInput {
+  stateCode: string;
+  payerId?: string;
+  patientMedicaidId?: string;
+}
+
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDICAID',
+  'NCMEDPAY',
+  'NCMED',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+]);
+
+function normalizePayerId(payerId?: string): string {
+  return (payerId ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+}
+
+function isNcMedicaidPayer(payerId?: string): boolean {
+  const normalized = normalizePayerId(payerId);
+  return NC_MEDICAID_PAYER_IDS.has(normalized)
+    || normalized.startsWith('NCMEDICAID')
+    || normalized.startsWith('NCMEDPAY')
+    || normalized.startsWith('NCCHIP')
+    || normalized.startsWith('NCHEALTHCHOICE');
+}
+
+function hasMemberId(patientMedicaidId?: string): boolean {
+  const normalized = (patientMedicaidId ?? '').trim().toUpperCase();
+  return normalized.length > 0 && normalized !== 'UNKNOWN';
+}
+
+export function shouldUseNctracks(input: NctracksClaimRoutingInput): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return input.stateCode.toUpperCase() === 'NC'
+    && mode !== 'disabled'
+    && isNcMedicaidPayer(input.payerId)
+    && hasMemberId(input.patientMedicaidId);
 }
 
 export interface NcClaimSubmitInput {
