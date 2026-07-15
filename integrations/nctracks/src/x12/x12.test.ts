@@ -50,8 +50,9 @@ describe('build270ForNctracks', () => {
 
   it('maps eligibility request fields into the NCTracks 270 envelope', () => {
     const rows = segmentRows(build270ForNctracks(baseEligibilityRequest(), testConfig(), '42'));
+    const isa = findSegment(rows, 'ISA');
 
-    expect(findSegment(rows, 'ISA')).toMatchObject([
+    expect(isa.slice(0, 9)).toEqual([
       'ISA',
       '00',
       '          ',
@@ -62,8 +63,8 @@ describe('build270ForNctracks', () => {
       'ZZ',
       'NCXIX          ',
     ]);
-    expect(findSegment(rows, 'ISA')[13]).toBe('000000042');
-    expect(findSegment(rows, 'ISA')[15]).toBe('T');
+    expect(isa[13]).toBe('000000042');
+    expect(isa[15]).toBe('T');
     expect(findSegment(rows, 'GS')).toEqual([
       'GS',
       'HS',
