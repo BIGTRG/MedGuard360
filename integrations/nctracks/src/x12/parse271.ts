@@ -26,5 +26,6 @@ export function parse271(payload: string): Parsed271 {
       if (p[1] === '292') out.effectiveTo = iso;
     }
   }
+  if (out.aaaCode) out.active = false;
   return out;
 }
