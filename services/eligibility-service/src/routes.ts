@@ -58,6 +58,17 @@ router.post('/eligibility/check',
   ah(async (req, res) => {
     const input = parse(CheckSchema, req.body);
 
+    if (
+      input.stateCode.toUpperCase() === 'NC'
+      && (input.coverageType === 'medicaid' || input.coverageType === 'chip')
+      && !input.medicaidId?.trim()
+    ) {
+      throw new ValidationError('NC Medicaid/CHIP eligibility checks require medicaidId', {
+        fieldErrors: { medicaidId: ['Required for NCTracks Medicaid/CHIP eligibility checks'] },
+        formErrors: [],
+      });
+    }
+
     // 1. Cache hit (24h TTL)
     if (!input.forceRefresh) {
       const cached = await repo.findFreshCache(req.auth!, input.patientId, input.payerId, input.stateCode);
@@ -76,6 +87,7 @@ router.post('/eligibility/check',
       const mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
+          coverageType: input.coverageType,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
         },
