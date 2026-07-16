@@ -8,17 +8,51 @@ import { createNctracksAdapter } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDPAY',
+  'NCTRACKS',
+  'NC_MEDICAID',
+  'NCMEDICAID',
+]);
+
+function isEnabled(): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return mode !== 'disabled';
+}
+
+function normalized(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+export function isNcMedicaidOrChip(input: Pick<MmisLookupInput, 'coverageType' | 'payerId' | 'stateCode'>): boolean {
+  const coverageType = input.coverageType ?? 'medicaid';
+  const payerId = normalized(input.payerId);
+  return input.stateCode.toUpperCase() === 'NC'
+    && (coverageType === 'medicaid' || coverageType === 'chip')
+    && (NC_MEDICAID_PAYER_IDS.has(payerId) || payerId.startsWith('NCXIX'));
+}
+
+export function shouldUseNctracks(input: MmisLookupInput | string): boolean {
+  if (!isEnabled()) return false;
+  if (typeof input === 'string') return input.toUpperCase() === 'NC';
+  return isNcMedicaidOrChip(input) && Boolean(input.medicaidId?.trim());
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
+  if (!isNcMedicaidOrChip(input)) {
+    throw new Error('NCTracks eligibility requires an NC Medicaid or CHIP payer');
+  }
+  const subscriberId = input.medicaidId?.trim();
+  if (!subscriberId) {
+    throw new Error('NCTracks eligibility requires a Medicaid member ID');
+  }
+
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,
