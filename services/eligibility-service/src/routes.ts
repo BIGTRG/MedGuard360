@@ -76,6 +76,7 @@ router.post('/eligibility/check',
       const mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
+          coverageType: input.coverageType,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
         },
@@ -93,6 +94,9 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (err instanceof UpstreamError && err.message.startsWith('NCTracks:')) {
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });

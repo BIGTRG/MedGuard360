@@ -5,20 +5,55 @@
  */
 
 import { createNctracksAdapter } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDPAY',
+  'NCMEDICAID',
+  'NCTRACKS',
+  'NCCHIP',
+]);
+
+function normalizePayerId(payerId: string | undefined): string {
+  return (payerId ?? '').trim().toUpperCase().replace(/[\s_-]/g, '');
+}
+
+export function isNcMedicaidPayer(payerId: string | undefined): boolean {
+  const normalized = normalizePayerId(payerId);
+  return NC_MEDICAID_PAYER_IDS.has(normalized);
+}
+
+export function hasRealMemberId(memberId: string | undefined): memberId is string {
+  const normalized = (memberId ?? '').trim().toUpperCase();
+  return /^[A-Z0-9]{6,}$/.test(normalized) && normalized !== 'UNKNOWN';
+}
+
+function isMedicaidCoverage(coverageType: string | undefined): boolean {
+  const normalized = (coverageType ?? 'medicaid').trim().toLowerCase();
+  return normalized === 'medicaid' || normalized === 'chip';
+}
+
+export function shouldUseNctracks(input: MmisLookupInput): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return input.stateCode.toUpperCase() === 'NC'
+    && mode !== 'disabled'
+    && isMedicaidCoverage(input.coverageType)
+    && isNcMedicaidPayer(input.payerId)
+    && hasRealMemberId(input.medicaidId);
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
+  if (!hasRealMemberId(input.medicaidId)) {
+    throw new ValidationError('NCTracks eligibility requires a real Medicaid/member ID');
+  }
+
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId: input.medicaidId.trim(),
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,
