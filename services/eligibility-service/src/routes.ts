@@ -14,6 +14,7 @@ import * as repo from './repository';
 import { lookupMmis } from './mmis';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
+import type { EligibilityRow } from './types';
 
 const eligibilityIntel = axios.create({
   baseURL: 'http://localhost:8010', timeout: 5000,
@@ -71,9 +72,10 @@ router.post('/eligibility/check',
     }
 
     // 2. Try MMIS 270/271
-    let row;
+    let row: EligibilityRow | undefined;
+    let mmis: Awaited<ReturnType<typeof lookupMmis>> = null;
     try {
-      const mmis = await lookupMmis(
+      mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
@@ -81,20 +83,20 @@ router.post('/eligibility/check',
         },
         req.header('authorization') ?? '',
       );
-      if (mmis) {
-        row = await repo.persist(req.auth!, {
-          patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
-          active: mmis.active,
-          effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
-          planName: mmis.planName,
-          copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
-          details: mmis.raw,
-        });
-      }
     } catch (err) {
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
+      });
+    }
+    if (mmis) {
+      row = await repo.persist(req.auth!, {
+        patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
+        coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
+        active: mmis.active,
+        effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
+        planName: mmis.planName,
+        copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
+        details: mmis.raw,
       });
     }
 
