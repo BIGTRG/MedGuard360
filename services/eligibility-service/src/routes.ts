@@ -14,6 +14,7 @@ import * as repo from './repository';
 import { lookupMmis } from './mmis';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
+import type { EligibilityRow } from './types';
 
 const eligibilityIntel = axios.create({
   baseURL: 'http://localhost:8010', timeout: 5000,
@@ -42,7 +43,7 @@ const PredictSchema = z.object({
   medicaidId: z.string().optional(),
 });
 
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, input: unknown): T {
   const r = schema.safeParse(input);
   if (!r.success) throw new ValidationError('Invalid input', r.error.flatten());
   return r.data;
@@ -55,7 +56,7 @@ export const router = Router();
 router.post('/eligibility/check',
   requireAuth,
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
-  ah(async (req, res) => {
+  ah(async (req, res): Promise<void> => {
     const input = parse(CheckSchema, req.body);
 
     // 1. Cache hit (24h TTL)
@@ -66,14 +67,16 @@ router.post('/eligibility/check',
           patientId: input.patientId, payerId: input.payerId, stateCode: input.stateCode,
           active: cached.active, source: 'cache',
         }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
-        return res.json({ ...cached, cacheHit: true });
+        res.json({ ...cached, cacheHit: true });
+        return;
       }
     }
 
     // 2. Try MMIS 270/271
-    let row;
+    let row: EligibilityRow | undefined;
+    let mmis: Awaited<ReturnType<typeof lookupMmis>> = null;
     try {
-      const mmis = await lookupMmis(
+      mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
@@ -81,20 +84,20 @@ router.post('/eligibility/check',
         },
         req.header('authorization') ?? '',
       );
-      if (mmis) {
-        row = await repo.persist(req.auth!, {
-          patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
-          active: mmis.active,
-          effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
-          planName: mmis.planName,
-          copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
-          details: mmis.raw,
-        });
-      }
     } catch (err) {
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
+      });
+    }
+    if (mmis) {
+      row = await repo.persist(req.auth!, {
+        patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
+        coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
+        active: mmis.active,
+        effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
+        planName: mmis.planName,
+        copayCents: mmis.copayCents, deductibleRemainingCents: mmis.deductibleRemainingCents,
+        details: mmis.raw,
       });
     }
 
@@ -190,7 +193,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });
