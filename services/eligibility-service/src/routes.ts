@@ -43,7 +43,7 @@ const PredictSchema = z.object({
   medicaidId: z.string().optional(),
 });
 
-function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, input: unknown): T {
   const r = schema.safeParse(input);
   if (!r.success) throw new ValidationError('Invalid input', r.error.flatten());
   return r.data;
@@ -56,7 +56,7 @@ export const router = Router();
 router.post('/eligibility/check',
   requireAuth,
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
-  ah(async (req, res) => {
+  ah(async (req, res): Promise<void> => {
     const input = parse(CheckSchema, req.body);
 
     // 1. Cache hit (24h TTL)
@@ -67,7 +67,8 @@ router.post('/eligibility/check',
           patientId: input.patientId, payerId: input.payerId, stateCode: input.stateCode,
           active: cached.active, source: 'cache',
         }, { actorUserId: req.auth!.sub, correlationId: req.correlationId });
-        return res.json({ ...cached, cacheHit: true });
+        res.json({ ...cached, cacheHit: true });
+        return;
       }
     }
 
@@ -192,7 +193,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });
