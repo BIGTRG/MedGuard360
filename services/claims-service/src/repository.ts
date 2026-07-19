@@ -1,6 +1,10 @@
 import { pool, withRlsContext, NotFoundError, query } from '@medguard360/shared';
-import type { PoolClient } from 'pg';
+import type { QueryResult, QueryResultRow } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
+
+interface ClaimsQueryClient {
+  query<R extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<R>>;
+}
 
 // ── CCN generation ────────────────────────────────────────────────────────────
 
@@ -120,7 +124,7 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: PoolClient = pool,
+  client: ClaimsQueryClient = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
