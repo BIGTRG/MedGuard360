@@ -5,20 +5,56 @@
  */
 
 import { createNctracksAdapter } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const DEFAULT_NC_MEDICAID_PAYER_IDS = ['NCXIX', 'NCMEDPAY', 'NCTRACKS', 'NC_MEDICAID', 'NCMEDICAID'];
+
+function configuredNcMedicaidPayerIds(): Set<string> {
+  const configured = process.env.NCTRACKS_PAYER_IDS?.split(',')
+    .map((payerId) => payerId.trim().toUpperCase())
+    .filter((payerId) => payerId.length > 0);
+
+  return new Set(configured?.length ? configured : DEFAULT_NC_MEDICAID_PAYER_IDS);
+}
+
+function nctracksEnabled(): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return mode !== 'disabled';
+}
+
+export function isNcMedicaidPayer(payerId: string): boolean {
+  const normalized = payerId.trim().toUpperCase();
+  return configuredNcMedicaidPayerIds().has(normalized);
+}
+
+export function hasNcMedicaidSubscriberId(medicaidId: string | undefined): boolean {
+  const normalized = medicaidId?.trim();
+  if (!normalized) return false;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return !uuidPattern.test(normalized) && /^[A-Z0-9]{6,}$/i.test(normalized);
+}
+
+export function shouldUseNctracks(stateCode: string, payerId: string, coverageType = 'medicaid'): boolean {
+  const normalizedCoverageType = coverageType.toLowerCase();
+  const isMedicaidCoverage = normalizedCoverageType === 'medicaid' || normalizedCoverageType === 'chip';
+  return stateCode.toUpperCase() === 'NC'
+    && nctracksEnabled()
+    && isMedicaidCoverage
+    && isNcMedicaidPayer(payerId);
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
+  const subscriberId = input.medicaidId?.trim();
+  if (!subscriberId || !hasNcMedicaidSubscriberId(subscriberId)) {
+    throw new ValidationError('NCTracks eligibility checks require a Medicaid member ID');
+  }
+
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,
