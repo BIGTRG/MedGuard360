@@ -1,4 +1,7 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
+import type { CheckSource } from './types';
 
 describe('shouldUseNctracks', () => {
   it('routes NC to NCTracks by default', () => {
@@ -13,6 +16,32 @@ describe('shouldUseNctracks', () => {
     process.env.NCTRACKS_MODE = 'disabled';
     expect(shouldUseNctracks('NC')).toBe(false);
     delete process.env.NCTRACKS_MODE;
+  });
+
+  it('requires NC Medicaid context and a real member ID when evaluating a request', () => {
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'NCMD00100001',
+    })).toBe(true);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'COMMERCIAL_PLAN',
+      coverageType: 'commercial',
+      medicaidId: 'NCMD00100001',
+    })).toBe(false);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+    })).toBe(false);
+    expect(shouldUseNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: '10000000-0000-0000-0000-000000000001',
+    })).toBe(false);
   });
 });
 
@@ -38,5 +67,30 @@ describe('lookupNctracks', () => {
       medicaidId: 'NCMD00100009',
     });
     expect(result.active).toBe(false);
+  });
+
+  it('does not send placeholders to NCTracks when member ID is missing', async () => {
+    await expect(lookupNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+    })).rejects.toThrow('requires a real NC Medicaid member ID');
+  });
+});
+
+describe('NCTracks eligibility source persistence', () => {
+  it('keeps the TypeScript source and PostgreSQL constraints aligned', () => {
+    const source: CheckSource = 'nctracks_270_271';
+    const baseMigration = readFileSync(
+      join(__dirname, '../../../infrastructure/postgres/migrations/0011_eligibility_schema.sql'),
+      'utf8',
+    );
+    const forwardMigration = readFileSync(
+      join(__dirname, '../../../infrastructure/postgres/migrations/0037_allow_nctracks_eligibility_source.sql'),
+      'utf8',
+    );
+
+    expect(source).toBe('nctracks_270_271');
+    expect(baseMigration).toContain("'nctracks_270_271'");
+    expect(forwardMigration).toContain("'nctracks_270_271'");
   });
 });
