@@ -120,3 +120,42 @@ describe('NctracksSoapAdapter.checkEligibility', () => {
       .rejects.toThrow('NCTracks SOAP HTTP 500: unavailable');
   });
 });
+
+describe('NctracksSoapAdapter scaffolded operations', () => {
+  const adapter = new NctracksSoapAdapter(config);
+
+  it('reports realtime health from configured eligibility URL', async () => {
+    await expect(adapter.healthCheck()).resolves.toEqual({ realtimeOk: true, sftpOk: false });
+  });
+
+  it('directs batch claim submission to live or sftp mode', async () => {
+    await expect(adapter.submitClaim({
+      claimType: 'professional',
+      patientControlNumber: 'PCN-001',
+      totalCharge: 100,
+      subscriberId: 'NCMD00100001',
+      serviceDateFrom: '2026-07-20',
+      serviceDateTo: '2026-07-20',
+      diagnoses: [{ code: 'G44.1', system: 'ICD10CM' }],
+      lines: [{
+        procedureCode: '99213',
+        units: 1,
+        charge: 100,
+        serviceDate: '2026-07-20',
+        diagnosisPointers: [1],
+      }],
+    })).rejects.toThrow('837P batch submission requires SFTP');
+  });
+
+  it('fails loudly for SOAP operations that are not connected yet', async () => {
+    await expect(adapter.getClaimStatus({
+      patientControlNumber: 'PCN-001',
+      subscriberId: 'NCMD00100001',
+    })).rejects.toThrow('276/277 SOAP transport scaffolded');
+
+    await expect(adapter.retrieveRemittances())
+      .rejects.toThrow('835 retrieval requires SFTP');
+    await expect(adapter.pollAcks())
+      .rejects.toThrow('999/277CA polling requires SFTP');
+  });
+});
