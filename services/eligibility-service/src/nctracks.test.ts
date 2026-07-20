@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { lookupMmis, NctracksEligibilityError } from './mmis';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
 import type { CheckSource } from './types';
 
@@ -74,6 +75,45 @@ describe('lookupNctracks', () => {
       stateCode: 'NC',
       payerId: 'NCXIX',
     })).rejects.toThrow('requires a real NC Medicaid member ID');
+  });
+});
+
+describe('lookupMmis NCTracks fallback handling', () => {
+  const realModeKeys = [
+    'NCTRACKS_MODE',
+    'NCTRACKS_REALTIME_ELIGIBILITY_URL',
+    'NCTRACKS_CLIENT_CERT',
+    'NCTRACKS_CLIENT_KEY',
+  ];
+  const previousEnv: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of realModeKeys) {
+      previousEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of realModeKeys) {
+      const previous = previousEnv[key];
+      if (previous === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = previous;
+      }
+    }
+  });
+
+  it('does not fall back to simulated active coverage when NCTracks fails', async () => {
+    process.env.NCTRACKS_MODE = 'soap';
+
+    await expect(lookupMmis({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'NCMD00100001',
+    }, '')).rejects.toBeInstanceOf(NctracksEligibilityError);
   });
 });
 
