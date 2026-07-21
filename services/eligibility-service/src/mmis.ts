@@ -40,15 +40,27 @@ export interface MmisLookupResult {
   raw: Record<string, unknown>;
 }
 
+export class AuthoritativeMmisError extends UpstreamError {
+  constructor(upstream: string, message: string) {
+    super(upstream, message);
+    this.name = 'AuthoritativeMmisError';
+  }
+}
+
+export function isAuthoritativeMmisError(err: unknown): err is AuthoritativeMmisError {
+  return err instanceof AuthoritativeMmisError;
+}
+
 export async function lookupMmis(input: MmisLookupInput, authHeader: string): Promise<MmisLookupResult | null> {
   if (shouldUseNctracks(input.stateCode)) {
     try {
       return await lookupNctracks(input);
     } catch (err) {
-      logger.warn('NCTracks eligibility failed; falling back to generic MMIS path', {
+      logger.error('NCTracks eligibility failed; refusing generic MMIS fallback', {
         stateCode: input.stateCode,
         error: (err as Error).message,
       });
+      throw new AuthoritativeMmisError('nctracks', (err as Error).message);
     }
   }
 

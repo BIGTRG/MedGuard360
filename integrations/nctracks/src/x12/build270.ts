@@ -18,7 +18,7 @@ export function build270ForNctracks(req: EligibilityRequest, config: NctracksCon
   const ids = config.identifiers;
   const now = new Date();
   const dos = (req.dateOfService ?? '').replace(/-/g, '') || ymd(now);
-  const dob = (req.dob ?? '').replace(/-/g, '') || '19700101';
+  const dob = req.dob?.replace(/-/g, '');
   const out: string[] = [];
 
   out.push([
@@ -37,10 +37,12 @@ export function build270ForNctracks(req: EligibilityRequest, config: NctracksCon
   out.push(['NM1', '1P', '2', 'PROVIDER', '', '', '', '', 'XX', req.providerNpi ?? ids.billingNpi].join(ELE) + SEG);
   out.push(['HL', '3', '2', '22', '0'].join(ELE) + SEG);
   out.push(['NM1', 'IL', '1', req.lastName ?? 'UNKNOWN', req.firstName ?? 'UNKNOWN', '', '', '', 'MI', req.subscriberId].join(ELE) + SEG);
-  out.push(['DMG', 'D8', dob, 'U'].join(ELE) + SEG);
+  if (dob) {
+    out.push(['DMG', 'D8', dob, 'U'].join(ELE) + SEG);
+  }
   out.push(['DTP', '291', 'D8', dos].join(ELE) + SEG);
   out.push(['EQ', (req.serviceTypeCodes?.[0] ?? '30')].join(ELE) + SEG);
-  out.push(['SE', String(out.length + 1), '0001'].join(ELE) + SEG);
+  out.push(['SE', String(out.length - 1), '0001'].join(ELE) + SEG);
   out.push(['GE', '1', icn].join(ELE) + SEG);
   out.push(['IEA', '1', icn.padStart(9, '0')].join(ELE) + SEG);
   return out.join('\n');
