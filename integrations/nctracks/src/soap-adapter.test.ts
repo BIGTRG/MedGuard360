@@ -1,7 +1,7 @@
 import { loadNctracksConfig } from './config';
 import { NctracksSoapAdapter } from './soap-adapter';
 import { postCoreSoap } from './transport/httpsPost';
-import type { EligibilityRequest, NctracksConfig } from './types';
+import type { ClaimSubmitRequest, EligibilityRequest, NctracksConfig } from './types';
 
 jest.mock('./transport/httpsPost', () => ({
   postCoreSoap: jest.fn(),
@@ -44,6 +44,25 @@ function coreResponse(raw271: string): string {
     '  </soap:Body>',
     '</soap:Envelope>',
   ].join('\n');
+}
+
+function claimRequest(): ClaimSubmitRequest {
+  return {
+    claimType: 'professional',
+    patientControlNumber: 'PCN-SOAP-001',
+    totalCharge: 100,
+    subscriberId: 'NCMD00100001',
+    serviceDateFrom: '2026-07-21',
+    serviceDateTo: '2026-07-21',
+    diagnoses: [{ code: 'G44.1', system: 'ICD10CM' }],
+    lines: [{
+      procedureCode: '99213',
+      units: 1,
+      charge: 100,
+      serviceDate: '2026-07-21',
+      diagnosisPointers: [1],
+    }],
+  };
 }
 
 describe('NctracksSoapAdapter.checkEligibility', () => {
@@ -116,5 +135,32 @@ describe('NctracksSoapAdapter.checkEligibility', () => {
     await expect(new NctracksSoapAdapter(makeSoapConfig())
       .checkEligibility(eligibilityRequest()))
       .rejects.toThrow(/missing COREEnvelopePayload/);
+  });
+});
+
+describe('NctracksSoapAdapter scaffolded operations', () => {
+  it('reports SFTP-required operations instead of silently accepting batch work', async () => {
+    const adapter = new NctracksSoapAdapter(makeSoapConfig());
+
+    await expect(adapter.submitClaim(claimRequest()))
+      .rejects.toThrow(/837P batch submission requires SFTP/);
+    await expect(adapter.retrieveRemittances())
+      .rejects.toThrow(/835 retrieval requires SFTP/);
+    await expect(adapter.pollAcks())
+      .rejects.toThrow(/999\/277CA polling requires SFTP/);
+  });
+
+  it('keeps claim-status SOAP scaffold explicit until URLs are confirmed', async () => {
+    const adapter = new NctracksSoapAdapter(makeSoapConfig());
+
+    await expect(adapter.getClaimStatus({
+      patientControlNumber: 'PCN-SOAP-001',
+      subscriberId: 'NCMD00100001',
+    })).rejects.toThrow(/276\/277 SOAP transport scaffolded/);
+  });
+
+  it('healthCheck reflects realtime URL availability and no SFTP channel', async () => {
+    await expect(new NctracksSoapAdapter(makeSoapConfig()).healthCheck())
+      .resolves.toEqual({ realtimeOk: true, sftpOk: false });
   });
 });
