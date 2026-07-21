@@ -5,6 +5,12 @@ import { loadNctracksConfig } from '../config';
 import { postCoreSoap } from './httpsPost';
 import type { NctracksConfig } from '../types';
 
+jest.mock('https', () => ({
+  request: jest.fn(),
+}));
+
+const mockedHttpsRequest = jest.mocked(https.request);
+
 interface MockHttpsCall {
   url?: string | URL | https.RequestOptions;
   options?: https.RequestOptions;
@@ -58,13 +64,13 @@ function mockHttpsResponse(statusCode: number, body: string): MockHttpsCall {
     return request;
   };
 
-  jest.spyOn(https, 'request').mockImplementation(implementation as typeof https.request);
+  mockedHttpsRequest.mockImplementation(implementation as typeof https.request);
   return call;
 }
 
 describe('postCoreSoap', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    mockedHttpsRequest.mockReset();
   });
 
   it('rejects before network I/O when mTLS client credentials are missing', async () => {
