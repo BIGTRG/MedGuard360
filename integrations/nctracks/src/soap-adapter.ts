@@ -38,7 +38,7 @@ export class NctracksSoapAdapter implements NctracksAdapter {
     const raw271 = extractCoreEnvelopePayload(responseXml);
     const parsed = parse271(raw271);
     return {
-      status: parsed.active ? 'active' : (parsed.aaaCode ? 'error' : 'inactive'),
+      status: parsed.aaaCode ? 'error' : (parsed.active ? 'active' : 'inactive'),
       benefitPlan: parsed.planName,
       coverageDetails: parsed.copay !== undefined
         ? [{ serviceTypeCode: '30', coverageLevel: 'IND', copay: parsed.copay, inNetwork: true }]

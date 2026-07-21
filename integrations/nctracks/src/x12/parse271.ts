@@ -17,7 +17,7 @@ export function parse271(payload: string): Parsed271 {
       out.active = false;
       out.aaaCode = p[3];
     } else if (p[0] === 'EB') {
-      if (p[1] === '1') out.active = true;
+      if (p[1] === '1' && !out.aaaCode) out.active = true;
       if (p[5] && !out.planName) out.planName = p[5];
       if (p[3] === '30' && p[7]) out.copay = Number.parseFloat(p[7]);
     } else if (p[0] === 'DTP' && p[2] === 'D8' && p[3]?.length === 8) {
