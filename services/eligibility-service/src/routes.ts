@@ -12,6 +12,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { lookupMmis } from './mmis';
+import { shouldUseNctracks } from './nctracks';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -93,6 +94,12 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (shouldUseNctracks(input.stateCode)) {
+        logger.warn('NCTracks lookup failed; not falling back to AI prediction', {
+          stateCode: input.stateCode, error: (err as Error).message,
+        });
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });

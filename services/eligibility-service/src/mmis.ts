@@ -45,10 +45,11 @@ export async function lookupMmis(input: MmisLookupInput, authHeader: string): Pr
     try {
       return await lookupNctracks(input);
     } catch (err) {
-      logger.warn('NCTracks eligibility failed; falling back to generic MMIS path', {
+      logger.warn('NCTracks eligibility failed; not using generic MMIS fallback', {
         stateCode: input.stateCode,
         error: (err as Error).message,
       });
+      throw new UpstreamError('nctracks', (err as Error).message);
     }
   }
 
