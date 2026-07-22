@@ -5,6 +5,10 @@ import type { RequestOptions } from 'https';
 import type { NctracksConfig } from '../types';
 import { postCoreSoap } from './httpsPost';
 
+jest.mock('https', () => ({
+  request: jest.fn(),
+}));
+
 type ResponseCallback = (res: IncomingMessage) => void;
 
 type FakeClientRequest = EventEmitter & {
@@ -66,10 +70,10 @@ function mockHttpsRequest() {
     return fakeReq as unknown as ClientRequest;
   }) as typeof https.request;
 
-  const spy = jest.spyOn(https, 'request').mockImplementation(implementation);
+  const requestMock = https.request as jest.MockedFunction<typeof https.request>;
+  requestMock.mockImplementation(implementation);
 
   return {
-    spy,
     req: fakeReq,
     get url(): string | URL {
       if (!capturedUrl) throw new Error('https.request was not called');
@@ -94,16 +98,16 @@ function mockHttpsRequest() {
 
 describe('postCoreSoap', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    jest.resetAllMocks();
   });
 
   it('requires mTLS client certificate and key before opening a request', async () => {
-    const requestSpy = jest.spyOn(https, 'request');
+    const requestMock = https.request as jest.MockedFunction<typeof https.request>;
     await expect(postCoreSoap('https://edi.example.com', '<xml/>', {
       ...config(),
       auth: { clientCertPem: 'cert' },
     })).rejects.toThrow(/NCTRACKS_CLIENT_CERT and NCTRACKS_CLIENT_KEY/);
-    expect(requestSpy).not.toHaveBeenCalled();
+    expect(requestMock).not.toHaveBeenCalled();
   });
 
   it('posts the SOAP envelope with mTLS, CA, timeout, content headers, and basic auth', async () => {
