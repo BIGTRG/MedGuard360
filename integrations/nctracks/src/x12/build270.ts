@@ -40,7 +40,8 @@ export function build270ForNctracks(req: EligibilityRequest, config: NctracksCon
   out.push(['DMG', 'D8', dob, 'U'].join(ELE) + SEG);
   out.push(['DTP', '291', 'D8', dos].join(ELE) + SEG);
   out.push(['EQ', (req.serviceTypeCodes?.[0] ?? '30')].join(ELE) + SEG);
-  out.push(['SE', String(out.length + 1), '0001'].join(ELE) + SEG);
+  const transactionSegmentCount = out.slice(2).length + 1; // ST through SE; exclude ISA/GS.
+  out.push(['SE', String(transactionSegmentCount), '0001'].join(ELE) + SEG);
   out.push(['GE', '1', icn].join(ELE) + SEG);
   out.push(['IEA', '1', icn.padStart(9, '0')].join(ELE) + SEG);
   return out.join('\n');
