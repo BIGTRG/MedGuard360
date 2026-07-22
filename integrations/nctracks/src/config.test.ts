@@ -7,10 +7,11 @@ describe('loadNctracksConfig', () => {
       expect(c.mode).toBe('stub');
     });
 
-    it('accepts stub / soap / sftp (case-insensitive)', () => {
+    it('accepts stub / soap / sftp / live (case-insensitive)', () => {
       expect(loadNctracksConfig({ NCTRACKS_MODE: 'STUB' }).mode).toBe('stub');
       // soap + sftp require additional vars but parseMode itself should accept
       expect(() => loadNctracksConfig({ NCTRACKS_MODE: 'soap' })).toThrow(NctracksConfigError);
+      expect(() => loadNctracksConfig({ NCTRACKS_MODE: 'LIVE' })).toThrow(NctracksConfigError);
     });
 
     it('rejects unknown modes loudly', () => {
@@ -134,6 +135,31 @@ describe('loadNctracksConfig', () => {
 
     it('stub mode tolerates everything missing', () => {
       expect(() => loadNctracksConfig({ NCTRACKS_MODE: 'stub' })).not.toThrow();
+    });
+
+    it('mode=live requires real-time mTLS credentials and SFTP config', () => {
+      expect(() => loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+      })).toThrow(/NCTRACKS_BATCH_SFTP_HOST/);
+    });
+
+    it('loads complete live-mode config when SOAP and SFTP settings are present', () => {
+      const c = loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+        NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+        NCTRACKS_BATCH_SFTP_USER: 'user',
+        NCTRACKS_SFTP_PRIVATE_KEY: '-----PRIVATE KEY-----',
+      });
+
+      expect(c.mode).toBe('live');
+      expect(c.realtime.eligibilityUrl).toBe('https://edi.example.com/CORE/Eligibility');
+      expect(c.batch.sftp?.host).toBe('sftp.example.com');
     });
   });
 
