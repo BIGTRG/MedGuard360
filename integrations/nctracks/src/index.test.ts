@@ -36,4 +36,19 @@ describe('createNctracksAdapter factory', () => {
     });
     expect(a.mode).toBe('sftp');
   });
+
+  it('returns live adapter when mode=live has SOAP and SFTP config', () => {
+    const a = createNctracksAdapter({
+      envSource: {
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+        NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+        NCTRACKS_BATCH_SFTP_USER: 'user',
+        NCTRACKS_SFTP_PRIVATE_KEY: '-----PRIVATE KEY-----',
+      },
+    });
+    expect(a.mode).toBe('live');
+  });
 });
