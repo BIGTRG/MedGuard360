@@ -146,6 +146,13 @@ describe('loadNctracksConfig', () => {
       })).toThrow(/NCTRACKS_BATCH_SFTP_HOST/);
     });
 
+    it('mode=live requires client cert + key before SFTP validation', () => {
+      expect(() => loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+      })).toThrow(/NCTRACKS_CLIENT_CERT/);
+    });
+
     it('loads complete live-mode config when SOAP and SFTP settings are present', () => {
       const c = loadNctracksConfig({
         NCTRACKS_MODE: 'live',
@@ -160,6 +167,19 @@ describe('loadNctracksConfig', () => {
       expect(c.mode).toBe('live');
       expect(c.realtime.eligibilityUrl).toBe('https://edi.example.com/CORE/Eligibility');
       expect(c.batch.sftp?.host).toBe('sftp.example.com');
+    });
+  });
+
+  describe('HTTP Basic auth', () => {
+    it('populates only when both user and password are set', () => {
+      expect(loadNctracksConfig({
+        NCTRACKS_HTTP_BASIC_USER: 'user',
+      }).auth.httpBasic).toBeUndefined();
+
+      expect(loadNctracksConfig({
+        NCTRACKS_HTTP_BASIC_USER: 'user',
+        NCTRACKS_HTTP_BASIC_PASS: 'pass',
+      }).auth.httpBasic).toEqual({ user: 'user', pass: 'pass' });
     });
   });
 
