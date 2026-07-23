@@ -1,4 +1,9 @@
-export type CheckSource = 'mmis_270_271' | 'cache' | 'ai_prediction' | 'manual';
+export type CheckSource =
+  | 'mmis_270_271'
+  | 'nctracks_270_271'
+  | 'cache'
+  | 'ai_prediction'
+  | 'manual';
 
 export interface EligibilityRow {
   id: string;
