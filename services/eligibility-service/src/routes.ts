@@ -12,6 +12,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { lookupMmis } from './mmis';
+import { shouldUseNctracks } from './nctracks';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -32,6 +33,7 @@ const CheckSchema = z.object({
   medicaidId: z.string().optional(),
   forceRefresh: z.boolean().default(false),
 });
+type CheckInput = z.infer<typeof CheckSchema> & { coverageType: 'medicaid' | 'medicare' | 'chip' | 'commercial' };
 
 const PredictSchema = z.object({
   stateCode: z.string().length(2),
@@ -56,7 +58,7 @@ router.post('/eligibility/check',
   requireAuth,
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
   ah(async (req, res) => {
-    const input = parse(CheckSchema, req.body);
+    const input = parse(CheckSchema, req.body) as CheckInput;
 
     // 1. Cache hit (24h TTL)
     if (!input.forceRefresh) {
@@ -93,6 +95,9 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (shouldUseNctracks(input.stateCode)) {
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });
@@ -132,7 +137,7 @@ router.post('/eligibility/check',
       context: { source: row.source, active: row.active },
     });
 
-    res.json({ ...row, cacheHit: false });
+    return res.json({ ...row, cacheHit: false });
   }),
 );
 
@@ -190,7 +195,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });

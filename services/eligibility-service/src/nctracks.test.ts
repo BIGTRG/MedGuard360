@@ -16,6 +16,7 @@ describe('shouldUseNctracks', () => {
   });
 });
 
+
 describe('lookupNctracks', () => {
   it('returns active coverage for standard Medicaid IDs', async () => {
     const result = await lookupNctracks({
@@ -38,5 +39,12 @@ describe('lookupNctracks', () => {
       medicaidId: 'NCMD00100009',
     });
     expect(result.active).toBe(false);
+  });
+
+  it('rejects requests without an NC Medicaid member ID', async () => {
+    await expect(lookupNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+    })).rejects.toThrow('NCTracks eligibility requires a Medicaid member ID');
   });
 });
