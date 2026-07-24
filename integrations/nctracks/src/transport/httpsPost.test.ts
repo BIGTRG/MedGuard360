@@ -4,6 +4,12 @@ import * as https from 'https';
 import { loadNctracksConfig } from '../config';
 import { postCoreSoap } from './httpsPost';
 
+jest.mock('https', () => ({
+  request: jest.fn(),
+}));
+
+const mockedHttpsRequest = https.request as jest.MockedFunction<typeof https.request>;
+
 class FakeClientRequest extends EventEmitter {
   public body = '';
 
@@ -50,10 +56,9 @@ function makeSoapConfig() {
 
 function mockHttpsResponse(statusCode: number, body: string): {
   captured: () => CapturedRequest;
-  spy: jest.SpiedFunction<typeof https.request>;
 } {
   let capturedRequest: CapturedRequest | undefined;
-  const spy = jest.spyOn(https, 'request').mockImplementation(((url: string | URL, options: https.RequestOptions, callback?: (res: IncomingMessage) => void) => {
+  mockedHttpsRequest.mockImplementation(((url: string | URL, options: https.RequestOptions, callback?: (res: IncomingMessage) => void) => {
     const request = new FakeClientRequest(() => {
       const response = new EventEmitter() as IncomingMessage;
       response.statusCode = statusCode;
@@ -72,13 +77,12 @@ function mockHttpsResponse(statusCode: number, body: string): {
       }
       return capturedRequest;
     },
-    spy,
   };
 }
 
 describe('postCoreSoap', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    mockedHttpsRequest.mockReset();
   });
 
   it('requires mTLS client certificate and key before attempting a SOAP request', async () => {
@@ -86,7 +90,7 @@ describe('postCoreSoap', () => {
 
     await expect(postCoreSoap('https://edi.example.com/CORE/Eligibility', '<Envelope />', config))
       .rejects.toThrow(/NCTRACKS_CLIENT_CERT and NCTRACKS_CLIENT_KEY/);
-    expect(jest.isMockFunction(https.request)).toBe(false);
+    expect(mockedHttpsRequest).not.toHaveBeenCalled();
   });
 
   it('posts the SOAP envelope with mTLS material, timeout, and HTTP Basic authorization', async () => {
