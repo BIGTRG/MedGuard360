@@ -12,6 +12,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { lookupMmis } from './mmis';
+import { shouldUseNctracks } from './nctracks';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -78,6 +79,7 @@ router.post('/eligibility/check',
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
+          coverageType: input.coverageType,
         },
         req.header('authorization') ?? '',
       );
@@ -93,6 +95,9 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (shouldUseNctracks(input.stateCode, input.payerId, input.coverageType)) {
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });

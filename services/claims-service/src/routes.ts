@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import { assertValidNcMedicaidId, shouldUseNctracks, submitNcClaim } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -305,6 +305,11 @@ router.post(
       }
     }
 
+    const routeThroughNctracks = shouldUseNctracks(claim.state_code, claim.payer_id);
+    if (routeThroughNctracks) {
+      assertValidNcMedicaidId(patientMedicaidId);
+    }
+
     const ediInput: Edi837PInput = {
       ccn: claim.ccn,
       submitterId: 'MEDGUARD360',
@@ -343,7 +348,7 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (routeThroughNctracks) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
