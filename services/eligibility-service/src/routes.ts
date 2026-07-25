@@ -12,6 +12,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { lookupMmis } from './mmis';
+import { shouldUseNctracks } from './nctracks';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -57,6 +58,7 @@ router.post('/eligibility/check',
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
   ah(async (req, res) => {
     const input = parse(CheckSchema, req.body);
+    const coverageType = input.coverageType ?? 'medicaid';
 
     // 1. Cache hit (24h TTL)
     if (!input.forceRefresh) {
@@ -78,13 +80,14 @@ router.post('/eligibility/check',
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
+          coverageType,
         },
         req.header('authorization') ?? '',
       );
       if (mmis) {
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
+          coverageType, source: mmis.source ?? 'mmis_270_271',
           active: mmis.active,
           effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
           planName: mmis.planName,
@@ -93,6 +96,9 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (shouldUseNctracks(input.stateCode, input.payerId, coverageType)) {
+        throw err;
+      }
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });
@@ -110,7 +116,7 @@ router.post('/eligibility/check',
         });
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: 'ai_prediction',
+          coverageType, source: 'ai_prediction',
           active: pred.data.likely_eligible,
           planName: pred.data.suggested_program,
           details: { ai: pred.data },
@@ -132,7 +138,7 @@ router.post('/eligibility/check',
       context: { source: row.source, active: row.active },
     });
 
-    res.json({ ...row, cacheHit: false });
+    return res.json({ ...row, cacheHit: false });
   }),
 );
 
@@ -190,7 +196,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });

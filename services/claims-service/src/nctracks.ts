@@ -4,11 +4,45 @@
  */
 
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDPAY',
+  'NCTRACKS',
+  'NCMMIS',
+  'NCMEDICAID',
+  'NCMEDICAIDMMIS',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NC_MEDICAID_ID_PATTERN = /^[A-Z0-9]{6,20}$/i;
+
+function normalizePayerId(payerId: string): string {
+  return payerId.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function isNcMedicaidPayer(payerId: string): boolean {
+  const normalized = normalizePayerId(payerId);
+  return NC_MEDICAID_PAYER_IDS.has(normalized)
+    || (normalized.startsWith('NC') && normalized.includes('MEDICAID'));
+}
+
+export function assertValidNcMedicaidId(medicaidId: string | undefined): asserts medicaidId is string {
+  if (!medicaidId || medicaidId.toUpperCase() === 'UNKNOWN') {
+    throw new ValidationError('NCTracks claim submission requires an NC Medicaid member ID');
+  }
+  if (UUID_PATTERN.test(medicaidId) || !NC_MEDICAID_ID_PATTERN.test(medicaidId)) {
+    throw new ValidationError('NCTracks claim submission requires a valid NC Medicaid member ID');
+  }
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  return payerId !== undefined && isNcMedicaidPayer(payerId);
 }
 
 export interface NcClaimSubmitInput {
@@ -37,6 +71,8 @@ function toIsoDate(raw: string): string {
 }
 
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult> {
+  assertValidNcMedicaidId(input.patientMedicaidId);
+
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
 
@@ -75,6 +111,13 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     isa13: result.interchangeControlNumber,
     ack999Accepted: result.ack999?.accepted,
   });
+
+  if (result.ack999?.accepted === false || result.ack277CA?.status === 'rejected') {
+    throw new ValidationError('NCTracks rejected the claim submission', {
+      ack999: result.ack999,
+      ack277CA: result.ack277CA,
+    });
+  }
 
   return result;
 }
