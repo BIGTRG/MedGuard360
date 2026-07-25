@@ -1,7 +1,48 @@
 import * as https from 'https';
 import type { NctracksConfig } from '../types';
 
-export async function postCoreSoap(url: string, envelopeXml: string, config: NctracksConfig): Promise<string> {
+export interface CoreSoapRequestOptions {
+  method: 'POST';
+  headers: Record<string, string>;
+  cert: string;
+  key: string;
+  ca?: string;
+  rejectUnauthorized: true;
+  timeout: number;
+}
+
+export interface CoreSoapResponse {
+  statusCode?: number;
+  on(event: 'data', listener: (chunk: Buffer) => void): CoreSoapResponse;
+  on(event: 'end', listener: () => void): CoreSoapResponse;
+}
+
+export interface CoreSoapRequest {
+  on(event: 'error', listener: (err: Error) => void): CoreSoapRequest;
+  on(event: 'timeout', listener: () => void): CoreSoapRequest;
+  write(chunk: string): void;
+  end(): void;
+  destroy(error: Error): void;
+}
+
+export interface CoreSoapTransport {
+  request(
+    url: string,
+    options: CoreSoapRequestOptions,
+    callback: (res: CoreSoapResponse) => void,
+  ): CoreSoapRequest;
+}
+
+const nodeHttpsTransport: CoreSoapTransport = {
+  request: (url, options, callback) => https.request(url, options, callback),
+};
+
+export async function postCoreSoap(
+  url: string,
+  envelopeXml: string,
+  config: NctracksConfig,
+  transport: CoreSoapTransport = nodeHttpsTransport,
+): Promise<string> {
   const cert = config.auth.clientCertPem;
   const key = config.auth.clientKeyPem;
   if (!cert || !key) {
@@ -18,7 +59,7 @@ export async function postCoreSoap(url: string, envelopeXml: string, config: Nct
   }
 
   return new Promise((resolve, reject) => {
-    const req = https.request(url, {
+    const req = transport.request(url, {
       method: 'POST',
       headers,
       cert,

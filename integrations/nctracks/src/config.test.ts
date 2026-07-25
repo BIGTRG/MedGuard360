@@ -132,6 +132,32 @@ describe('loadNctracksConfig', () => {
       })).toThrow(/mode=sftp requires/);
     });
 
+    it('mode=live requires both realtime credentials and SFTP credentials', () => {
+      expect(() => loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+        // no SFTP host/user/key
+      })).toThrow(/mode=live requires NCTRACKS_BATCH_SFTP_HOST/);
+    });
+
+    it('loads live mode when realtime and batch transports are fully configured', () => {
+      const c = loadNctracksConfig({
+        NCTRACKS_MODE: 'live',
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+        NCTRACKS_CLIENT_CERT: 'cert',
+        NCTRACKS_CLIENT_KEY: 'key',
+        NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+        NCTRACKS_BATCH_SFTP_USER: 'user',
+        NCTRACKS_SFTP_PRIVATE_KEY: '-----PRIVATE KEY-----',
+      });
+
+      expect(c.mode).toBe('live');
+      expect(c.realtime.eligibilityUrl).toBe('https://edi.example.com/CORE/Eligibility');
+      expect(c.batch.sftp?.host).toBe('sftp.example.com');
+    });
+
     it('stub mode tolerates everything missing', () => {
       expect(() => loadNctracksConfig({ NCTRACKS_MODE: 'stub' })).not.toThrow();
     });
