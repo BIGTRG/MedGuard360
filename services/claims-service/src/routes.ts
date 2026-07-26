@@ -189,7 +189,6 @@ router.get(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
-    const authorizationHeader = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
@@ -220,6 +219,7 @@ router.post(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
+    const authorizationHeader = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
