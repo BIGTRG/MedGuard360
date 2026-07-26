@@ -8,17 +8,59 @@ import { createNctracksAdapter } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDICAID',
+  'NCMMIS',
+  'NCTRACKS',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+]);
+
+const PLACEHOLDER_MEMBER_IDS = new Set(['UNKNOWN', 'N/A', 'NA', 'NONE', 'NULL', 'TBD']);
+
+function normalizePayerId(payerId: string | undefined): string {
+  return (payerId ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+}
+
+export function isRealNcMedicaidId(medicaidId: string | undefined): boolean {
+  const id = medicaidId?.trim();
+  if (!id) return false;
+  if (PLACEHOLDER_MEMBER_IDS.has(id.toUpperCase())) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return false;
+  }
+  return /^[a-z0-9-]{6,}$/i.test(id);
+}
+
+export function shouldUseNctracks(
+  stateCode: string,
+  payerId?: string,
+  coverageType?: string,
+): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  const normalizedPayerId = normalizePayerId(payerId);
+  const normalizedCoverageType = coverageType?.toLowerCase();
+  const isMedicaidCoverage = normalizedCoverageType === undefined
+    || normalizedCoverageType === 'medicaid'
+    || normalizedCoverageType === 'chip';
+  return stateCode.toUpperCase() === 'NC'
+    && mode !== 'disabled'
+    && isMedicaidCoverage
+    && NC_MEDICAID_PAYER_IDS.has(normalizedPayerId);
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
+  if (!isRealNcMedicaidId(input.medicaidId)) {
+    throw new Error('NCTracks eligibility requires a real NC Medicaid member ID');
+  }
+  const medicaidId = input.medicaidId!.trim();
+
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId: medicaidId,
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,
