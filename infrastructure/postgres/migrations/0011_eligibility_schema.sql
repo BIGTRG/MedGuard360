@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS eligibility_checks (
   state_code             varchar(2) NOT NULL,
   payer_id               text NOT NULL,
   coverage_type          text NOT NULL,                          -- medicaid|medicare|chip|commercial
-  source                 text NOT NULL CHECK (source IN ('mmis_270_271','cache','ai_prediction','manual')),
+  source                 text NOT NULL CHECK (source IN ('mmis_270_271','nctracks_270_271','cache','ai_prediction','manual')),
   active                 boolean NOT NULL,                        -- is patient currently eligible?
   effective_from         date,
   effective_to           date,

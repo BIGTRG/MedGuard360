@@ -6,9 +6,36 @@
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDICAID',
+  'NCMMIS',
+  'NCTRACKS',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+]);
+
+const PLACEHOLDER_MEMBER_IDS = new Set(['UNKNOWN', 'N/A', 'NA', 'NONE', 'NULL', 'TBD']);
+
+function normalizePayerId(payerId: string | undefined): string {
+  return (payerId ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+}
+
+export function isRealNcMedicaidId(medicaidId: string | undefined): boolean {
+  const id = medicaidId?.trim();
+  if (!id) return false;
+  if (PLACEHOLDER_MEMBER_IDS.has(id.toUpperCase())) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return false;
+  }
+  return /^[a-z0-9-]{6,}$/i.test(id);
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return stateCode.toUpperCase() === 'NC'
+    && mode !== 'disabled'
+    && NC_MEDICAID_PAYER_IDS.has(normalizePayerId(payerId));
 }
 
 export interface NcClaimSubmitInput {
@@ -37,6 +64,10 @@ function toIsoDate(raw: string): string {
 }
 
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult> {
+  if (!isRealNcMedicaidId(input.patientMedicaidId)) {
+    throw new Error('NCTracks claim submission requires a real NC Medicaid member ID');
+  }
+
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
 
@@ -67,6 +98,13 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
       diagnosisPointers: line.diagnosis_pointers,
     })),
   });
+
+  if (result.ack999 && !result.ack999.accepted) {
+    throw new Error(`NCTracks 999 rejected claim ${input.ccn}`);
+  }
+  if (result.ack277CA?.status === 'rejected' || result.ack277CA?.perClaim.some((ack) => ack.status === 'rejected')) {
+    throw new Error(`NCTracks 277CA rejected claim ${input.ccn}`);
+  }
 
   logger.info('nctracks claim submit', {
     mode: adapter.mode,
