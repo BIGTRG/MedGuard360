@@ -2,6 +2,8 @@ import { pool, withRlsContext, NotFoundError, query } from '@medguard360/shared'
 import type { PoolClient } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 
+type QueryClient = Pick<PoolClient, 'query'>;
+
 // ── CCN generation ────────────────────────────────────────────────────────────
 
 /** Generate a Claim Control Number: YYMMDD-NNNNNN from postgres sequence. */
@@ -120,7 +122,7 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: PoolClient = pool,
+  client: QueryClient = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
