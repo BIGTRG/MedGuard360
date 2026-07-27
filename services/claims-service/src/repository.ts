@@ -1,8 +1,10 @@
 import { pool, withRlsContext, NotFoundError, query } from '@medguard360/shared';
-import type { PoolClient } from 'pg';
+import type { QueryResult, QueryResultRow } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 
-type QueryClient = Pick<PoolClient, 'query'>;
+interface QueryClient {
+  query<R extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<R>>;
+}
 
 // ── CCN generation ────────────────────────────────────────────────────────────
 
