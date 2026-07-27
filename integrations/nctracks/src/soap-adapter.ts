@@ -18,6 +18,12 @@ export class NctracksTransportError extends Error {
 let icnCounter = 1;
 function nextIcn(): string { return String(icnCounter++).padStart(9, '0'); }
 
+function isDateWithinCoverage(dateOfService: string, effectiveFrom?: string, effectiveTo?: string): boolean {
+  if (effectiveFrom && dateOfService < effectiveFrom) return false;
+  if (effectiveTo && dateOfService > effectiveTo) return false;
+  return true;
+}
+
 export class NctracksSoapAdapter implements NctracksAdapter {
   public readonly mode: NctracksMode = 'soap';
 
@@ -36,9 +42,11 @@ export class NctracksSoapAdapter implements NctracksAdapter {
     });
     const responseXml = await postCoreSoap(this.config.realtime.eligibilityUrl, envelope, this.config);
     const raw271 = extractCoreEnvelopePayload(responseXml);
-    const parsed = parse271(raw271);
+    const parsed = parse271(raw271, { serviceTypeCodes: req.serviceTypeCodes });
+    const coverageActive = parsed.active
+      && isDateWithinCoverage(req.dateOfService, parsed.effectiveFrom, parsed.effectiveTo);
     return {
-      status: parsed.active ? 'active' : (parsed.aaaCode ? 'error' : 'inactive'),
+      status: parsed.aaaCode ? 'error' : (coverageActive ? 'active' : 'inactive'),
       benefitPlan: parsed.planName,
       coverageDetails: parsed.copay !== undefined
         ? [{ serviceTypeCode: '30', coverageLevel: 'IND', copay: parsed.copay, inNetwork: true }]
