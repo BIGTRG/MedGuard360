@@ -32,7 +32,7 @@ export async function postCoreSoap(url: string, envelopeXml: string, config: Nct
       res.on('end', () => {
         const body = Buffer.concat(chunks).toString('utf8');
         if ((res.statusCode ?? 500) >= 400) {
-          reject(new Error(`NCTracks SOAP HTTP ${res.statusCode}: ${body.slice(0, 500)}`));
+          reject(new Error(`NCTracks SOAP HTTP ${res.statusCode}`));
           return;
         }
         resolve(body);
