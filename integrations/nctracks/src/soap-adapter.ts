@@ -1,5 +1,7 @@
 import { build270ForNctracks } from './x12/build270';
+import { build276ForNctracks } from './x12/build276';
 import { parse271 } from './x12/parse271';
+import { parse277 } from './x12/parse277';
 import { buildCoreSoapEnvelope, extractCoreEnvelopePayload } from './transport/coreSoap';
 import { postCoreSoap } from './transport/httpsPost';
 import type {
@@ -53,8 +55,34 @@ export class NctracksSoapAdapter implements NctracksAdapter {
     throw new NctracksTransportError('837P batch submission requires SFTP — set NCTRACKS_MODE=live or sftp');
   }
 
-  async getClaimStatus(_req: ClaimStatusRequest): Promise<ClaimStatusResponse> {
-    throw new NctracksTransportError('276/277 SOAP transport scaffolded — implement after GDIT sandbox URLs confirmed');
+  async getClaimStatus(req: ClaimStatusRequest): Promise<ClaimStatusResponse> {
+    const url = this.config.realtime.claimStatusUrl || this.config.realtime.eligibilityUrl;
+    if (!url) {
+      throw new NctracksTransportError('276/277 requires NCTRACKS_REALTIME_CLAIMSTATUS_URL or NCTRACKS_REALTIME_ELIGIBILITY_URL');
+    }
+    const icn = nextIcn();
+    const payloadId = `MG360-CS-${icn}`;
+    const x12 = build276ForNctracks(req, this.config, icn);
+    const envelope = buildCoreSoapEnvelope({
+      payloadType: '276',
+      payloadId,
+      senderId: this.config.identifiers.submitterId,
+      receiverId: this.config.identifiers.receiverId,
+      x12Payload: x12,
+    });
+    const responseXml = await postCoreSoap(url, envelope, this.config);
+    const raw277 = extractCoreEnvelopePayload(responseXml);
+    const parsed = parse277(raw277);
+    return {
+      status: parsed.status,
+      categoryCode: parsed.categoryCode,
+      statusCode: parsed.statusCode,
+      payerClaimControlNumber: parsed.payerClaimControlNumber,
+      paidAmount: parsed.paidAmount,
+      checkNumber: parsed.checkNumber,
+      paymentDate: parsed.paymentDate,
+      raw277,
+    };
   }
 
   async retrieveRemittances(_q?: RemittanceQuery): Promise<RemittanceFile[]> {

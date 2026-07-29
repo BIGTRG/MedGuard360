@@ -1,6 +1,6 @@
 /**
  * NC Medicaid claim submission via @medguard360/nctracks (837P batch / stub).
- * Real SFTP transport activates when GDIT credentials are issued and NCTRACKS_MODE=sftp.
+ * Real SFTP transport activates when GDIT credentials are issued and NCTRACKS_MODE=sftp or live.
  */
 
 import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';

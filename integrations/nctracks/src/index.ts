@@ -4,8 +4,8 @@
  * Factory `createNctracksAdapter()` returns an `NctracksAdapter` whose
  * concrete implementation is picked by `config.mode`:
  *   - 'stub' → NctracksStubAdapter (current default; deterministic in-memory)
- *   - 'soap' → NctracksSoapAdapter (not yet implemented — see TODO below)
- *   - 'sftp' → NctracksSftpAdapter (not yet implemented — see TODO below)
+ *   - 'soap' → NctracksSoapAdapter (270/271 + 276/277 CORE SOAP; 837 via SFTP)
+ *   - 'sftp' → NctracksSftpAdapter (837 upload + 835/999/277CA poll via ssh2)
  *
  * Stub mode is wire-compatible with the real modes' interface so consumers
  * (eligibility-service, claims-service, prior-auth-service, credentialing-service)

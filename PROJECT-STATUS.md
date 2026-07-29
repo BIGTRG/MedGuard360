@@ -5,7 +5,7 @@
 | Track | Status |
 |-------|--------|
 | **A — TPA** | Draft emailed to saintellc@gmail.com 2026-07-09 — **forward to NCMMIS_EDI_Support@gdit.com** |
-| **B — Engineering** | Stub wired to eligibility + claims; SOAP/SFTP/live adapter scaffolds (51 unit tests) |
+| **B — Engineering** | Stub wired to eligibility + claims; SOAP 270/271 + 276/277; SFTP 837 upload + 835/999/277CA poll (`ssh2-sftp-client`, 70+ unit tests) |
 
 After GDIT credentials: set `NCTRACKS_MODE=live` + env vars → Ramp cert → sandbox round-trip.
 
