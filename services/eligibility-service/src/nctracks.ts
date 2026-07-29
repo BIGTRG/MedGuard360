@@ -7,6 +7,7 @@
 import { createNctracksAdapter } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
+import { recordEligibilityX12Audit } from './nctracks-audit';
 
 export function shouldUseNctracks(stateCode: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
@@ -32,6 +33,13 @@ export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookup
     status: resp.status,
     traceId: resp.traceId,
     benefitPlan: resp.benefitPlan,
+  });
+
+  await recordEligibilityX12Audit({
+    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    traceId: resp.traceId,
+    adapterMode: adapter.mode,
+    raw271: resp.raw271,
   });
 
   const copay = resp.coverageDetails.find((d) => d.serviceTypeCode === '30')?.copay

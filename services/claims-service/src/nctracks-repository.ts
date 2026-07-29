@@ -114,3 +114,138 @@ export async function insertX12Audit(entry: {
     ],
   );
 }
+
+// ── Remittances (835) ───────────────────────────────────────────────────────
+
+export async function remittanceFileExists(fileName: string): Promise<boolean> {
+  const r = await pool.query<{ exists: boolean }>(
+    'SELECT EXISTS(SELECT 1 FROM nctracks_remittance_files WHERE file_name = $1) AS exists',
+    [fileName],
+  );
+  return Boolean(r.rows[0]?.exists);
+}
+
+export async function insertRemittanceFile(entry: {
+  fileName: string;
+  checkOrEftNumber: string;
+  paymentDate: string;
+  payeeNpi: string;
+  totalPaid: number;
+  raw835: string;
+  adapterMode: string;
+  receivedAt: string;
+}): Promise<string> {
+  const r = await pool.query<{ id: string }>(
+    `INSERT INTO nctracks_remittance_files (
+       file_name, check_or_eft_number, payment_date, payee_npi,
+       total_paid, raw835, adapter_mode, received_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+     RETURNING id`,
+    [
+      entry.fileName,
+      entry.checkOrEftNumber,
+      entry.paymentDate,
+      entry.payeeNpi || null,
+      entry.totalPaid,
+      entry.raw835,
+      entry.adapterMode,
+      entry.receivedAt,
+    ],
+  );
+  return r.rows[0].id;
+}
+
+export async function insertRemittanceClaim(entry: {
+  remittanceFileId: string;
+  patientControlNumber: string;
+  payerClaimControlNumber: string;
+  chargedAmount: number;
+  paidAmount: number;
+  claimStatusCode: string;
+}): Promise<string> {
+  const r = await pool.query<{ id: string }>(
+    `INSERT INTO nctracks_remittance_claims (
+       remittance_file_id, patient_control_number, payer_claim_control_number,
+       charged_amount, paid_amount, claim_status_code
+     ) VALUES ($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (remittance_file_id, patient_control_number) DO UPDATE SET
+       payer_claim_control_number = EXCLUDED.payer_claim_control_number,
+       paid_amount = EXCLUDED.paid_amount,
+       claim_status_code = EXCLUDED.claim_status_code
+     RETURNING id`,
+    [
+      entry.remittanceFileId,
+      entry.patientControlNumber,
+      entry.payerClaimControlNumber,
+      entry.chargedAmount,
+      entry.paidAmount,
+      entry.claimStatusCode,
+    ],
+  );
+  return r.rows[0].id;
+}
+
+export async function findClaimIdByControlNumber(pcn: string): Promise<string | null> {
+  try {
+    const r = await pool.query<{ id: string }>(
+      'SELECT id FROM claims WHERE claim_control_number = $1 LIMIT 1',
+      [pcn],
+    );
+    if (r.rows[0]?.id) return r.rows[0].id;
+  } catch {
+    // fall through for alternate demo schema
+  }
+  try {
+    const alt = await pool.query<{ id: string }>(
+      'SELECT id FROM claims WHERE ccn = $1 LIMIT 1',
+      [pcn],
+    );
+    return alt.rows[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function applyRemittanceToClaim(
+  remittanceClaimId: string,
+  claimId: string,
+  paidCents: number,
+  tcn?: string,
+): Promise<void> {
+  try {
+    await pool.query(
+      `UPDATE claims SET status = 'paid', total_paid_cents = $2, adjudicated_at = now(),
+              paid_at = now(), updated_at = now()
+       WHERE id = $1`,
+      [claimId, paidCents],
+    );
+  } catch {
+    await pool.query(
+      `UPDATE claims SET status = 'paid', paid_at = now(), updated_at = now() WHERE id = $1`,
+      [claimId],
+    );
+  }
+  await pool.query(
+    `UPDATE nctracks_remittance_claims SET claim_id = $2, applied_at = now() WHERE id = $1`,
+    [remittanceClaimId, claimId],
+  );
+  if (tcn) {
+    await pool.query(
+      `UPDATE nctracks_submissions SET payer_claim_control_number = $2, updated_at = now()
+       WHERE claim_id = $1 AND payer_claim_control_number IS NULL`,
+      [claimId, tcn],
+    ).catch(() => undefined);
+  }
+  await pool.query(
+    `UPDATE nctracks_remittance_files SET processed_at = now()
+     WHERE id = (SELECT remittance_file_id FROM nctracks_remittance_claims WHERE id = $1)`,
+    [remittanceClaimId],
+  );
+}
+
+export async function getLastRemittanceWatermark(): Promise<string | undefined> {
+  const r = await pool.query<{ received_at: Date }>(
+    'SELECT received_at FROM nctracks_remittance_files ORDER BY received_at DESC LIMIT 1',
+  );
+  return r.rows[0]?.received_at?.toISOString();
+}

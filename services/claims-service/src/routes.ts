@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks } from './nctracks';
+import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -458,5 +458,50 @@ router.post(
   ah(async (_req, res) => {
     const result = await pollNctracksAcks();
     res.json(result);
+  }),
+);
+
+/**
+ * POST /api/v1/nctracks/poll-remittances
+ * Pull 835 files from SFTP (or stub), persist, and mark matching claims paid.
+ */
+router.post(
+  '/nctracks/poll-remittances',
+  requireAuth,
+  requireRole('platform_administrator', 'billing_manager'),
+  ah(async (_req, res) => {
+    const result = await pollNctracksRemittances();
+    res.json(result);
+  }),
+);
+
+const ClaimStatusBodySchema = z.object({
+  patient_control_number: z.string().min(1),
+  subscriber_id: z.string().min(1),
+  payer_claim_control_number: z.string().optional(),
+  service_date_from: z.string().optional(),
+  service_date_to: z.string().optional(),
+  provider_npi: z.string().optional(),
+});
+
+/**
+ * POST /api/v1/nctracks/claim-status
+ * Real-time 276/277 via NCTracks SOAP (soap/live mode).
+ */
+router.post(
+  '/nctracks/claim-status',
+  requireAuth,
+  requireRole('platform_administrator', 'billing_manager', 'individual_provider', 'facility_provider'),
+  ah(async (req, res) => {
+    const body = parse(ClaimStatusBodySchema, req.body);
+    const status = await lookupNcClaimStatus({
+      patientControlNumber: body.patient_control_number,
+      subscriberId: body.subscriber_id,
+      payerClaimControlNumber: body.payer_claim_control_number,
+      serviceDateFrom: body.service_date_from,
+      serviceDateTo: body.service_date_to,
+      providerNpi: body.provider_npi,
+    });
+    res.json({ status });
   }),
 );

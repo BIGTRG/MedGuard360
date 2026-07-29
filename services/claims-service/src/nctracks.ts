@@ -61,6 +61,15 @@ export function indexAck277ByPcn(acks: Ack277CA[]): Map<string, Ack277CA> {
   return out;
 }
 
+export function dollarsToCents(amount: number): number {
+  return Math.round(amount * 100);
+}
+
+/** CLP02 codes that represent a payable remittance row. */
+export function isRemittancePayable(statusCode: string): boolean {
+  return ['1', '2', '3', '19', '20', '21'].includes(statusCode);
+}
+
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
@@ -199,6 +208,66 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
   return { polled: pending.length, updated };
 }
 
+export async function pollNctracksRemittances(): Promise<{ files: number; applied: number }> {
+  const adapter = createNctracksAdapter();
+  if (adapter.mode === 'soap') {
+    return { files: 0, applied: 0 };
+  }
+
+  const since = await repo.getLastRemittanceWatermark().catch(() => undefined);
+  const files = await adapter.retrieveRemittances(since ? { since } : undefined);
+  let applied = 0;
+
+  for (const file of files) {
+    if (await repo.remittanceFileExists(file.fileName).catch(() => false)) continue;
+
+    const fileId = await repo.insertRemittanceFile({
+      fileName: file.fileName,
+      checkOrEftNumber: file.checkOrEftNumber,
+      paymentDate: file.paymentDate,
+      payeeNpi: file.payeeNpi,
+      totalPaid: file.totalPaid,
+      raw835: file.raw835,
+      adapterMode: adapter.mode,
+      receivedAt: file.receivedAt,
+    });
+
+    await repo.insertX12Audit({
+      direction: 'inbound',
+      transactionType: '835',
+      fileName: file.fileName,
+      payload: file.raw835,
+      adapterMode: adapter.mode,
+    });
+
+    for (const cl of file.claims) {
+      const rowId = await repo.insertRemittanceClaim({
+        remittanceFileId: fileId,
+        patientControlNumber: cl.patientControlNumber,
+        payerClaimControlNumber: cl.payerClaimControlNumber,
+        chargedAmount: cl.chargedAmount,
+        paidAmount: cl.paidAmount,
+        claimStatusCode: cl.claimStatusCode,
+      });
+
+      if (!isRemittancePayable(cl.claimStatusCode)) continue;
+      const claimId = await repo.findClaimIdByControlNumber(cl.patientControlNumber);
+      if (!claimId) continue;
+
+      await repo.applyRemittanceToClaim(
+        rowId,
+        claimId,
+        dollarsToCents(cl.paidAmount),
+        cl.payerClaimControlNumber,
+      );
+      applied += 1;
+    }
+  }
+
+  logger.info('nctracks remittance poll complete', { files: files.length, applied });
+  return { files: files.length, applied };
+}
+
 export async function lookupNcClaimStatus(req: ClaimStatusRequest): Promise<ClaimStatusResponse> {
   const adapter = createNctracksAdapter();
   return adapter.getClaimStatus(req);
@@ -208,10 +277,13 @@ export function startNctracksAckPoller(): void {
   const ms = nctracksPollIntervalMs();
   if (!ms || !shouldUseNctracks('NC')) return;
 
-  logger.info('nctracks ack poller started', { intervalMs: ms });
+  logger.info('nctracks poller started', { intervalMs: ms });
   setInterval(() => {
     pollNctracksAcks().catch((err) => {
       logger.warn('nctracks ack poll error', { error: err instanceof Error ? err.message : String(err) });
+    });
+    pollNctracksRemittances().catch((err) => {
+      logger.warn('nctracks remittance poll error', { error: err instanceof Error ? err.message : String(err) });
     });
   }, ms);
 }

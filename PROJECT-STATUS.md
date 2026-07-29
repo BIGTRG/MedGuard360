@@ -5,7 +5,7 @@
 | Track | Status |
 |-------|--------|
 | **A — TPA** | Draft emailed to saintellc@gmail.com 2026-07-09 — **forward to NCMMIS_EDI_Support@gdit.com** |
-| **B — Engineering** | Adapter complete (69 unit tests); claims-service persists ICN + X12 audit; SFTP ack poller + `POST /nctracks/poll-acks` |
+| **B — Engineering** | Full adapter + claims ICN/835/ack persistence; eligibility 271 audit; poll endpoints for acks + remittances |
 
 After GDIT credentials: set `NCTRACKS_MODE=live` + env vars → Ramp cert → sandbox round-trip.
 

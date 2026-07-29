@@ -1,4 +1,4 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs } from './nctracks';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable } from './nctracks';
 import type { Ack277CA } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
@@ -34,6 +34,17 @@ describe('nctracksPollIntervalMs', () => {
     expect(nctracksPollIntervalMs()).toBe(0);
     if (prev === undefined) delete process.env.NCTRACKS_POLL_INTERVAL_MS;
     else process.env.NCTRACKS_POLL_INTERVAL_MS = prev;
+  });
+});
+
+describe('remittance helpers', () => {
+  it('converts dollars to cents', () => {
+    expect(dollarsToCents(175.5)).toBe(17550);
+  });
+
+  it('detects payable CLP02 codes', () => {
+    expect(isRemittancePayable('1')).toBe(true);
+    expect(isRemittancePayable('4')).toBe(false);
   });
 });
 
