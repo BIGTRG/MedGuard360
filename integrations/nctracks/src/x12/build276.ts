@@ -43,7 +43,8 @@ export function build276ForNctracks(req: ClaimStatusRequest, config: NctracksCon
   out.push(['TRN', '1', trace, ids.submitterId].join(ELE) + SEG);
   out.push(['REF', '1K', req.payerClaimControlNumber ?? req.patientControlNumber].join(ELE) + SEG);
   out.push(['DTP', '472', 'RD8', `${dosFrom}-${dosTo}`].join(ELE) + SEG);
-  out.push(['SE', String(out.length + 1), '0001'].join(ELE) + SEG);
+  // SE01 counts only ST through SE; ISA/GS envelope segments are excluded.
+  out.push(['SE', String(out.length - 1), '0001'].join(ELE) + SEG);
   out.push(['GE', '1', icn].join(ELE) + SEG);
   out.push(['IEA', '1', icn.padStart(9, '0')].join(ELE) + SEG);
   return out.join('\n');

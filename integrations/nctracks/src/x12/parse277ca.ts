@@ -9,19 +9,18 @@ function isoFromYmd(raw?: string): string | undefined {
 export function parse277CA(payload: string): Ack277CA {
   const segments = payload.split(/[~\n\r]+/).filter(Boolean);
   const perClaim: Ack277CA['perClaim'] = [];
-  let status: Ack277CA['status'] = 'accepted';
 
   for (const seg of segments) {
     const p = seg.split('*');
     if (p[0] !== 'STC') continue;
-    const [categoryCode, statusCode] = (p[1] ?? '').split(':');
+    const [rawCategoryCode, statusCode] = (p[1] ?? '').split(':');
+    const categoryCode = rawCategoryCode?.toUpperCase() ?? '';
     const pcn = p[4] ?? p[3] ?? '';
-    const claimStatus = categoryCode?.startsWith('A7') ? 'rejected' : 'accepted';
-    if (claimStatus === 'rejected') status = perClaim.length ? 'partial' : 'rejected';
+    const claimStatus = /^(A3|A4|A6|A7|A8)/.test(categoryCode) ? 'rejected' : 'accepted';
     perClaim.push({
       patientControlNumber: pcn,
       status: claimStatus,
-      categoryCode: categoryCode ?? '',
+      categoryCode,
       statusCode: statusCode ?? '',
       entityCode: p[2],
     });
@@ -31,8 +30,12 @@ export function parse277CA(payload: string): Ack277CA {
   if (perClaim.length === 0) {
     return { status: 'rejected', perClaim: [], raw: payload };
   }
-  if (status !== 'rejected' && perClaim.some((c) => c.status === 'rejected')) {
-    status = 'partial';
+  const rejectedCount = perClaim.filter((c) => c.status === 'rejected').length;
+  let status: Ack277CA['status'] = 'partial';
+  if (rejectedCount === 0) {
+    status = 'accepted';
+  } else if (rejectedCount === perClaim.length) {
+    status = 'rejected';
   }
   return { status, perClaim, raw: payload };
 }

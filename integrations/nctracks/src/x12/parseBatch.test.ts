@@ -31,6 +31,25 @@ describe('parse277CA', () => {
     const parsed = parse277CA(raw);
     expect(parsed.status).toBe('partial');
   });
+
+  it('marks standard claim acknowledgment rejection categories as rejected', () => {
+    const raw = [
+      'ST*277*0001~',
+      'STC*A3:21*20260601*WQ*PCN-A3~',
+      'STC*A4:35*20260601*WQ*PCN-A4~',
+      'STC*A7:21*20260601*WQ*PCN-A7~',
+    ].join('');
+    const parsed = parse277CA(raw);
+    expect(parsed.status).toBe('rejected');
+    expect(parsed.perClaim.map((claim) => claim.status)).toEqual(['rejected', 'rejected', 'rejected']);
+    expect(parsed.perClaim.map((claim) => claim.categoryCode)).toEqual(['A3', 'A4', 'A7']);
+  });
+
+  it('marks partial when a rejection appears before an accepted claim', () => {
+    const raw = 'STC*A3:21*20260601*WQ*PCN-1~STC*A0:20*20260601*WQ*PCN-2~';
+    const parsed = parse277CA(raw);
+    expect(parsed.status).toBe('partial');
+  });
 });
 
 describe('parse835', () => {

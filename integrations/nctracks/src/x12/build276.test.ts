@@ -21,4 +21,16 @@ describe('build276ForNctracks', () => {
     expect(x12).toContain('REF*1K*TCN-999');
     expect(x12).toContain('DTP*472*RD8*20260601-20260601');
   });
+
+  it('counts only ST-through-SE segments in SE01', () => {
+    const x12 = build276ForNctracks(req, config, '77');
+    const segments = x12.split(/[~\n\r]+/).filter(Boolean);
+    const stIndex = segments.findIndex((segment) => segment.startsWith('ST*'));
+    const seIndex = segments.findIndex((segment) => segment.startsWith('SE*'));
+    const se01 = Number.parseInt(segments[seIndex]?.split('*')[1] ?? '', 10);
+
+    expect(stIndex).toBeGreaterThanOrEqual(0);
+    expect(seIndex).toBeGreaterThan(stIndex);
+    expect(se01).toBe(seIndex - stIndex + 1);
+  });
 });
