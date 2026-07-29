@@ -1,14 +1,28 @@
 /**
  * NC Medicaid claim submission via @medguard360/nctracks (837P batch / stub).
- * Real SFTP transport activates when GDIT credentials are issued and NCTRACKS_MODE=sftp or live.
+ * Persists ICN + ack state to Postgres; polls SFTP for async acks in sftp/live mode.
  */
 
-import { createNctracksAdapter, type ClaimSubmitResult } from '@medguard360/nctracks';
+import {
+  createNctracksAdapter,
+  type Ack277CA,
+  type Ack999,
+  type ClaimStatusRequest,
+  type ClaimStatusResponse,
+  type ClaimSubmitResult,
+} from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
+import * as repo from './nctracks-repository';
 
 export function shouldUseNctracks(stateCode: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
   return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+}
+
+export function nctracksPollIntervalMs(): number {
+  const raw = process.env.NCTRACKS_POLL_INTERVAL_MS ?? '0';
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 export interface NcClaimSubmitInput {
@@ -36,7 +50,18 @@ function toIsoDate(raw: string): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult> {
+/** Map 277CA ack rows by patient control number for SFTP poll reconciliation. */
+export function indexAck277ByPcn(acks: Ack277CA[]): Map<string, Ack277CA> {
+  const out = new Map<string, Ack277CA>();
+  for (const ack of acks) {
+    for (const row of ack.perClaim) {
+      if (row.patientControlNumber) out.set(row.patientControlNumber, ack);
+    }
+  }
+  return out;
+}
+
+export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
 
@@ -76,5 +101,117 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     ack999Accepted: result.ack999?.accepted,
   });
 
-  return result;
+  return { ...result, adapterMode: adapter.mode };
+}
+
+export async function recordNctracksSubmission(
+  claimId: string,
+  patientControlNumber: string,
+  result: ClaimSubmitResult,
+  adapterMode: string,
+  ediPayload?: string,
+): Promise<void> {
+  try {
+    await repo.insertNctracksSubmission(claimId, patientControlNumber, result, adapterMode);
+    if (ediPayload) {
+      await repo.insertX12Audit({
+        claimId,
+        direction: 'outbound',
+        transactionType: '837P',
+        patientControlNumber,
+        interchangeControlNumber: result.interchangeControlNumber,
+        fileName: result.fileName,
+        payload: ediPayload,
+        adapterMode,
+      });
+    }
+    if (result.ack999?.raw) {
+      await repo.insertX12Audit({
+        claimId,
+        direction: 'inbound',
+        transactionType: '999',
+        patientControlNumber,
+        payload: result.ack999.raw,
+        adapterMode,
+      });
+    }
+    if (result.ack277CA?.raw) {
+      await repo.insertX12Audit({
+        claimId,
+        direction: 'inbound',
+        transactionType: '277CA',
+        patientControlNumber,
+        payload: result.ack277CA.raw,
+        adapterMode,
+      });
+    }
+  } catch (err) {
+    logger.warn('nctracks submission persist failed (non-fatal)', {
+      claimId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+export async function pollNctracksAcks(): Promise<{ polled: number; updated: number }> {
+  const adapter = createNctracksAdapter();
+  if (adapter.mode !== 'sftp' && adapter.mode !== 'live') {
+    return { polled: 0, updated: 0 };
+  }
+
+  const pending = await repo.listSubmissionsPendingAck();
+  if (!pending.length) return { polled: 0, updated: 0 };
+
+  const since = pending[0]?.submitted_at?.toISOString();
+  const { ack999, ack277CA } = await adapter.pollAcks(since);
+  const byPcn = indexAck277ByPcn(ack277CA);
+
+  let updated = 0;
+  for (const sub of pending) {
+    const ack277 = byPcn.get(sub.patient_control_number);
+    if (!ack277) continue;
+
+    await repo.updateSubmissionAcks(sub.id, ack999[0], ack277);
+    if (ack277?.raw) {
+      await repo.insertX12Audit({
+        claimId: sub.claim_id,
+        direction: 'inbound',
+        transactionType: '277CA',
+        patientControlNumber: sub.patient_control_number,
+        payload: ack277.raw,
+        adapterMode: adapter.mode,
+      });
+    }
+    if (ack999[0]?.raw) {
+      await repo.insertX12Audit({
+        claimId: sub.claim_id,
+        direction: 'inbound',
+        transactionType: '999',
+        patientControlNumber: sub.patient_control_number,
+        payload: ack999[0].raw,
+        adapterMode: adapter.mode,
+      });
+    }
+    updated += 1;
+  }
+
+  logger.info('nctracks ack poll complete', { pending: pending.length, updated, ack999: ack999.length, ack277CA: ack277CA.length });
+  return { polled: pending.length, updated };
+}
+
+export async function lookupNcClaimStatus(req: ClaimStatusRequest): Promise<ClaimStatusResponse> {
+  const adapter = createNctracksAdapter();
+  return adapter.getClaimStatus(req);
+}
+
+export function startNctracksAckPoller(): void {
+  const ms = nctracksPollIntervalMs();
+  if (!ms || !shouldUseNctracks('NC')) return;
+
+  logger.info('nctracks ack poller started', { intervalMs: ms });
+  setInterval(() => {
+    pollNctracksAcks().catch((err) => {
+      logger.warn('nctracks ack poll error', { error: err instanceof Error ? err.message : String(err) });
+    });
+  }, ms);
 }

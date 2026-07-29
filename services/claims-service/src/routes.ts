@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim } from './nctracks';
+import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks } from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -353,6 +353,13 @@ router.post(
         diagnosisCodes: ediInput.diagnosisCodes,
         lines: ediInput.claimLines,
       });
+      await recordNctracksSubmission(
+        id,
+        claim.ccn,
+        nctracksSubmission,
+        nctracksSubmission.adapterMode,
+        ediPayload,
+      );
     }
 
     // Mark submitted
@@ -437,5 +444,19 @@ router.put(
     });
 
     res.json({ claim: updated });
+  }),
+);
+
+/**
+ * POST /api/v1/nctracks/poll-acks
+ * Poll GDIT SFTP outbound dirs for 999/277CA (sftp/live mode). Cron or manual trigger.
+ */
+router.post(
+  '/nctracks/poll-acks',
+  requireAuth,
+  requireRole('platform_administrator', 'billing_manager'),
+  ah(async (_req, res) => {
+    const result = await pollNctracksAcks();
+    res.json(result);
   }),
 );

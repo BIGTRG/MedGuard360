@@ -19,9 +19,9 @@ interface Adapter {
 const ADAPTERS: Adapter[] = [
   {
     key: 'nctracks', vendor: 'NCTracks (Gainwell/GDIT — NC MMIS)',
-    purpose: 'Eligibility 270/271 + claim submit 837P — wired to eligibility-service + claims-service (NC)',
-    envMode: 'NCTRACKS_MODE', modes: ['stub','soap','sftp','live'], status: 'stub',
-    envVars: ['NCTRACKS_REALTIME_ELIGIBILITY_URL','NCTRACKS_SUBMITTER_ID','NCTRACKS_TPID','NCTRACKS_RECEIVER_ID','NCTRACKS_CLIENT_CERT','NCTRACKS_CLIENT_KEY','NCTRACKS_BATCH_SFTP_HOST','NCTRACKS_BATCH_SFTP_USER','NCTRACKS_SFTP_PRIVATE_KEY','NCTRACKS_USAGE_INDICATOR'],
+    purpose: '270/271 eligibility, 276/277 claim status (SOAP), 837P submit + 835/999/277CA poll (SFTP) — wired to eligibility + claims',
+    envMode: 'NCTRACKS_MODE', modes: ['stub','soap','sftp','live'], status: 'partial',
+    envVars: ['NCTRACKS_REALTIME_ELIGIBILITY_URL','NCTRACKS_REALTIME_CLAIMSTATUS_URL','NCTRACKS_SUBMITTER_ID','NCTRACKS_TPID','NCTRACKS_RECEIVER_ID','NCTRACKS_CLIENT_CERT','NCTRACKS_CLIENT_KEY','NCTRACKS_BATCH_SFTP_HOST','NCTRACKS_BATCH_SFTP_USER','NCTRACKS_SFTP_PRIVATE_KEY','NCTRACKS_USAGE_INDICATOR','NCTRACKS_POLL_INTERVAL_MS'],
     spec: 'integrations/nctracks/src/',
   },
   {
@@ -90,8 +90,8 @@ function IntegrationsInner(): React.ReactElement {
           <CircleStackIcon className="h-5 w-5" /> External Integrations
         </h2>
         <p className="text-sm text-slate-600 mt-1">
-          {ADAPTERS.length} vendor adapters. All currently in <strong>stub mode</strong> — flip to live
-          by setting the mode env var + populating the credential vault. See each spec for onboarding steps.
+          {ADAPTERS.length} vendor adapters. NCTracks is <strong>partial</strong> (stub + transport code; awaiting GDIT creds).
+          Flip to live by setting the mode env var + credential vault. See each spec for onboarding steps.
         </p>
       </div>
       <table className="w-full table-fixed text-sm">
