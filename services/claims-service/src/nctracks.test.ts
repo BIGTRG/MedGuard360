@@ -1,9 +1,24 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable } from './nctracks';
+import {
+  describeInlineAckRejection,
+  isValidNctracksRecipientId,
+  shouldUseNctracks,
+  submitNcClaim,
+  indexAck277ByPcn,
+  nctracksPollIntervalMs,
+  dollarsToCents,
+  isRemittancePayable,
+} from './nctracks';
 import type { Ack277CA } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
   it('routes NC claims through NCTracks', () => {
     expect(shouldUseNctracks('NC')).toBe(true);
+  });
+
+  it('only routes known NC Medicaid payers when payer details are available', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+    expect(shouldUseNctracks('NC', 'NCMEDPAY')).toBe(true);
+    expect(shouldUseNctracks('NC', 'COMMERCIAL_AETNA')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
@@ -12,6 +27,14 @@ describe('shouldUseNctracks', () => {
     expect(shouldUseNctracks('NC')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
+  });
+});
+
+describe('isValidNctracksRecipientId', () => {
+  it('rejects placeholders and patient UUID fallbacks', () => {
+    expect(isValidNctracksRecipientId('NCMD00100001')).toBe(true);
+    expect(isValidNctracksRecipientId('UNKNOWN')).toBe(false);
+    expect(isValidNctracksRecipientId('00000000-0000-0000-0000-000000000000')).toBe(false);
   });
 });
 
@@ -82,5 +105,27 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+
+  it('surfaces inline NCTracks acknowledgement rejections before status is submitted', async () => {
+    const result = await submitNcClaim({
+      ccn: 'CCN-REJECT-001',
+      totalCharge: 125.5,
+      patientMedicaidId: 'NCMD00100001',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: [],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    });
+
+    expect(describeInlineAckRejection(result, 'CCN-REJECT-001')).toContain('999 rejected');
   });
 });

@@ -14,9 +14,35 @@ import {
 import { logger } from '@medguard360/shared';
 import * as repo from './nctracks-repository';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NCTRACKS_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDPAY',
+  'NCMEDICAID',
+  'NCMEDICAIDPAY',
+]);
+
+function normalizePayerId(payerId: string): string {
+  return payerId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function isNctracksPayer(payerId?: string): boolean {
+  if (!payerId) return false;
+  return NCTRACKS_PAYER_IDS.has(normalizePayerId(payerId));
+}
+
+export function isValidNctracksRecipientId(medicaidId?: string): boolean {
+  const value = medicaidId?.trim();
+  if (!value) return false;
+  if (/^(UNKNOWN|N\/A|NA|NONE|NULL|PENDING)$/i.test(value)) return false;
+  if (/^0+$/.test(value)) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return false;
+  return /^[A-Z0-9]{6,}$/i.test(value);
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  return payerId ? isNctracksPayer(payerId) : true;
 }
 
 export function nctracksPollIntervalMs(): number {
@@ -68,6 +94,23 @@ export function dollarsToCents(amount: number): number {
 /** CLP02 codes that represent a payable remittance row. */
 export function isRemittancePayable(statusCode: string): boolean {
   return ['1', '2', '3', '19', '20', '21'].includes(statusCode);
+}
+
+export function describeInlineAckRejection(
+  result: ClaimSubmitResult,
+  patientControlNumber: string,
+): string | undefined {
+  if (result.ack999?.accepted === false) {
+    const details = result.ack999.errors.map((err) => `${err.segment}:${err.code}`).join(', ');
+    return details ? `999 rejected (${details})` : '999 rejected';
+  }
+
+  if (!result.ack277CA || result.ack277CA.status === 'accepted') return undefined;
+  const matchingRows = result.ack277CA.perClaim.filter((row) => row.patientControlNumber === patientControlNumber);
+  const rejectedRows = matchingRows.length ? matchingRows : result.ack277CA.perClaim;
+  const rejection = rejectedRows.find((row) => row.status === 'rejected');
+  if (!rejection) return undefined;
+  return `277CA rejected (${rejection.categoryCode}:${rejection.statusCode})`;
 }
 
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {

@@ -24,7 +24,16 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus } from './nctracks';
+import {
+  describeInlineAckRejection,
+  isValidNctracksRecipientId,
+  shouldUseNctracks,
+  submitNcClaim,
+  recordNctracksSubmission,
+  pollNctracksAcks,
+  pollNctracksRemittances,
+  lookupNcClaimStatus,
+} from './nctracks';
 
 const logger = createLogger('claims-service:routes');
 
@@ -343,7 +352,10 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
+      if (!isValidNctracksRecipientId(patientMedicaidId)) {
+        throw new ValidationError('A valid NC Medicaid recipient ID is required before submitting to NCTracks');
+      }
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -360,6 +372,10 @@ router.post(
         nctracksSubmission.adapterMode,
         ediPayload,
       );
+      const ackRejection = describeInlineAckRejection(nctracksSubmission, claim.ccn);
+      if (ackRejection) {
+        throw new ValidationError(`NCTracks rejected claim acknowledgement: ${ackRejection}`);
+      }
     }
 
     // Mark submitted
