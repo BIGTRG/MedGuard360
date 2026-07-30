@@ -10,6 +10,7 @@ import axios from 'axios';
 import { config, logger, UpstreamError } from '@medguard360/shared';
 import { build270, parse271 } from './x12-270';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
+import type { CheckSource } from './types';
 
 const stateConfigClient = axios.create({
   baseURL: 'http://localhost:3018/api/v1',
@@ -24,6 +25,7 @@ export interface MmisLookupInput {
   patientLastName?: string;
   patientDateOfBirth?: string;
   medicaidId?: string;
+  coverageType?: string;
   /** Provider NPI initiating the check (for HETS attestation tracking). */
   providerNpi?: string;
 }
@@ -36,19 +38,22 @@ export interface MmisLookupResult {
   copayCents?: number;
   deductibleRemainingCents?: number;
   /** Persisted to eligibility_checks.source when present. */
-  source?: string;
+  source?: CheckSource;
   raw: Record<string, unknown>;
 }
 
 export async function lookupMmis(input: MmisLookupInput, authHeader: string): Promise<MmisLookupResult | null> {
-  if (shouldUseNctracks(input.stateCode)) {
+  const useNctracks = shouldUseNctracks(input.stateCode, input.payerId, input.coverageType);
+  if (useNctracks) {
     try {
       return await lookupNctracks(input);
     } catch (err) {
-      logger.warn('NCTracks eligibility failed; falling back to generic MMIS path', {
+      logger.error('NCTracks eligibility failed; refusing generic fallback for authoritative NC Medicaid check', {
         stateCode: input.stateCode,
+        payerId: input.payerId,
         error: (err as Error).message,
       });
+      throw err;
     }
   }
 
