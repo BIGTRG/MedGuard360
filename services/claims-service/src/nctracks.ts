@@ -13,6 +13,10 @@ import {
 } from '@medguard360/nctracks';
 import { logger } from '@medguard360/shared';
 import * as repo from './nctracks-repository';
+import {
+  nctracksX12ArchiveIntervalMs,
+  nctracksX12RetentionYears,
+} from './nctracks-x12-archive';
 
 export function shouldUseNctracks(stateCode: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
@@ -271,6 +275,24 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
 export async function lookupNcClaimStatus(req: ClaimStatusRequest): Promise<ClaimStatusResponse> {
   const adapter = createNctracksAdapter();
   return adapter.getClaimStatus(req);
+}
+
+export async function getNctracksIntegrationStatus(): Promise<{
+  mode: string;
+  pollIntervalMs: number;
+  archiveIntervalMs: number;
+  retentionYears: number;
+  health: { realtimeOk: boolean; sftpOk: boolean; cdOk?: boolean };
+}> {
+  const adapter = createNctracksAdapter();
+  const health = await adapter.healthCheck().catch(() => ({ realtimeOk: false, sftpOk: false }));
+  return {
+    mode: adapter.mode,
+    pollIntervalMs: nctracksPollIntervalMs(),
+    archiveIntervalMs: nctracksX12ArchiveIntervalMs(),
+    retentionYears: nctracksX12RetentionYears(),
+    health,
+  };
 }
 
 export function startNctracksAckPoller(): void {

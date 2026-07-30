@@ -24,7 +24,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus } from './nctracks';
+import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus, getNctracksIntegrationStatus } from './nctracks';
 import { archiveNctracksX12Audit } from './nctracks-x12-archive';
 
 const logger = createLogger('claims-service:routes');
@@ -445,6 +445,20 @@ router.put(
     });
 
     res.json({ claim: updated });
+  }),
+);
+
+/**
+ * GET /api/v1/nctracks/status
+ * Adapter mode, poller config, and transport health (pre-sandbox checklist).
+ */
+router.get(
+  '/nctracks/status',
+  requireAuth,
+  requireRole('platform_administrator', 'billing_manager', 'compliance_officer'),
+  ah(async (_req, res) => {
+    const status = await getNctracksIntegrationStatus();
+    res.json(status);
   }),
 );
 
