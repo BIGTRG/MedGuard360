@@ -5,7 +5,7 @@
 | Track | Status |
 |-------|--------|
 | **A — TPA** | Draft emailed to saintellc@gmail.com 2026-07-09 — **forward to NCMMIS_EDI_Support@gdit.com** |
-| **B — Engineering** | Full adapter + claims ICN/835/ack persistence; eligibility 271 audit; poll endpoints for acks + remittances |
+| **B — Engineering** | Full adapter + claims ICN/835/ack persistence; eligibility 271 audit; poll + X12 cold-archive endpoints |
 
 After GDIT credentials: set `NCTRACKS_MODE=live` + env vars → Ramp cert → sandbox round-trip.
 

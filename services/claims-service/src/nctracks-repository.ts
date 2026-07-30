@@ -249,3 +249,59 @@ export async function getLastRemittanceWatermark(): Promise<string | undefined> 
   );
   return r.rows[0]?.received_at?.toISOString();
 }
+
+// ── X12 audit archival ────────────────────────────────────────────────────
+
+export interface X12AuditRow {
+  id: string;
+  claim_id: string | null;
+  direction: string;
+  transaction_type: string;
+  patient_control_number: string | null;
+  interchange_control_number: string | null;
+  file_name: string | null;
+  payload: string;
+  adapter_mode: string;
+  recorded_at: Date;
+}
+
+export async function listX12AuditOlderThan(cutoff: Date, limit: number): Promise<X12AuditRow[]> {
+  const r = await pool.query<X12AuditRow>(
+    `SELECT id, claim_id, direction, transaction_type, patient_control_number,
+            interchange_control_number, file_name, payload, adapter_mode, recorded_at
+     FROM nctracks_x12_audit
+     WHERE recorded_at < $1
+     ORDER BY recorded_at ASC
+     LIMIT $2`,
+    [cutoff, limit],
+  );
+  return r.rows;
+}
+
+export async function deleteX12AuditByIds(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  await pool.query('DELETE FROM nctracks_x12_audit WHERE id = ANY($1::uuid[])', [ids]);
+}
+
+export async function insertX12ArchiveManifest(entry: {
+  batchId: string;
+  recordCount: number;
+  oldestRecordedAt: Date;
+  newestRecordedAt: Date;
+  archivePath: string;
+  sha256: string;
+}): Promise<void> {
+  await pool.query(
+    `INSERT INTO nctracks_x12_audit_archives (
+       batch_id, record_count, oldest_recorded_at, newest_recorded_at, archive_path, sha256
+     ) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [
+      entry.batchId,
+      entry.recordCount,
+      entry.oldestRecordedAt,
+      entry.newestRecordedAt,
+      entry.archivePath,
+      entry.sha256,
+    ],
+  );
+}

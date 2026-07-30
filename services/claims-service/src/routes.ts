@@ -25,6 +25,7 @@ import {
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
 import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus } from './nctracks';
+import { archiveNctracksX12Audit } from './nctracks-x12-archive';
 
 const logger = createLogger('claims-service:routes');
 
@@ -471,6 +472,20 @@ router.post(
   requireRole('platform_administrator', 'billing_manager'),
   ah(async (_req, res) => {
     const result = await pollNctracksRemittances();
+    res.json(result);
+  }),
+);
+
+/**
+ * POST /api/v1/nctracks/archive-x12-audit
+ * Export X12 audit rows past retention to cold storage (compliance cron).
+ */
+router.post(
+  '/nctracks/archive-x12-audit',
+  requireAuth,
+  requireRole('platform_administrator', 'compliance_officer'),
+  ah(async (_req, res) => {
+    const result = await archiveNctracksX12Audit();
     res.json(result);
   }),
 );
