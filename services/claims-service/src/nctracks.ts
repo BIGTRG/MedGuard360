@@ -283,15 +283,23 @@ export async function getNctracksIntegrationStatus(): Promise<{
   archiveIntervalMs: number;
   retentionYears: number;
   health: { realtimeOk: boolean; sftpOk: boolean; cdOk?: boolean };
+  stats?: {
+    submissions: number;
+    pendingAcks: number;
+    remittanceFiles: number;
+    x12AuditRows: number;
+  };
 }> {
   const adapter = createNctracksAdapter();
   const health = await adapter.healthCheck().catch(() => ({ realtimeOk: false, sftpOk: false }));
+  const stats = await repo.getNctracksIntegrationStats().catch(() => undefined);
   return {
     mode: adapter.mode,
     pollIntervalMs: nctracksPollIntervalMs(),
     archiveIntervalMs: nctracksX12ArchiveIntervalMs(),
     retentionYears: nctracksX12RetentionYears(),
     health,
+    stats,
   };
 }
 

@@ -250,6 +250,28 @@ export async function getLastRemittanceWatermark(): Promise<string | undefined> 
   return r.rows[0]?.received_at?.toISOString();
 }
 
+export async function getNctracksIntegrationStats(): Promise<{
+  submissions: number;
+  pendingAcks: number;
+  remittanceFiles: number;
+  x12AuditRows: number;
+}> {
+  const [sub, ack, rem, audit] = await Promise.all([
+    pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM nctracks_submissions'),
+    pool.query<{ count: string }>(
+      'SELECT COUNT(*)::text AS count FROM nctracks_submissions WHERE ack_polled_at IS NULL',
+    ),
+    pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM nctracks_remittance_files'),
+    pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM nctracks_x12_audit'),
+  ]);
+  return {
+    submissions: Number(sub.rows[0]?.count ?? 0),
+    pendingAcks: Number(ack.rows[0]?.count ?? 0),
+    remittanceFiles: Number(rem.rows[0]?.count ?? 0),
+    x12AuditRows: Number(audit.rows[0]?.count ?? 0),
+  };
+}
+
 // ── X12 audit archival ────────────────────────────────────────────────────
 
 export interface X12AuditRow {

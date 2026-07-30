@@ -56,6 +56,8 @@ try {
   $nc = Invoke-RestMethod -Uri "$api/nctracks/status" -Headers $h
   Test-Ok "nctracks status API" ($nc.mode -eq 'stub')
   Test-Ok "nctracks transport health" ($nc.health.realtimeOk -and $nc.health.sftpOk)
+  $remPoll = Invoke-RestMethod -Uri "$api/nctracks/poll-remittances" -Method POST -Headers $h
+  Test-Ok "nctracks remittance poll" ($null -ne $remPoll.files)
 } catch { Test-Ok "admin flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 3: Fraud investigator ===" -ForegroundColor Cyan
@@ -286,6 +288,15 @@ try {
   Test-Ok "billing draft worklist" ($draft -ge 1)
   Test-Ok "portal /billing" (Test-PortalPage "/billing")
   Test-Ok "portal /provider/claims" (Test-PortalPage "/provider/claims")
+  $eligBody = @{
+    patientId = '10000000-0000-0000-0000-000000000001'
+    stateCode = 'NC'
+    payerId = 'NCMEDPAY'
+    medicaidId = 'NCMD00100001'
+    forceRefresh = $true
+  } | ConvertTo-Json
+  $elig = Invoke-RestMethod -Uri "$api/eligibility/check" -Method POST -Headers $h -Body $eligBody -ContentType "application/json"
+  Test-Ok "NC eligibility via nctracks stub" ($elig.active -eq $true -and $elig.source -eq 'nctracks_270_271')
 } catch { Test-Ok "billing flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Crisis responder ===" -ForegroundColor Cyan

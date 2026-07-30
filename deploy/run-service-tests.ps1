@@ -35,6 +35,16 @@ foreach ($svc in $services) {
 Write-Host ""
 if ($failures.Count -eq 0) {
   Write-Host "All $($services.Count) service test suites passed." -ForegroundColor Green
+  Write-Host "Running @medguard360/nctracks adapter tests..." -ForegroundColor DarkGray
+  Push-Location integrations/nctracks
+  cmd /c "npm test >nul 2>&1"
+  $ncOk = ($LASTEXITCODE -eq 0)
+  Pop-Location
+  if (-not $ncOk) {
+    Write-Host "@medguard360/nctracks tests failed." -ForegroundColor Red
+    exit 1
+  }
+  Write-Host "@medguard360/nctracks adapter tests passed." -ForegroundColor Green
   exit 0
 }
 

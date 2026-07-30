@@ -12,6 +12,12 @@ interface NctracksRuntimeStatus {
   archiveIntervalMs: number;
   retentionYears: number;
   health: { realtimeOk: boolean; sftpOk: boolean; cdOk?: boolean };
+  stats?: {
+    submissions: number;
+    pendingAcks: number;
+    remittanceFiles: number;
+    x12AuditRows: number;
+  };
 }
 
 interface Adapter {
@@ -94,12 +100,32 @@ function IntegrationsInner(): React.ReactElement {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [nctracksStatus, setNctracksStatus] = useState<NctracksRuntimeStatus | null>(null);
   const [nctracksError, setNctracksError] = useState<string | null>(null);
+  const [pollMessage, setPollMessage] = useState<string | null>(null);
+  const [pollBusy, setPollBusy] = useState(false);
+
+  const refreshNctracksStatus = (): void => {
+    api.get<NctracksRuntimeStatus>('/v1/nctracks/status')
+      .then((s) => { setNctracksStatus(s); setNctracksError(null); })
+      .catch((err: Error) => setNctracksError(err.message ?? 'unavailable'));
+  };
 
   useEffect(() => {
-    api.get<NctracksRuntimeStatus>('/v1/nctracks/status')
-      .then(setNctracksStatus)
-      .catch((err: Error) => setNctracksError(err.message ?? 'unavailable'));
+    refreshNctracksStatus();
   }, []);
+
+  const runNctracksPoll = async (action: 'poll-acks' | 'poll-remittances'): Promise<void> => {
+    setPollBusy(true);
+    setPollMessage(null);
+    try {
+      const result = await api.post<Record<string, number>>(`/v1/nctracks/${action}`, {});
+      setPollMessage(`${action}: ${JSON.stringify(result)}`);
+      refreshNctracksStatus();
+    } catch (err) {
+      setPollMessage(err instanceof Error ? err.message : 'poll failed');
+    } finally {
+      setPollBusy(false);
+    }
+  };
 
   const nctracksBadge = (): Adapter['status'] => {
     if (!nctracksStatus) return 'partial';
@@ -124,9 +150,44 @@ function IntegrationsInner(): React.ReactElement {
         </p>
       </div>
       {nctracksStatus && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-          <strong>NCTracks live status:</strong> mode={nctracksStatus.mode} · ack poll={nctracksStatus.pollIntervalMs}ms ·
-          X12 archive={nctracksStatus.archiveIntervalMs}ms · retention={nctracksStatus.retentionYears}y
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 space-y-2">
+          <div>
+            <strong>NCTracks live status:</strong> mode={nctracksStatus.mode} · ack poll={nctracksStatus.pollIntervalMs}ms ·
+            X12 archive={nctracksStatus.archiveIntervalMs}ms · retention={nctracksStatus.retentionYears}y
+          </div>
+          {nctracksStatus.stats && (
+            <div>
+              DB: {nctracksStatus.stats.submissions} submissions · {nctracksStatus.stats.pendingAcks} pending acks ·{' '}
+              {nctracksStatus.stats.remittanceFiles} remittance files · {nctracksStatus.stats.x12AuditRows} X12 audit rows
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              disabled={pollBusy}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-50"
+              onClick={() => void runNctracksPoll('poll-acks')}
+            >
+              Poll acks
+            </button>
+            <button
+              type="button"
+              disabled={pollBusy}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-50"
+              onClick={() => void runNctracksPoll('poll-remittances')}
+            >
+              Poll remittances
+            </button>
+            <button
+              type="button"
+              disabled={pollBusy}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-50"
+              onClick={() => refreshNctracksStatus()}
+            >
+              Refresh status
+            </button>
+          </div>
+          {pollMessage && <div className="text-slate-600">{pollMessage}</div>}
         </div>
       )}
       {nctracksError && (

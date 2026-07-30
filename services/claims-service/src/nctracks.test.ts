@@ -1,4 +1,4 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable } from './nctracks';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
 import type { Ack277CA } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
@@ -82,5 +82,26 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+});
+
+describe('getNctracksIntegrationStatus', () => {
+  const prevMode = process.env.NCTRACKS_MODE;
+
+  beforeEach(() => {
+    process.env.NCTRACKS_MODE = 'stub';
+  });
+
+  afterAll(() => {
+    if (prevMode === undefined) delete process.env.NCTRACKS_MODE;
+    else process.env.NCTRACKS_MODE = prevMode;
+  });
+
+  it('returns adapter mode and transport health', async () => {
+    const status = await getNctracksIntegrationStatus();
+    expect(status.mode).toBe('stub');
+    expect(status.health.realtimeOk).toBe(true);
+    expect(status.health.sftpOk).toBe(true);
+    expect(status.retentionYears).toBeGreaterThan(0);
   });
 });
