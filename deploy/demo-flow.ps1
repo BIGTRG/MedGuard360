@@ -53,6 +53,9 @@ try {
   Test-Ok "portal /admin/integrations" (Test-PortalPage "/admin/integrations")
   Test-Ok "portal /admin/nc-enterprise" (Test-PortalPage "/admin/nc-enterprise")
   Test-Ok "portal /admin/users" (Test-PortalPage "/admin/users")
+  $nc = Invoke-RestMethod -Uri "$api/nctracks/status" -Headers $h
+  Test-Ok "nctracks status API" ($nc.mode -eq 'stub')
+  Test-Ok "nctracks transport health" ($nc.health.realtimeOk -and $nc.health.sftpOk)
 } catch { Test-Ok "admin flow" $false $_.Exception.Message }
 
 Write-Host "`n=== Stop 3: Fraud investigator ===" -ForegroundColor Cyan

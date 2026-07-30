@@ -37,7 +37,7 @@ MedGuard360 LLC is a HIPAA-architected Medicaid platform pursuing a pilot deploy
 We are filing as both a clearinghouse and a software vendor. Contracted providers using MedGuard360 will be enrolled as our trading partner sub-IDs under our master TPA, with their own NPIs as billing entities.
 
 **Onboarding readiness**
-We have implemented the NCTracks adapter (`integrations/nctracks/`, 50 unit tests) and wired eligibility-service and claims-service to it in stub mode. We are prepared to begin Edifecs Ramp Management testing immediately upon receipt of TPID and SUBMITTER_ID.
+We have implemented the NCTracks adapter (`integrations/nctracks/`, 74 automated tests including stub E2E round-trip) and wired eligibility-service and claims-service to it in stub mode. We are prepared to begin Edifecs Ramp Management testing immediately upon receipt of TPID and SUBMITTER_ID.
 
 We have reviewed:
 - NCTracks Trading Partner Connectivity Guide (CG_TPConn.pdf)
@@ -69,7 +69,7 @@ hello@medguard360.com
 |---|---|---|
 | Static IP addresses ready for allowlist | ⬜ Pending GovCloud migration | Will provide by [date] |
 | TLS client certificate generation capability | ✅ | Standard X.509 / RSA-4096 |
-| X12 5010 envelope generator + adapter | ✅ Implemented | `integrations/nctracks/` (50 unit tests); wired to eligibility + claims services |
+| X12 5010 envelope generator + adapter | ✅ Implemented | `integrations/nctracks/` (74 tests); wired to eligibility + claims services |
 | Edifecs Ramp Management access | ⬜ Pending | Awaiting your invitation |
 | SFTP client (Connect:Direct or libssh2 equivalent) | ✅ | Standard tooling |
 | HIPAA Security Risk Assessment | 🟡 In progress | Coalfire engagement letter; issuance Nov 2026 |

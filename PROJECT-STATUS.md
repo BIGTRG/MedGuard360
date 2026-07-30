@@ -5,7 +5,7 @@
 | Track | Status |
 |-------|--------|
 | **A — TPA** | Draft emailed to saintellc@gmail.com 2026-07-09 — **forward to NCMMIS_EDI_Support@gdit.com** |
-| **B — Engineering** | Claims schema aligned to Postgres; NCTracks status endpoint + sandbox preflight script |
+| **B — Engineering** | NCTracks API routed via nginx; admin live status + demo smoke coverage |
 
 After GDIT credentials: set `NCTRACKS_MODE=live` + env vars → Ramp cert → sandbox round-trip.
 

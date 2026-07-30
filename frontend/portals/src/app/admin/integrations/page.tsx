@@ -1,9 +1,18 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { CircleStackIcon, CheckCircleIcon, ExclamationTriangleIcon, BeakerIcon } from '@heroicons/react/24/outline';
 import { AppShell } from '@/components/AppShell';
 import { AuthGate } from '@/components/AuthGate';
+import { api } from '@/lib/api-client';
+
+interface NctracksRuntimeStatus {
+  mode: string;
+  pollIntervalMs: number;
+  archiveIntervalMs: number;
+  retentionYears: number;
+  health: { realtimeOk: boolean; sftpOk: boolean; cdOk?: boolean };
+}
 
 interface Adapter {
   key: string;
@@ -83,6 +92,22 @@ function badge(status: Adapter['status']): React.ReactElement {
 
 function IntegrationsInner(): React.ReactElement {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [nctracksStatus, setNctracksStatus] = useState<NctracksRuntimeStatus | null>(null);
+  const [nctracksError, setNctracksError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<NctracksRuntimeStatus>('/v1/nctracks/status')
+      .then(setNctracksStatus)
+      .catch((err: Error) => setNctracksError(err.message ?? 'unavailable'));
+  }, []);
+
+  const nctracksBadge = (): Adapter['status'] => {
+    if (!nctracksStatus) return 'partial';
+    if (nctracksStatus.mode === 'live') return 'live';
+    if (nctracksStatus.mode === 'stub') return 'partial';
+    return 'partial';
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -90,10 +115,25 @@ function IntegrationsInner(): React.ReactElement {
           <CircleStackIcon className="h-5 w-5" /> External Integrations
         </h2>
         <p className="text-sm text-slate-600 mt-1">
-          {ADAPTERS.length} vendor adapters. NCTracks is <strong>partial</strong> (stub + transport code; awaiting GDIT creds).
-          Flip to live by setting the mode env var + credential vault. See each spec for onboarding steps.
+          {ADAPTERS.length} vendor adapters. NCTracks runtime mode:{' '}
+          <strong>{nctracksStatus?.mode ?? 'loading…'}</strong>
+          {nctracksStatus ? (
+            <> — SOAP {nctracksStatus.health.realtimeOk ? 'up' : 'down'}, SFTP {nctracksStatus.health.sftpOk ? 'up' : 'down'}</>
+          ) : null}
+          . Flip to live by setting env vars + GDIT credentials.
         </p>
       </div>
+      {nctracksStatus && (
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          <strong>NCTracks live status:</strong> mode={nctracksStatus.mode} · ack poll={nctracksStatus.pollIntervalMs}ms ·
+          X12 archive={nctracksStatus.archiveIntervalMs}ms · retention={nctracksStatus.retentionYears}y
+        </div>
+      )}
+      {nctracksError && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          NCTracks status API unavailable ({nctracksError}). Redeploy nginx with <code>/api/v1/nctracks</code> route.
+        </div>
+      )}
       <table className="w-full table-fixed text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
           <tr>
@@ -111,7 +151,7 @@ function IntegrationsInner(): React.ReactElement {
                 <td className="py-3 px-3 font-medium text-slate-900">{a.vendor}</td>
                 <td className="py-3 px-3 text-slate-700">{a.purpose}</td>
                 <td className="py-3 px-3"><code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{a.envMode}</code><br/><span className="text-xs text-slate-500">{a.modes.join(' | ')}</span></td>
-                <td className="py-3 px-3">{badge(a.status)}</td>
+                <td className="py-3 px-3">{badge(a.key === 'nctracks' ? nctracksBadge() : a.status)}</td>
                 <td className="py-3 px-3 font-mono text-xs text-brand-700">{a.spec}</td>
               </tr>
               {expanded === a.key && (
