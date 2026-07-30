@@ -188,6 +188,9 @@ function IntegrationsInner(): React.ReactElement {
             </button>
           </div>
           {pollMessage && <div className="text-slate-600">{pollMessage}</div>}
+          <div className="text-slate-500">
+            Ramp go-live: <code className="text-xs">sales/NCTRACKS-RAMP-GOLIVE.md</code>
+          </div>
         </div>
       )}
       {nctracksError && (

@@ -103,6 +103,50 @@ export const phiAccessTotal = new client.Counter({
 });
 
 // ---------------------------------------------------------------------------
+// NCTracks adapter metrics (claims-service)
+// ---------------------------------------------------------------------------
+
+export const nctracksRealtimeLatencyMs = new client.Histogram({
+  name: 'nctracks_realtime_latency_ms',
+  help: 'NCTracks SOAP realtime round-trip latency in milliseconds.',
+  labelNames: ['txn'] as const,
+  buckets: [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+  registers: [_registry],
+});
+
+export const nctracksBatchFilesIn = new client.Counter({
+  name: 'nctracks_batch_files_in_total',
+  help: 'Inbound batch files retrieved from GDIT SFTP.',
+  labelNames: ['type'] as const,
+  registers: [_registry],
+});
+
+export const nctracksBatchFilesOut = new client.Counter({
+  name: 'nctracks_batch_files_out_total',
+  help: 'Outbound batch files submitted to GDIT SFTP.',
+  labelNames: ['type'] as const,
+  registers: [_registry],
+});
+
+export const nctracksAck999RejectTotal = new client.Counter({
+  name: 'nctracks_ack999_reject_total',
+  help: '999 functional acknowledgments rejected by NC MMIS.',
+  registers: [_registry],
+});
+
+export async function observeNctracksRealtime<T>(
+  txn: '270' | '271' | '276' | '277',
+  fn: () => Promise<T>,
+): Promise<T> {
+  const start = Date.now();
+  try {
+    return await fn();
+  } finally {
+    nctracksRealtimeLatencyMs.observe({ txn }, Date.now() - start);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Express middleware
 // ---------------------------------------------------------------------------
 

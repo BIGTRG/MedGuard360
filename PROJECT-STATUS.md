@@ -5,7 +5,7 @@
 | Track | Status |
 |-------|--------|
 | **A — TPA** | Draft emailed to saintellc@gmail.com 2026-07-09 — **forward to NCMMIS_EDI_Support@gdit.com** |
-| **B — Engineering** | Status dashboard w/ DB stats + admin poll controls; demo eligibility + adapter CI |
+| **B — Engineering** | Prometheus nctracks_* metrics + Ramp go-live checklist doc |
 
 After GDIT credentials: set `NCTRACKS_MODE=live` + env vars → Ramp cert → sandbox round-trip.
 

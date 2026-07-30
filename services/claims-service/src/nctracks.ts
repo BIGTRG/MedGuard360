@@ -17,6 +17,12 @@ import {
   nctracksX12ArchiveIntervalMs,
   nctracksX12RetentionYears,
 } from './nctracks-x12-archive';
+import {
+  nctracksBatchFilesIn,
+  nctracksBatchFilesOut,
+  nctracksAck999RejectTotal,
+  observeNctracksRealtime,
+} from '@medguard360/shared';
 
 export function shouldUseNctracks(stateCode: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
@@ -106,6 +112,11 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
     })),
   });
 
+  nctracksBatchFilesOut.inc({ type: '837P' });
+  if (result.ack999 && !result.ack999.accepted) {
+    nctracksAck999RejectTotal.inc();
+  }
+
   logger.info('nctracks claim submit', {
     mode: adapter.mode,
     ccn: input.ccn,
@@ -177,6 +188,11 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
 
   const since = pending[0]?.submitted_at?.toISOString();
   const { ack999, ack277CA } = await adapter.pollAcks(since);
+  if (ack999.length) nctracksBatchFilesIn.inc({ type: '999' }, ack999.length);
+  if (ack277CA.length) nctracksBatchFilesIn.inc({ type: '277CA' }, ack277CA.length);
+  for (const ack of ack999) {
+    if (!ack.accepted) nctracksAck999RejectTotal.inc();
+  }
   const byPcn = indexAck277ByPcn(ack277CA);
 
   let updated = 0;
@@ -220,6 +236,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
 
   const since = await repo.getLastRemittanceWatermark().catch(() => undefined);
   const files = await adapter.retrieveRemittances(since ? { since } : undefined);
+  if (files.length) nctracksBatchFilesIn.inc({ type: '835' }, files.length);
   let applied = 0;
 
   for (const file of files) {
@@ -274,7 +291,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
 
 export async function lookupNcClaimStatus(req: ClaimStatusRequest): Promise<ClaimStatusResponse> {
   const adapter = createNctracksAdapter();
-  return adapter.getClaimStatus(req);
+  return observeNctracksRealtime('276', () => adapter.getClaimStatus(req));
 }
 
 export async function getNctracksIntegrationStatus(): Promise<{
