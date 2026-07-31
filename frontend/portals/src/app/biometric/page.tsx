@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { FingerPrintIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { api } from '@/lib/api-client';
+import { api, refreshAccess } from '@/lib/api-client';
 import { AuthGate } from '@/components/AuthGate';
 
 function BiometricInner(): React.ReactElement {
@@ -23,7 +23,7 @@ function BiometricInner(): React.ReactElement {
         samplePayloadBase64: sample,
       });
       // The session is now biometric-verified; force a token refresh to pick up the claim.
-      await api.post('/v1/auth/refresh', {});  // server will re-issue
+      await refreshAccess();
       setStatus('verified');
       setTimeout(() => router.back(), 800);
     } catch (err) {

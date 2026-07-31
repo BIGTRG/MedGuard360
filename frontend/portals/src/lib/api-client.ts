@@ -20,7 +20,7 @@ export class ApiError extends Error {
 
 let refreshInFlight: Promise<void> | null = null;
 
-async function refreshAccess(): Promise<void> {
+export async function refreshAccess(): Promise<void> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async (): Promise<void> => {
     const refreshToken = getRefreshToken();
