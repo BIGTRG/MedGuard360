@@ -7,7 +7,7 @@ JWT + Clerk + biometric auth + RBAC. Port **3001**. Owns `users`, `sessions`,
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| POST | `/api/v1/auth/register` | none/admin | Create a user |
+| POST | `/api/v1/auth/register` | platform administrator | Create a user |
 | POST | `/api/v1/auth/login` | none | Exchange email+password for tokens |
 | POST | `/api/v1/auth/refresh` | none (refresh token) | Rotate refresh, mint new access |
 | POST | `/api/v1/auth/logout` | bearer | Revoke session |
