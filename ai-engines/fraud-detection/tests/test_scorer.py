@@ -185,6 +185,32 @@ def test_score_range_upper_bound_all_flags():
     assert "duplicate_lines" in flag_types
 
 
+def test_in_conus_coordinates_do_not_trigger_distance_anomaly():
+    """Valid claim GPS coordinates inside CONUS should not create fraud review by themselves."""
+    result = score_claim(_low_risk_claim(
+        location_lat=35.7796,   # Raleigh, NC
+        location_lng=-78.6382,
+    ))
+    flag_types = {f.flag_type for f in result.flags}
+
+    assert "distance_anomaly" not in flag_types
+    assert result.risk_score < 30
+    assert result.recommendation == "auto_pay"
+    assert result.requires_human_review is False
+
+
+def test_partial_coordinates_do_not_trigger_distance_anomaly():
+    """Incomplete GPS data should remain null-safe and should not be treated as spoofing."""
+    with_lat_only = score_claim(_low_risk_claim(location_lat=35.7796, location_lng=None))
+    with_lng_only = score_claim(_low_risk_claim(location_lat=None, location_lng=-78.6382))
+
+    for result in (with_lat_only, with_lng_only):
+        flag_types = {f.flag_type for f in result.flags}
+        assert "distance_anomaly" not in flag_types
+        assert result.risk_score < 30
+        assert result.recommendation == "auto_pay"
+
+
 # --------------------------------------------------------------------------- #
 # Test 6 — Charge outlier flag                                                 #
 # --------------------------------------------------------------------------- #
