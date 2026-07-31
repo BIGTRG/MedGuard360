@@ -1,4 +1,7 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
+import type { CheckSource } from './types';
 
 describe('shouldUseNctracks', () => {
   it('routes NC to NCTracks by default', () => {
@@ -38,5 +41,16 @@ describe('lookupNctracks', () => {
       medicaidId: 'NCMD00100009',
     });
     expect(result.active).toBe(false);
+  });
+
+  it('keeps NCTracks provenance allowed by the eligibility source constraint', () => {
+    const source: CheckSource = 'nctracks_270_271';
+    const migrationsDir = resolve(__dirname, '../../../infrastructure/postgres/migrations');
+    const migrationSql = readdirSync(migrationsDir)
+      .filter((file) => file.endsWith('.sql'))
+      .map((file) => readFileSync(join(migrationsDir, file), 'utf8'))
+      .join('\n');
+
+    expect(migrationSql).toContain(source);
   });
 });
