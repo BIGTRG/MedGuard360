@@ -1,0 +1,17 @@
+# Add to docker-compose.yml services:
+# All services need:
+#   restart: always
+#   healthcheck:
+#     test: ["CMD", "curl", "-f", "http://localhost:PORT/health || exit 1"]
+#     interval: 30s
+#     timeout: 10s
+#     retries: 3
+
+# For nginx (the main culprit):
+# medguard360-nginx-1:
+#   restart: always
+#   healthcheck:
+#     test: ["CMD", "curl", "-f", "http://localhost:8090/ || exit 1"]
+#     interval: 30s
+#     timeout: 10s
+#     retries: 3
