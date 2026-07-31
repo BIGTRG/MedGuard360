@@ -1,5 +1,18 @@
 import { loadNctracksConfig, NctracksConfigError } from './config';
 
+function liveEnv(overrides: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+  return {
+    NCTRACKS_MODE: 'live',
+    NCTRACKS_REALTIME_ELIGIBILITY_URL: 'https://edi.example.com/CORE/Eligibility',
+    NCTRACKS_CLIENT_CERT: 'cert',
+    NCTRACKS_CLIENT_KEY: 'key',
+    NCTRACKS_BATCH_SFTP_HOST: 'sftp.example.com',
+    NCTRACKS_BATCH_SFTP_USER: 'user',
+    NCTRACKS_SFTP_PRIVATE_KEY: '-----PRIVATE KEY-----',
+    ...overrides,
+  };
+}
+
 describe('loadNctracksConfig', () => {
   describe('mode parsing', () => {
     it('defaults to stub when NCTRACKS_MODE is absent', () => {
@@ -132,6 +145,34 @@ describe('loadNctracksConfig', () => {
       })).toThrow(/mode=sftp requires/);
     });
 
+    it('mode=live requires SOAP and SFTP configuration', () => {
+      expect(() => loadNctracksConfig({
+        ...liveEnv(),
+        NCTRACKS_REALTIME_ELIGIBILITY_URL: undefined,
+      })).toThrow(/NCTRACKS_REALTIME_ELIGIBILITY_URL/);
+
+      expect(() => loadNctracksConfig({
+        ...liveEnv(),
+        NCTRACKS_CLIENT_KEY: undefined,
+      })).toThrow(/NCTRACKS_CLIENT_CERT and NCTRACKS_CLIENT_KEY/);
+
+      expect(() => loadNctracksConfig({
+        ...liveEnv(),
+        NCTRACKS_BATCH_SFTP_HOST: undefined,
+      })).toThrow(/mode=live requires NCTRACKS_BATCH_SFTP_HOST/);
+    });
+
+    it('mode=live succeeds with complete configuration and parses case-insensitively', () => {
+      const c = loadNctracksConfig({
+        ...liveEnv(),
+        NCTRACKS_MODE: 'LIVE',
+      });
+
+      expect(c.mode).toBe('live');
+      expect(c.realtime.eligibilityUrl).toBe('https://edi.example.com/CORE/Eligibility');
+      expect(c.batch.sftp?.host).toBe('sftp.example.com');
+    });
+
     it('stub mode tolerates everything missing', () => {
       expect(() => loadNctracksConfig({ NCTRACKS_MODE: 'stub' })).not.toThrow();
     });
@@ -154,6 +195,19 @@ describe('loadNctracksConfig', () => {
         remoteNode: 'NCTRACKS.PROD',
         securePlusCert: undefined,
       });
+    });
+  });
+
+  describe('HTTP Basic auth block', () => {
+    it('populates only when both user and password are set', () => {
+      expect(loadNctracksConfig({
+        NCTRACKS_HTTP_BASIC_USER: 'core-user',
+      }).auth.httpBasic).toBeUndefined();
+
+      expect(loadNctracksConfig({
+        NCTRACKS_HTTP_BASIC_USER: 'core-user',
+        NCTRACKS_HTTP_BASIC_PASS: 'core-pass',
+      }).auth.httpBasic).toEqual({ user: 'core-user', pass: 'core-pass' });
     });
   });
 });
