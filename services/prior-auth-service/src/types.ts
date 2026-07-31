@@ -8,7 +8,7 @@ export interface PaRequestRow {
   diagnosis_codes: string[];
   clinical_justification: string | null;
   urgency: 'standard' | 'expedited' | 'drug';
-  status: 'pending' | 'approved' | 'denied' | 'needs_more_info' | 'expired';
+  status: 'pending' | 'received' | 'evaluating' | 'approved' | 'denied' | 'needs_more_info' | 'expired';
   ai_recommendation: string | null;
   ai_confidence: number | null;
   ai_explanation: string | null;

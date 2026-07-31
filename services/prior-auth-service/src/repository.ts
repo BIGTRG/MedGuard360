@@ -1,6 +1,11 @@
 import { pool, withRlsContext, NotFoundError } from '@medguard360/shared';
 import { PaRequestRow, CriterionEvaluationRow } from './types';
 
+type CriterionEvaluationInsert = Pick<
+  CriterionEvaluationRow,
+  'criterion_text' | 'similarity_score' | 'outcome' | 'explanation'
+>;
+
 /** Map DB row (migration 0004 shape) to API row expected by routes + portals. */
 function mapPaRow(row: Record<string, unknown>): PaRequestRow {
   const status = String(row.status ?? '');
@@ -168,7 +173,7 @@ export async function updatePaRequest(
 
 export async function saveCriterionEvaluations(
   paRequestId: string,
-  evaluations: Omit<CriterionEvaluationRow, 'id' | 'created_at' | 'pa_request_id'>[],
+  evaluations: CriterionEvaluationInsert[],
 ): Promise<void> {
   if (!evaluations.length) return;
 
