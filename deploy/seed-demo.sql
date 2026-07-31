@@ -398,15 +398,16 @@ VALUES
   ('50000000-0000-0000-0000-000000000008', 1, '97140', 'CPT', 1, 22000, ARRAY[1], '2026-05-09', '11')
 ON CONFLICT DO NOTHING;
 
--- Member portal: patients read own claims (patients.id = users.id for demo member)
+-- Member portal: patients read own claims; providers read claims through their
+-- provider profile because claims.billing_provider_id stores providers.id.
 DROP POLICY IF EXISTS claims_read ON claims;
 CREATE POLICY claims_read ON claims FOR SELECT USING (
   app_role_is_cross_state()
   OR (app_current_role() IN ('state_medicaid_agency','mco_admin','billing_manager',
                               'compliance_officer','fraud_investigator','denial_appeals_specialist')
       AND state_code = app_current_state_code())
-  OR billing_provider_id = app_current_user_id()
-  OR rendering_provider_id = app_current_user_id()
+  OR billing_provider_id IN (SELECT id FROM providers WHERE user_id = app_current_user_id())
+  OR rendering_provider_id IN (SELECT id FROM providers WHERE user_id = app_current_user_id())
   OR (app_current_role() = 'patient' AND patient_id = app_current_user_id())
 );
 
