@@ -78,6 +78,7 @@ router.post('/eligibility/check',
           stateCode: input.stateCode, payerId: input.payerId,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
+          coverageType: input.coverageType,
         },
         req.header('authorization') ?? '',
       );
