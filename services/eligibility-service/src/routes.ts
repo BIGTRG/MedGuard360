@@ -76,6 +76,7 @@ router.post('/eligibility/check',
       const mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
+          coverageType: input.coverageType,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
         },
