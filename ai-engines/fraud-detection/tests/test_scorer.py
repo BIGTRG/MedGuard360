@@ -207,7 +207,22 @@ def test_charge_exactly_5000_no_flag():
 
 
 # --------------------------------------------------------------------------- #
-# Test 7 — Patient over-utilization flag                                       #
+# Test 7 — GPS location anomaly                                                #
+# --------------------------------------------------------------------------- #
+
+def test_conus_coordinates_do_not_trigger_distance_anomaly():
+    """Valid continental US GPS coordinates should not be treated as spoofing."""
+    result = score_claim(_low_risk_claim(
+        location_lat=35.7796,
+        location_lng=-78.6382,
+    ))
+    flag_types = [f.flag_type for f in result.flags]
+    assert "distance_anomaly" not in flag_types
+    assert result.recommendation == "auto_pay"
+
+
+# --------------------------------------------------------------------------- #
+# Test 8 — Patient over-utilization flag                                       #
 # --------------------------------------------------------------------------- #
 
 def test_patient_overutilization_above_15():
@@ -220,7 +235,7 @@ def test_patient_overutilization_above_15():
 
 
 # --------------------------------------------------------------------------- #
-# Test 8 — state_threshold kwarg is accepted without errors                   #
+# Test 9 — state_threshold kwarg is accepted without errors                   #
 # --------------------------------------------------------------------------- #
 
 def test_state_threshold_accepted():
@@ -230,7 +245,7 @@ def test_state_threshold_accepted():
 
 
 # --------------------------------------------------------------------------- #
-# Test 9 — Null optional fields do not cause errors                            #
+# Test 10 — Null optional fields do not cause errors                           #
 # --------------------------------------------------------------------------- #
 
 def test_null_optional_fields_safe():
