@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AuthClaims, ForbiddenError } from '@medguard360/shared';
 
 export const CreatePatientSchema = z.object({
   medicaid_id:    z.string().min(1).max(50),
@@ -26,4 +27,10 @@ export function serializePatient(row: Record<string, unknown>): Record<string, u
     email: row['email'] ?? null,
     phone: row['phone'] ?? null,
   };
+}
+
+export function enforceCrisisPlanBiometricAccess(auth: AuthClaims): void {
+  if (auth.role === 'emergency_responder' && auth.biometricVerified !== true) {
+    throw new ForbiddenError('Biometric verification required for crisis plan access');
+  }
 }

@@ -17,7 +17,7 @@ import {
   NotFoundError,
 } from '@medguard360/shared';
 import * as repo from './repository';
-import { CreatePatientSchema, serializePatient } from './patientCore';
+import { CreatePatientSchema, enforceCrisisPlanBiometricAccess, serializePatient } from './patientCore';
 
 const UpdatePatientSchema = z.object({
   first_name:     z.string().min(1).max(100).optional(),
@@ -345,13 +345,7 @@ router.get(
   requireAuth,
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params['id']);
-
-    // emergency_responder role requires biometric verification before accessing crisis plan.
-    if (req.auth!.role === 'emergency_responder') {
-      await requireBiometric(req, res, async () => {
-        /* biometric middleware calls next() if passed */
-      });
-    }
+    enforceCrisisPlanBiometricAccess(req.auth!);
 
     const plan = await repo.getCrisisPlan(id, req.auth!);
     if (!plan) throw new NotFoundError('Crisis plan');

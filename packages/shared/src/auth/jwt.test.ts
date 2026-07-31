@@ -48,4 +48,16 @@ describe('JWT issue + verify', () => {
     expect(refresh.sessionId).toBe(tokens.sessionId);
     expect(refresh.kind).toBe('refresh');
   });
+
+  it('preserves an existing session id when rotating tokens', () => {
+    const existingSessionId = '10000000-0000-0000-0000-000000000001';
+    const tokens = issueTokens({ ...input, sessionId: existingSessionId });
+
+    const access = verifyAccessToken(tokens.accessToken);
+    const refresh = verifyRefreshToken(tokens.refreshToken);
+
+    expect(tokens.sessionId).toBe(existingSessionId);
+    expect(access.sessionId).toBe(existingSessionId);
+    expect(refresh.sessionId).toBe(existingSessionId);
+  });
 });
