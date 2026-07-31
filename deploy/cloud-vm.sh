@@ -18,7 +18,7 @@
 set -euo pipefail
 
 : "${DOMAIN:?DOMAIN env var required, e.g. demo.medguard360.com}"
-: "${EMAIL:?EMAIL env var required for Let's Encrypt cert registration}"
+: "${EMAIL:?EMAIL env var required for TLS certificate registration}"
 
 REPO_URL="${REPO_URL:-https://github.com/medguard360/medguard360.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/medguard360}"
