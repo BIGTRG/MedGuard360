@@ -7,8 +7,8 @@ $root = (Get-Location).Path
 
 $listPath = Join-Path $PSScriptRoot "ci-demo-engines.txt"
 $engines = Get-Content $listPath | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') }
-if ($engines.Count -ne 4) {
-  throw "Expected 4 engines in ci-demo-engines.txt, found $($engines.Count)"
+if ($engines.Count -ne 5) {
+  throw "Expected 5 engines in ci-demo-engines.txt, found $($engines.Count)"
 }
 
 Write-Host "MedGuard360 demo AI engine tests via Docker (Python 3.11, $($engines.Count) engines)" -ForegroundColor Cyan

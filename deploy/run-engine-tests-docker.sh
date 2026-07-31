@@ -5,8 +5,8 @@ cd "$(dirname "$0")/.."
 root="$(pwd)"
 
 mapfile -t engines < <(grep -v '^\s*#' deploy/ci-demo-engines.txt | grep -v '^\s*$')
-if [ "${#engines[@]}" -ne 4 ]; then
-  echo "Expected 4 engines in ci-demo-engines.txt, found ${#engines[@]}"
+if [ "${#engines[@]}" -ne 5 ]; then
+  echo "Expected 5 engines in ci-demo-engines.txt, found ${#engines[@]}"
   exit 1
 fi
 

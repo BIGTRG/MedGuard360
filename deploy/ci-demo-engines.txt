@@ -1,4 +1,5 @@
 fraud-detection
+fraud-ring-gnn
 pa-nlp-matcher
 denial-predictor
 crisis-detector
