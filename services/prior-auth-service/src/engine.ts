@@ -50,9 +50,7 @@ interface NlpMatchResponse {
 
 interface PaCriteriaDocRow {
   id: string;
-  pa_rule_id: string;
-  criterion_text: string;
-  is_critical: boolean;
+  criteria_text: string;
 }
 
 /** Compute SLA deadline based on urgency type. */
@@ -80,18 +78,23 @@ export async function runClinicalDecisionEngine(params: {
   urgency: string;
   stateCode: string;
   payerId: string;
+  authorizationHeader?: string;
 }): Promise<EngineResult> {
-  const { procedureCode, diagnosisCodes, clinicalJustification, stateCode, payerId } = params;
+  const { procedureCode, diagnosisCodes, clinicalJustification, stateCode, payerId, authorizationHeader } = params;
 
   // ── Step 1: Fetch PA rule from state-config-service ──────────────────────
-  let paRule: PaRuleResponse;
+  let paRule: PaRuleResponse | null;
   try {
     const ruleUrl = `${STATE_CONFIG_URL}/api/v1/state-config/pa-rule?` +
-      new URLSearchParams({ state_code: stateCode, payer_id: payerId, procedure_code: procedureCode });
+      new URLSearchParams({ state: stateCode, payer: payerId, code: procedureCode });
+    const headers: Record<string, string> = { 'x-service-caller': 'prior-auth-service' };
+    if (authorizationHeader) {
+      headers.authorization = authorizationHeader;
+    }
 
     const ruleResp = await fetch(ruleUrl, {
       signal: AbortSignal.timeout(10_000),
-      headers: { 'x-service-caller': 'prior-auth-service' },
+      headers,
     });
 
     if (!ruleResp.ok) {
@@ -117,7 +120,17 @@ export async function runClinicalDecisionEngine(params: {
     };
   }
 
-  if (!paRule.requires_pa) {
+  if (!paRule) {
+    return {
+      recommendation: 'needs_more_info',
+      confidence: 0,
+      explanation: `No prior authorization rule is configured for procedure ${procedureCode} under payer ${payerId} in ${stateCode}. A prior authorization specialist must review manually.`,
+      criteriaEvaluations: [],
+      routedToHuman: true,
+    };
+  }
+
+  if (!paRule.pa_required) {
     return {
       recommendation: 'approve',
       confidence: 1.0,
@@ -132,18 +145,17 @@ export async function runClinicalDecisionEngine(params: {
   let criticalFlags: boolean[] = [];
 
   try {
-    // pa_rule_id is embedded in the pa_type from the rule response; we look up
-    // criteria documents by matching state_code + payer_id + procedure_code.
+    // Criteria documents are keyed by the same state/payer/service tuple as PA rules.
     const criteriaResult = await pool.query<PaCriteriaDocRow>(
       `SELECT * FROM pa_criteria_documents
-       WHERE state_code = $1 AND payer_id = $2 AND procedure_code = $3
+       WHERE state_code = $1 AND payer_id = $2 AND service_code = $3
        ORDER BY created_at`,
       [stateCode, payerId, procedureCode],
     );
 
     if (criteriaResult.rows.length) {
-      criteriaTexts = criteriaResult.rows.map(r => r.criterion_text);
-      criticalFlags = criteriaResult.rows.map(r => r.is_critical);
+      criteriaTexts = criteriaResult.rows.map(r => r.criteria_text);
+      criticalFlags = criteriaResult.rows.map(() => false);
     } else {
       // No criteria documents on file — specialist must review
       return {

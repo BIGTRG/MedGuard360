@@ -168,7 +168,7 @@ export async function updatePaRequest(
 
 export async function saveCriterionEvaluations(
   paRequestId: string,
-  evaluations: Omit<CriterionEvaluationRow, 'id' | 'created_at' | 'pa_request_id'>[],
+  evaluations: Array<Pick<CriterionEvaluationRow, 'criterion_text' | 'similarity_score' | 'outcome' | 'explanation'>>,
 ): Promise<void> {
   if (!evaluations.length) return;
 
