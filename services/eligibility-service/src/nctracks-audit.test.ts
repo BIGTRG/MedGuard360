@@ -10,10 +10,10 @@ jest.mock('@medguard360/shared', () => ({
   },
 }));
 
-const poolQueryMock = pool.query as jest.MockedFunction<
+const poolQueryMock = pool.query as unknown as jest.MockedFunction<
   (queryText: string, values?: readonly unknown[]) => Promise<{ rows: unknown[] }>
 >;
-const loggerWarnMock = logger.warn as jest.MockedFunction<
+const loggerWarnMock = logger.warn as unknown as jest.MockedFunction<
   (message: string, meta?: Record<string, unknown>) => void
 >;
 
