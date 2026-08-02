@@ -11,7 +11,7 @@ import {
   type ClaimStatusResponse,
   type ClaimSubmitResult,
 } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import * as repo from './nctracks-repository';
 import {
   nctracksX12ArchiveIntervalMs,
@@ -24,9 +24,49 @@ import {
   observeNctracksRealtime,
 } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCTRACKS',
+  'NCMMIS',
+  'NCMEDICAID',
+  'NCCHIP',
+]);
+
+const PLACEHOLDER_MEMBER_IDS = new Set([
+  'UNKNOWN',
+  'PENDING',
+  'PLACEHOLDER',
+  'TEST',
+  'N/A',
+  'NA',
+  'NONE',
+  'NULL',
+  'UNDEFINED',
+]);
+
+function normalizePayerId(payerId?: string): string {
+  return (payerId ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+}
+
+function isNcMedicaidPayer(payerId?: string): boolean {
+  return NC_MEDICAID_PAYER_IDS.has(normalizePayerId(payerId));
+}
+
+function hasValidNcMedicaidId(medicaidId?: string): boolean {
+  const trimmed = medicaidId?.trim();
+  if (!trimmed) return false;
+  const normalized = trimmed.toUpperCase();
+  if (PLACEHOLDER_MEMBER_IDS.has(normalized)) return false;
+  if (/^0+$/.test(normalized)) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed)) {
+    return false;
+  }
+  return /^[A-Z0-9]{6,20}$/i.test(trimmed);
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled' && isNcMedicaidPayer(payerId);
 }
 
 export function nctracksPollIntervalMs(): number {
@@ -81,14 +121,19 @@ export function isRemittancePayable(statusCode: string): boolean {
 }
 
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {
+  if (!hasValidNcMedicaidId(input.patientMedicaidId)) {
+    throw new ValidationError('A valid NC Medicaid or CHIP member ID is required for NCTracks claim submission');
+  }
+
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
+  const subscriberId = input.patientMedicaidId.trim();
 
   const result = await adapter.submitClaim({
     claimType: 'professional',
     patientControlNumber: input.ccn,
     totalCharge: input.totalCharge,
-    subscriberId: input.patientMedicaidId,
+    subscriberId,
     serviceDateFrom: serviceIso,
     serviceDateTo: serviceIso,
     billingProvider: {
@@ -115,6 +160,10 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
   nctracksBatchFilesOut.inc({ type: '837P' });
   if (result.ack999 && !result.ack999.accepted) {
     nctracksAck999RejectTotal.inc();
+    throw new Error('NCTracks rejected claim submission in the 999 acknowledgement');
+  }
+  if (result.ack277CA?.status === 'rejected') {
+    throw new Error('NCTracks rejected claim submission in the 277CA acknowledgement');
   }
 
   logger.info('nctracks claim submit', {
@@ -322,7 +371,7 @@ export async function getNctracksIntegrationStatus(): Promise<{
 
 export function startNctracksAckPoller(): void {
   const ms = nctracksPollIntervalMs();
-  if (!ms || !shouldUseNctracks('NC')) return;
+  if (!ms || shouldUseNctracks('NC', 'NCXIX') === false) return;
 
   logger.info('nctracks poller started', { intervalMs: ms });
   setInterval(() => {
