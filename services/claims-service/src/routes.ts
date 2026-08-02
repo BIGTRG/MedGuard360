@@ -193,7 +193,6 @@ router.get(
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
-    const authorization = req.header('authorization') ?? '';
 
     const lines = await repo.findClaimLines(id);
 
@@ -221,6 +220,7 @@ router.post(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
+    const authorization = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
@@ -399,7 +399,6 @@ router.post(
       action: 'update',
       actor: auth,
       outcome: 'success',
-      phiAccessed: true,
       context: {
         ccn: claim.ccn,
         payerId: claim.payer_id,

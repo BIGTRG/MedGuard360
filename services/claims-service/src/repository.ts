@@ -143,7 +143,7 @@ export interface ClaimListFilters {
 }
 
 interface QueryClient {
-  query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
+  query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }>;
 }
 
 export async function listClaims(
@@ -172,11 +172,11 @@ export async function listClaims(
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await client.query<DbClaimRow>(
+  const result = await client.query(
     `${CLAIM_FROM} ${where} ORDER BY created_at DESC LIMIT 500`,
     params,
   );
-  return result.rows.map(mapClaimRow);
+  return result.rows.map((row) => mapClaimRow(row as DbClaimRow));
 }
 
 // ── updateClaimStatus ─────────────────────────────────────────────────────────
