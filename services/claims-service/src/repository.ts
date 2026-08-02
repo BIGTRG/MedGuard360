@@ -142,9 +142,13 @@ export interface ClaimListFilters {
   stateCode?: string;
 }
 
+interface QueryClient {
+  query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }>;
+}
+
 export async function listClaims(
   filters: ClaimListFilters,
-  client: typeof pool = pool,
+  client: QueryClient = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
@@ -168,11 +172,11 @@ export async function listClaims(
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await client.query<DbClaimRow>(
+  const result = await client.query(
     `${CLAIM_FROM} ${where} ORDER BY created_at DESC LIMIT 500`,
     params,
   );
-  return result.rows.map(mapClaimRow);
+  return result.rows.map((row) => mapClaimRow(row as DbClaimRow));
 }
 
 // ── updateClaimStatus ─────────────────────────────────────────────────────────

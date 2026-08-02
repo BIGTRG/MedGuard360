@@ -220,6 +220,7 @@ router.post(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
+    const authorization = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
@@ -246,7 +247,7 @@ router.post(
       const patientResp = await fetch(
         `${process.env.PATIENT_SERVICE_URL ?? 'http://patient-service:3004'}/api/v1/patients/${claim.patient_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -274,7 +275,7 @@ router.post(
       const provResp = await fetch(
         `${process.env.PROVIDER_SERVICE_URL ?? 'http://provider-service:3002'}/api/v1/providers/${claim.provider_user_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -344,7 +345,7 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -352,7 +353,15 @@ router.post(
         serviceDate: ediInput.serviceDate,
         billingNpi,
         diagnosisCodes: ediInput.diagnosisCodes,
-        lines: ediInput.claimLines,
+        lines: ediInput.claimLines.map((line) => ({
+          procedure_code: line.procedure_code,
+          modifier_codes: line.modifier_codes ?? [],
+          units: line.units,
+          charge_amount: line.charge_amount,
+          service_date: line.service_date,
+          place_of_service: line.place_of_service ?? '11',
+          diagnosis_pointers: line.diagnosis_pointers ?? [1],
+        })),
       });
       await recordNctracksSubmission(
         id,
@@ -387,10 +396,9 @@ router.post(
     await auditLog({
       resource: 'claim',
       resourceId: id,
-      action: 'submit',
+      action: 'update',
       actor: auth,
       outcome: 'success',
-      phiAccessed: true,
       context: {
         ccn: claim.ccn,
         payerId: claim.payer_id,
