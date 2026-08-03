@@ -5,21 +5,50 @@
  */
 
 import { createNctracksAdapter } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 import { recordEligibilityX12Audit } from './nctracks-audit';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDPAY',
+]);
+
+function isConcreteMedicaidId(value: string | undefined): value is string {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    return false;
+  }
+  return !['UNKNOWN', 'N/A', 'NA', 'PLACEHOLDER', 'TEST'].includes(trimmed.toUpperCase());
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string, coverageType?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  if (!payerId && !coverageType) return true;
+
+  const normalizedCoverage = coverageType?.toLowerCase();
+  if (normalizedCoverage && !['medicaid', 'chip'].includes(normalizedCoverage)) return false;
+  if (!payerId) return normalizedCoverage === 'medicaid' || normalizedCoverage === 'chip';
+
+  const normalizedPayer = payerId.toUpperCase();
+  return NC_MEDICAID_PAYER_IDS.has(normalizedPayer)
+    || normalizedPayer.startsWith('NC_SP_')
+    || normalizedPayer.startsWith('NC_TP_')
+    || normalizedPayer.includes('MEDICAID');
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
+  if (!isConcreteMedicaidId(input.medicaidId)) {
+    throw new ValidationError('NCTracks eligibility requires a real NC Medicaid recipient ID');
+  }
+  const subscriberId = input.medicaidId.trim();
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,
@@ -36,7 +65,7 @@ export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookup
   });
 
   await recordEligibilityX12Audit({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     traceId: resp.traceId,
     adapterMode: adapter.mode,
     raw271: resp.raw271,

@@ -144,7 +144,7 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: typeof pool = pool,
+  client: Pick<typeof pool, 'query'> = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
