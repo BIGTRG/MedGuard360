@@ -3,7 +3,7 @@
 
 BEGIN;
 
-INSERT INTO notification_templates (template_key, channel, subject, body_template, is_active)
+INSERT INTO notification_templates (template_key, channel, subject, body_template)
 VALUES
   -- U1: HETS Enrollment templates
   ('hets.aaa41.email', 'email',
@@ -34,6 +34,7 @@ VALUES
     'MedGuard360 Drug PA: NDC {{ndc_code}} requires PA. PA ID {{pa_id}}. Review at medguard360.com/pharmacy'),
   ('drug.pa.pharmacy.email', 'email',
     'New Drug Prior Authorization Request — {{ndc_code}}',
-    'A new drug prior authorization has been submitted.\n\nPA ID: {{pa_id}}\nDrug NDC: {{ndc_code}}\n\nReview and approve/deny at: https://medguard360.com/pharmacy/drug-pa\n\nMedGuard360');
+    'A new drug prior authorization has been submitted.\n\nPA ID: {{pa_id}}\nDrug NDC: {{ndc_code}}\n\nReview and approve/deny at: https://medguard360.com/pharmacy/drug-pa\n\nMedGuard360')
+ON CONFLICT (template_key) DO NOTHING;
 
 COMMIT;
