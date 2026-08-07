@@ -8,7 +8,7 @@ jest.mock('@medguard360/shared', () => ({
   logger: {
     warn: mockWarn,
   },
-}));
+}), { virtual: true });
 
 import { recordEligibilityX12Audit } from './nctracks-audit';
 
