@@ -18,13 +18,14 @@ import {
   emitEvent,
   ValidationError,
   NotFoundError,
+  UpstreamError,
   createLogger,
   pool,
   withRlsContext,
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus, getNctracksIntegrationStatus } from './nctracks';
+import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus, getNctracksIntegrationStatus, hasRejectedInlineAck } from './nctracks';
 import { archiveNctracksX12Audit } from './nctracks-x12-archive';
 
 const logger = createLogger('claims-service:routes');
@@ -344,7 +345,7 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -361,6 +362,9 @@ router.post(
         nctracksSubmission.adapterMode,
         ediPayload,
       );
+      if (hasRejectedInlineAck(nctracksSubmission)) {
+        throw new UpstreamError('nctracks', 'NCTracks rejected the claim acknowledgment; claim was not submitted');
+      }
     }
 
     // Mark submitted

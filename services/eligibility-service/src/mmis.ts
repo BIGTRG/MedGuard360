@@ -20,6 +20,7 @@ const stateConfigClient = axios.create({
 export interface MmisLookupInput {
   stateCode: string;
   payerId: string;
+  coverageType?: string;
   patientFirstName?: string;
   patientLastName?: string;
   patientDateOfBirth?: string;
@@ -41,14 +42,16 @@ export interface MmisLookupResult {
 }
 
 export async function lookupMmis(input: MmisLookupInput, authHeader: string): Promise<MmisLookupResult | null> {
-  if (shouldUseNctracks(input.stateCode)) {
+  if (shouldUseNctracks(input.stateCode, input.payerId, input.coverageType)) {
     try {
       return await lookupNctracks(input);
     } catch (err) {
-      logger.warn('NCTracks eligibility failed; falling back to generic MMIS path', {
+      logger.warn('NCTracks eligibility failed; authoritative NC Medicaid lookup is fail-closed', {
         stateCode: input.stateCode,
+        payerId: input.payerId,
         error: (err as Error).message,
       });
+      throw err;
     }
   }
 

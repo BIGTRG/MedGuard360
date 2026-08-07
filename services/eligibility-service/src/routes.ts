@@ -12,6 +12,7 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { lookupMmis } from './mmis';
+import { shouldUseNctracks } from './nctracks';
 import * as hets from './hets';
 import * as ce from './communityEngagement';
 
@@ -57,10 +58,17 @@ router.post('/eligibility/check',
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
   ah(async (req, res) => {
     const input = parse(CheckSchema, req.body);
+    const nctracksRequired = shouldUseNctracks(input.stateCode, input.payerId, input.coverageType);
 
     // 1. Cache hit (24h TTL)
     if (!input.forceRefresh) {
-      const cached = await repo.findFreshCache(req.auth!, input.patientId, input.payerId, input.stateCode);
+      const cached = await repo.findFreshCache(
+        req.auth!,
+        input.patientId,
+        input.payerId,
+        input.stateCode,
+        nctracksRequired ? ['nctracks_270_271'] : [],
+      );
       if (cached) {
         await emitEvent('eligibility.checked', {
           patientId: input.patientId, payerId: input.payerId, stateCode: input.stateCode,
@@ -76,6 +84,7 @@ router.post('/eligibility/check',
       const mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
+          coverageType: input.coverageType,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
         },
@@ -93,6 +102,7 @@ router.post('/eligibility/check',
         });
       }
     } catch (err) {
+      if (nctracksRequired) throw err;
       logger.warn('MMIS lookup failed; falling back to AI prediction', {
         stateCode: input.stateCode, error: (err as Error).message,
       });
@@ -100,6 +110,9 @@ router.post('/eligibility/check',
 
     // 3. If MMIS failed, fall back to AI prediction so the workflow doesn't block.
     if (!row) {
+      if (nctracksRequired) {
+        throw new UpstreamError('nctracks', 'Authoritative NCTracks eligibility lookup did not return a result');
+      }
       try {
         const pred = await eligibilityIntel.post<{
           likely_eligible: boolean; probability: number; suggested_program: string;
