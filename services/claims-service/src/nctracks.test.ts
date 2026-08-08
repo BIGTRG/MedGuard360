@@ -2,14 +2,21 @@ import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollInterva
 import type { Ack277CA } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes known NC Medicaid claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+    expect(shouldUseNctracks('NC', 'NCMEDPAY')).toBe(true);
+  });
+
+  it('does not route by NC state alone', () => {
+    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'COMMERCIALPAYER')).toBe(false);
+    expect(shouldUseNctracks('GA', 'NCXIX')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
     const prev = process.env.NCTRACKS_MODE;
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
   });
@@ -82,6 +89,34 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+
+  it('rejects placeholder or UUID member IDs before submission', async () => {
+    const base = {
+      ccn: 'CCN-TEST-002',
+      totalCharge: 125.5,
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: ['Z00.00'],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    };
+
+    await expect(submitNcClaim({
+      ...base,
+      patientMedicaidId: 'UNKNOWN',
+    })).rejects.toThrow('valid NC Medicaid member ID');
+    await expect(submitNcClaim({
+      ...base,
+      patientMedicaidId: '10000000-0000-4000-8000-000000000001',
+    })).rejects.toThrow('valid NC Medicaid member ID');
   });
 });
 

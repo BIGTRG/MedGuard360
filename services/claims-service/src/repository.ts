@@ -9,6 +9,10 @@ import {
 
 export { mapClaimRow, dollarsToChargeCents } from './claim-map';
 
+type QueryClient = {
+  query: typeof pool.query;
+};
+
 const CLAIM_FROM = `
   SELECT
     id, claim_control_number, billing_provider_id, patient_id, payer_id,
@@ -144,7 +148,7 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: typeof pool = pool,
+  client: QueryClient = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
