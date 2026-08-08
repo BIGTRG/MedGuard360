@@ -34,14 +34,23 @@ export async function persist(auth: AuthClaims, input: PersistInput): Promise<El
   });
 }
 
-export async function findFreshCache(auth: AuthClaims, patientId: string, payerId: string, stateCode: string): Promise<EligibilityRow | null> {
+export async function findFreshCache(
+  auth: AuthClaims,
+  patientId: string,
+  payerId: string,
+  stateCode: string,
+  source?: CheckSource,
+): Promise<EligibilityRow | null> {
   return withRlsContext(auth, async (client) => {
+    const params: unknown[] = [patientId, payerId, stateCode];
+    const sourceClause = source ? ` AND source = $${params.push(source)}` : '';
     const r = await client.query<EligibilityRow>(
       `SELECT * FROM eligibility_checks
          WHERE patient_id = $1 AND payer_id = $2 AND state_code = $3
            AND ttl_until > now()
+           ${sourceClause}
          ORDER BY checked_at DESC LIMIT 1`,
-      [patientId, payerId, stateCode],
+      params,
     );
     return r.rows[0] ?? null;
   });

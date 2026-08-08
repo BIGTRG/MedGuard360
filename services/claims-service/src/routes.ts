@@ -344,7 +344,7 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -361,6 +361,18 @@ router.post(
         nctracksSubmission.adapterMode,
         ediPayload,
       );
+      const rejected277 = nctracksSubmission.ack277CA?.status === 'rejected'
+        || nctracksSubmission.ack277CA?.perClaim.some((ack) => ack.status === 'rejected');
+      if (nctracksSubmission.ack999 && !nctracksSubmission.ack999.accepted) {
+        throw new ValidationError('NCTracks rejected the 837 claim batch', {
+          errors: nctracksSubmission.ack999.errors,
+        });
+      }
+      if (rejected277) {
+        throw new ValidationError('NCTracks rejected the submitted claim', {
+          ack277CA: nctracksSubmission.ack277CA?.perClaim,
+        });
+      }
     }
 
     // Mark submitted
