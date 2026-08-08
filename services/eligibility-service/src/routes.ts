@@ -58,7 +58,8 @@ router.post('/eligibility/check',
   requireRole('individual_provider','facility_provider','billing_manager','prior_auth_specialist','platform_administrator'),
   ah(async (req, res) => {
     const input = parse(CheckSchema, req.body);
-    const requiresNctracks = shouldUseNctracks(input.stateCode, input.payerId, input.coverageType);
+    const coverageType = input.coverageType ?? 'medicaid';
+    const requiresNctracks = shouldUseNctracks(input.stateCode, input.payerId, coverageType);
 
     // 1. Cache hit (24h TTL)
     if (!input.forceRefresh) {
@@ -84,7 +85,7 @@ router.post('/eligibility/check',
       const mmis = await lookupMmis(
         {
           stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType,
+          coverageType,
           patientFirstName: input.patientFirstName, patientLastName: input.patientLastName,
           patientDateOfBirth: input.patientDateOfBirth, medicaidId: input.medicaidId,
         },
@@ -93,7 +94,7 @@ router.post('/eligibility/check',
       if (mmis) {
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: mmis.source ?? 'mmis_270_271',
+          coverageType, source: mmis.source ?? 'mmis_270_271',
           active: mmis.active,
           effectiveFrom: mmis.effectiveFrom, effectiveTo: mmis.effectiveTo,
           planName: mmis.planName,
@@ -125,7 +126,7 @@ router.post('/eligibility/check',
         });
         row = await repo.persist(req.auth!, {
           patientId: input.patientId, stateCode: input.stateCode, payerId: input.payerId,
-          coverageType: input.coverageType, source: 'ai_prediction',
+          coverageType, source: 'ai_prediction',
           active: pred.data.likely_eligible,
           planName: pred.data.suggested_program,
           details: { ai: pred.data },
@@ -147,7 +148,7 @@ router.post('/eligibility/check',
       context: { source: row.source, active: row.active },
     });
 
-    res.json({ ...row, cacheHit: false });
+    return res.json({ ...row, cacheHit: false });
   }),
 );
 
@@ -205,7 +206,7 @@ router.post('/eligibility/hets-status/upsert',
       hetsSubmitterUid: submitterUid, status: body.status, notes: body.notes,
     });
     await auditLog({
-      resource: 'hets_enrollment', resourceId: row.id, action: 'write',
+      resource: 'hets_enrollment', resourceId: row.id, action: 'update',
       actor: req.auth!, outcome: 'success', correlationId: req.correlationId,
       context: { npi: body.npi, status: body.status },
     });
