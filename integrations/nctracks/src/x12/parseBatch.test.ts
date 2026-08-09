@@ -4,7 +4,7 @@ import { parse999 } from './parse999';
 
 describe('parse999', () => {
   it('parses accepted functional ack', () => {
-    const raw = 'ISA*00* *00* *ZZ*NCXIX*ZZ*STUB*..*999*ACK*****000000123~AK1*HC*GROUP456~AK9*A*1*1*1~IEA*1*000000123~';
+    const raw = 'ISA*00*          *00*          *ZZ*NCXIX          *ZZ*STUB           *260809*1200*^*00501*000000123*0*T*:~AK1*HC*GROUP456~AK9*A*1*1*1~IEA*1*000000123~';
     const parsed = parse999(raw);
     expect(parsed.accepted).toBe(true);
     expect(parsed.errors).toHaveLength(0);
