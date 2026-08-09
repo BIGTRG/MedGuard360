@@ -103,10 +103,14 @@ router.post(
   ah(async (req, res) => {
     const auth = req.auth!;
     const body = parse(CreateClaimSchema, req.body);
+    const billingProviderId = await billingProviderIdForUser(auth.sub);
+    if (!billingProviderId) {
+      throw new ValidationError('Claim creation requires a billing provider profile for the authenticated user');
+    }
 
     const claim = await repo.createClaim({
       encounter_id: body.encounter_id ?? null,
-      provider_user_id: auth.sub,
+      provider_user_id: billingProviderId,
       patient_id: body.patient_id,
       payer_id: body.payer_id,
       claim_type: body.claim_type,
@@ -220,6 +224,7 @@ router.post(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
+    const authorization = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
@@ -228,12 +233,7 @@ router.post(
       throw new ValidationError(`Claim cannot be submitted from status: ${claim.status}`);
     }
 
-    // Fetch service lines
-    const linesResult = await pool.query(
-      'SELECT * FROM claim_lines WHERE claim_id = $1 ORDER BY line_number',
-      [id],
-    );
-    const lines = linesResult.rows;
+    const lines = await repo.findClaimLines(id);
 
     // Fetch patient demographics for EDI
     let patientFirst = 'Patient';
@@ -246,7 +246,7 @@ router.post(
       const patientResp = await fetch(
         `${process.env.PATIENT_SERVICE_URL ?? 'http://patient-service:3004'}/api/v1/patients/${claim.patient_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -274,7 +274,7 @@ router.post(
       const provResp = await fetch(
         `${process.env.PROVIDER_SERVICE_URL ?? 'http://provider-service:3002'}/api/v1/providers/${claim.provider_user_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -299,8 +299,10 @@ router.post(
     // Build diagnosis codes from lines if not on claim
     const diagnosisCodes: string[] = [];
     for (const line of lines) {
-      if (line.diagnosis_codes) {
-        for (const code of line.diagnosis_codes) {
+      const lineDiagnosisCodes = Array.isArray(line.diagnosis_codes) ? line.diagnosis_codes : [];
+      if (lineDiagnosisCodes.length) {
+        for (const code of lineDiagnosisCodes) {
+          if (typeof code !== 'string') continue;
           if (!diagnosisCodes.includes(code)) diagnosisCodes.push(code);
         }
       }
@@ -344,7 +346,16 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
+      const nctracksLines = ediInput.claimLines.map((line) => ({
+        procedure_code: line.procedure_code,
+        modifier_codes: line.modifier_codes ?? [],
+        units: line.units,
+        charge_amount: line.charge_amount,
+        service_date: line.service_date,
+        place_of_service: line.place_of_service ?? '11',
+        diagnosis_pointers: line.diagnosis_pointers ?? [1],
+      }));
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -352,7 +363,7 @@ router.post(
         serviceDate: ediInput.serviceDate,
         billingNpi,
         diagnosisCodes: ediInput.diagnosisCodes,
-        lines: ediInput.claimLines,
+        lines: nctracksLines,
       });
       await recordNctracksSubmission(
         id,
@@ -387,11 +398,12 @@ router.post(
     await auditLog({
       resource: 'claim',
       resourceId: id,
-      action: 'submit',
+      action: 'update',
       actor: auth,
       outcome: 'success',
-      phiAccessed: true,
       context: {
+        action: 'submit',
+        phiAccessed: true,
         ccn: claim.ccn,
         payerId: claim.payer_id,
         totalAmount: claim.total_amount,

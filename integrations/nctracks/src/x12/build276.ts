@@ -31,6 +31,7 @@ export function build276ForNctracks(req: ClaimStatusRequest, config: NctracksCon
   ].join(ELE) + SEG);
 
   out.push(['GS', 'HR', ids.submitterId, ids.receiverId, ymd(now), hm(now), icn, 'X', '005010X212'].join(ELE) + SEG);
+  const transactionStart = out.length;
   out.push(['ST', '276', '0001', '005010X212'].join(ELE) + SEG);
   out.push(['BHT', '0010', '13', trace, ymd(now), hm(now)].join(ELE) + SEG);
   out.push(['HL', '1', '', '20', '1'].join(ELE) + SEG);
@@ -43,7 +44,7 @@ export function build276ForNctracks(req: ClaimStatusRequest, config: NctracksCon
   out.push(['TRN', '1', trace, ids.submitterId].join(ELE) + SEG);
   out.push(['REF', '1K', req.payerClaimControlNumber ?? req.patientControlNumber].join(ELE) + SEG);
   out.push(['DTP', '472', 'RD8', `${dosFrom}-${dosTo}`].join(ELE) + SEG);
-  out.push(['SE', String(out.length + 1), '0001'].join(ELE) + SEG);
+  out.push(['SE', String(out.length - transactionStart + 1), '0001'].join(ELE) + SEG);
   out.push(['GE', '1', icn].join(ELE) + SEG);
   out.push(['IEA', '1', icn.padStart(9, '0')].join(ELE) + SEG);
   return out.join('\n');

@@ -20,5 +20,6 @@ describe('build276ForNctracks', () => {
     expect(x12).toContain('TRN*1*PCN-276-1');
     expect(x12).toContain('REF*1K*TCN-999');
     expect(x12).toContain('DTP*472*RD8*20260601-20260601');
+    expect(x12).toContain('SE*13*0001');
   });
 });
