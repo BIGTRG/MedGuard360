@@ -2,14 +2,22 @@ import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollInterva
 import type { Ack277CA } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+  });
+
+  it('does not route NC commercial claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'BCBSNC-COMMERCIAL')).toBe(false);
+  });
+
+  it('requires a known NC Medicaid payer id', () => {
+    expect(shouldUseNctracks('NC')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
     const prev = process.env.NCTRACKS_MODE;
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
   });
@@ -82,6 +90,46 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+
+  it('rejects patient UUIDs before submitting to NCTracks', async () => {
+    await expect(submitNcClaim({
+      ccn: 'CCN-TEST-UUID',
+      totalCharge: 125.5,
+      patientMedicaidId: '11111111-1111-4111-8111-111111111111',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: ['Z00.00'],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    })).rejects.toThrow('real NC Medicaid recipient ID');
+  });
+
+  it('fails closed when NCTracks returns a rejected inline acknowledgment', async () => {
+    await expect(submitNcClaim({
+      ccn: 'CCN-TEST-REJECT',
+      totalCharge: 125.5,
+      patientMedicaidId: 'NCMD00100001',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: [],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    })).rejects.toThrow('NCTracks rejected');
   });
 });
 

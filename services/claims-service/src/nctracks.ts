@@ -11,7 +11,7 @@ import {
   type ClaimStatusResponse,
   type ClaimSubmitResult,
 } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import * as repo from './nctracks-repository';
 import {
   nctracksX12ArchiveIntervalMs,
@@ -24,9 +24,54 @@ import {
   observeNctracksRealtime,
 } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCTRACKS',
+  'NCMEDICAID',
+  'NCMEDICAIDDIRECT',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+  'NCAMERIHEALTH',
+  'NCHEALTHYBLUE',
+  'NCUHC',
+  'NCWELLCARE',
+  'NCCAROLINACOMPLETE',
+  'NCTRILLIUM',
+  'NCVAYA',
+  'NCALLIANCE',
+  'NCPARTNERS',
+  'NCEASTPOINTE',
+  'NCSANDHILLS',
+]);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PLACEHOLDER_RECIPIENT_IDS = new Set(['UNKNOWN', 'N/A', 'NA', 'NONE', 'NULL', 'UNSET', 'PENDING']);
+
+function normalizePayerId(payerId: string): string {
+  return payerId.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+}
+
+export function isKnownNcMedicaidPayer(payerId: string): boolean {
+  const normalized = normalizePayerId(payerId);
+  return NC_MEDICAID_PAYER_IDS.has(normalized)
+    || (normalized.startsWith('NC') && normalized.includes('MEDICAID'));
+}
+
+export function isNctracksEnabledForState(stateCode: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
   return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
+  return isNctracksEnabledForState(stateCode) && Boolean(payerId && isKnownNcMedicaidPayer(payerId));
+}
+
+export function validateNcMedicaidRecipientId(medicaidId: string): string {
+  const trimmed = medicaidId.trim();
+  if (!trimmed || PLACEHOLDER_RECIPIENT_IDS.has(trimmed.toUpperCase()) || UUID_RE.test(trimmed)) {
+    throw new ValidationError('NCTracks claim submission requires a real NC Medicaid recipient ID');
+  }
+  return trimmed;
 }
 
 export function nctracksPollIntervalMs(): number {
@@ -80,15 +125,33 @@ export function isRemittancePayable(statusCode: string): boolean {
   return ['1', '2', '3', '19', '20', '21'].includes(statusCode);
 }
 
+export function assertNctracksSubmissionAccepted(result: ClaimSubmitResult): void {
+  if (result.ack999 && !result.ack999.accepted) {
+    throw new ValidationError('NCTracks rejected the 837 functional acknowledgment', {
+      fileName: result.fileName,
+      errors: result.ack999.errors,
+    });
+  }
+
+  if (result.ack277CA?.status === 'rejected' || result.ack277CA?.perClaim.some((row) => row.status === 'rejected')) {
+    throw new ValidationError('NCTracks rejected the claim acknowledgment', {
+      fileName: result.fileName,
+      status: result.ack277CA.status,
+      perClaim: result.ack277CA.perClaim,
+    });
+  }
+}
+
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
+  const subscriberId = validateNcMedicaidRecipientId(input.patientMedicaidId);
 
   const result = await adapter.submitClaim({
     claimType: 'professional',
     patientControlNumber: input.ccn,
     totalCharge: input.totalCharge,
-    subscriberId: input.patientMedicaidId,
+    subscriberId,
     serviceDateFrom: serviceIso,
     serviceDateTo: serviceIso,
     billingProvider: {
@@ -116,6 +179,7 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
   if (result.ack999 && !result.ack999.accepted) {
     nctracksAck999RejectTotal.inc();
   }
+  assertNctracksSubmissionAccepted(result);
 
   logger.info('nctracks claim submit', {
     mode: adapter.mode,
@@ -322,7 +386,7 @@ export async function getNctracksIntegrationStatus(): Promise<{
 
 export function startNctracksAckPoller(): void {
   const ms = nctracksPollIntervalMs();
-  if (!ms || !shouldUseNctracks('NC')) return;
+  if (!ms || !isNctracksEnabledForState('NC')) return;
 
   logger.info('nctracks poller started', { intervalMs: ms });
   setInterval(() => {
