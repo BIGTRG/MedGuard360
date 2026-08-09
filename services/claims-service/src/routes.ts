@@ -103,10 +103,14 @@ router.post(
   ah(async (req, res) => {
     const auth = req.auth!;
     const body = parse(CreateClaimSchema, req.body);
+    const billingProviderId = await billingProviderIdForUser(auth.sub);
+    if (!billingProviderId) {
+      throw new ValidationError('Claim creation requires a billing provider profile for the authenticated user');
+    }
 
     const claim = await repo.createClaim({
       encounter_id: body.encounter_id ?? null,
-      provider_user_id: auth.sub,
+      provider_user_id: billingProviderId,
       patient_id: body.patient_id,
       payer_id: body.payer_id,
       claim_type: body.claim_type,
@@ -229,12 +233,7 @@ router.post(
       throw new ValidationError(`Claim cannot be submitted from status: ${claim.status}`);
     }
 
-    // Fetch service lines
-    const linesResult = await pool.query(
-      'SELECT * FROM claim_lines WHERE claim_id = $1 ORDER BY line_number',
-      [id],
-    );
-    const lines = linesResult.rows;
+    const lines = await repo.findClaimLines(id);
 
     // Fetch patient demographics for EDI
     let patientFirst = 'Patient';

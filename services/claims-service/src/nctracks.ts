@@ -116,6 +116,27 @@ export function indexAck277ByPcn(acks: Ack277CA[]): Map<string, Ack277CA> {
   return out;
 }
 
+function addAck999Control(out: Map<string, Ack999>, key: string | undefined, ack: Ack999): void {
+  const normalized = key?.trim();
+  if (normalized) out.set(normalized, ack);
+}
+
+export function indexAck999ByControl(acks: Ack999[]): Map<string, Ack999> {
+  const out = new Map<string, Ack999>();
+  for (const ack of acks) {
+    addAck999Control(out, ack.groupControlNumber, ack);
+    addAck999Control(out, ack.interchangeControlNumber, ack);
+  }
+  return out;
+}
+
+export function findAck999ForSubmission(
+  sub: Pick<repo.NctracksSubmissionRow, 'group_control_number' | 'interchange_control_number'>,
+  byControl: Map<string, Ack999>,
+): Ack999 | undefined {
+  return byControl.get(sub.group_control_number) ?? byControl.get(sub.interchange_control_number);
+}
+
 export function dollarsToCents(amount: number): number {
   return Math.round(amount * 100);
 }
@@ -258,13 +279,15 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
     if (!ack.accepted) nctracksAck999RejectTotal.inc();
   }
   const byPcn = indexAck277ByPcn(ack277CA);
+  const by999Control = indexAck999ByControl(ack999);
 
   let updated = 0;
   for (const sub of pending) {
     const ack277 = byPcn.get(sub.patient_control_number);
     if (!ack277) continue;
+    const ack999ForSubmission = findAck999ForSubmission(sub, by999Control);
 
-    await repo.updateSubmissionAcks(sub.id, ack999[0], ack277);
+    await repo.updateSubmissionAcks(sub.id, ack999ForSubmission, ack277);
     if (ack277?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
@@ -275,13 +298,13 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
         adapterMode: adapter.mode,
       });
     }
-    if (ack999[0]?.raw) {
+    if (ack999ForSubmission?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
         direction: 'inbound',
         transactionType: '999',
         patientControlNumber: sub.patient_control_number,
-        payload: ack999[0].raw,
+        payload: ack999ForSubmission.raw,
         adapterMode: adapter.mode,
       });
     }
