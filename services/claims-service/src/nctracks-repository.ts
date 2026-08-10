@@ -215,7 +215,7 @@ export async function applyRemittanceToClaim(
   try {
     await pool.query(
       `UPDATE claims SET status = 'paid', total_paid_cents = $2, adjudicated_at = now(),
-              paid_at = now(), updated_at = now()
+              updated_at = now()
        WHERE id = $1`,
       [claimId, paidCents],
     );
