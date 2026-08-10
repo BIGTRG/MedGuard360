@@ -116,6 +116,25 @@ export function indexAck277ByPcn(acks: Ack277CA[]): Map<string, Ack277CA> {
   return out;
 }
 
+export function indexAck999ByGroupControlNumber(acks: Ack999[]): Map<string, Ack999> {
+  const out = new Map<string, Ack999>();
+  for (const ack of acks) {
+    if (ack.groupControlNumber) out.set(ack.groupControlNumber, ack);
+  }
+  return out;
+}
+
+export function ack999ForSubmission(
+  submission: Pick<repo.NctracksSubmissionRow, 'group_control_number'>,
+  acks: Ack999[],
+  byGroupControlNumber: Map<string, Ack999>,
+  pendingCount: number,
+): Ack999 | undefined {
+  const matched = byGroupControlNumber.get(submission.group_control_number);
+  if (matched) return matched;
+  return pendingCount === 1 && acks.length === 1 ? acks[0] : undefined;
+}
+
 export function dollarsToCents(amount: number): number {
   return Math.round(amount * 100);
 }
@@ -257,14 +276,16 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
   for (const ack of ack999) {
     if (!ack.accepted) nctracksAck999RejectTotal.inc();
   }
+  const ack999ByGroup = indexAck999ByGroupControlNumber(ack999);
   const byPcn = indexAck277ByPcn(ack277CA);
 
   let updated = 0;
   for (const sub of pending) {
     const ack277 = byPcn.get(sub.patient_control_number);
     if (!ack277) continue;
+    const ack999ForSub = ack999ForSubmission(sub, ack999, ack999ByGroup, pending.length);
 
-    await repo.updateSubmissionAcks(sub.id, ack999[0], ack277);
+    await repo.updateSubmissionAcks(sub.id, ack999ForSub, ack277);
     if (ack277?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
@@ -275,13 +296,13 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
         adapterMode: adapter.mode,
       });
     }
-    if (ack999[0]?.raw) {
+    if (ack999ForSub?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
         direction: 'inbound',
         transactionType: '999',
         patientControlNumber: sub.patient_control_number,
-        payload: ack999[0].raw,
+        payload: ack999ForSub.raw,
         adapterMode: adapter.mode,
       });
     }
