@@ -8,6 +8,8 @@ describe('parse999', () => {
     const parsed = parse999(raw);
     expect(parsed.accepted).toBe(true);
     expect(parsed.errors).toHaveLength(0);
+    expect(parsed.functionalIdentifierCode).toBe('HC');
+    expect(parsed.groupControlNumber).toBe('1');
   });
 
   it('parses rejected ack with IK errors', () => {

@@ -1,4 +1,4 @@
-import { mapClaimRow, dollarsToChargeCents } from './claim-map';
+import { mapClaimRow, dollarsToChargeCents, mapClaimLineRow } from './claim-map';
 
 describe('claims repository mapping', () => {
   it('maps canonical DB row to API claim shape', () => {
@@ -30,5 +30,32 @@ describe('claims repository mapping', () => {
 
   it('converts dollar amounts to charge cents', () => {
     expect(dollarsToChargeCents(125.5)).toBe(12550);
+  });
+
+  it('maps canonical DB claim line rows to EDI claim line shape', () => {
+    const line = mapClaimLineRow({
+      line_number: 1,
+      service_code: '99213',
+      modifier_1: 'GT',
+      modifier_2: null,
+      modifier_3: '',
+      modifier_4: null,
+      diagnosis_pointers: [1],
+      service_date: '2026-05-10',
+      units: 2,
+      charge_cents: 25000,
+      place_of_service: '02',
+    });
+
+    expect(line).toEqual({
+      line_number: 1,
+      procedure_code: '99213',
+      modifier_codes: ['GT'],
+      diagnosis_pointers: [1],
+      service_date: '2026-05-10',
+      units: 2,
+      charge_amount: 250,
+      place_of_service: '02',
+    });
   });
 });
