@@ -142,9 +142,11 @@ export interface ClaimListFilters {
   stateCode?: string;
 }
 
+type QueryClient = Pick<typeof pool, 'query'>;
+
 export async function listClaims(
   filters: ClaimListFilters,
-  client: typeof pool = pool,
+  client: QueryClient = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
