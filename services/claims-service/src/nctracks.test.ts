@@ -1,15 +1,33 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
-import type { Ack277CA } from '@medguard360/nctracks';
+import {
+  ack999ForSubmission,
+  shouldUseNctracks,
+  submitNcClaim,
+  indexAck277ByPcn,
+  indexAck999ByGroupControlNumber,
+  nctracksPollIntervalMs,
+  dollarsToCents,
+  isRemittancePayable,
+  getNctracksIntegrationStatus,
+} from './nctracks';
+import type { Ack277CA, Ack999 } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+  });
+
+  it('does not route NC commercial claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'BCBSNC-COMMERCIAL')).toBe(false);
+  });
+
+  it('requires a known NC Medicaid payer id', () => {
+    expect(shouldUseNctracks('NC')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
     const prev = process.env.NCTRACKS_MODE;
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
   });
@@ -24,6 +42,43 @@ describe('indexAck277ByPcn', () => {
     }];
     const map = indexAck277ByPcn(acks);
     expect(map.get('PCN-1')?.status).toBe('accepted');
+  });
+});
+
+describe('ack999 matching', () => {
+  const acceptedAck: Ack999 = {
+    accepted: true,
+    errors: [],
+    raw: 'AK1*HC*000000001~AK9*A*1*1*1~',
+    groupControlNumber: '000000001',
+  };
+  const rejectedAck: Ack999 = {
+    accepted: false,
+    errors: [{ segment: 'CLM', code: '1', description: 'Rejected claim' }],
+    raw: 'AK1*HC*000000002~AK9*R*1*0*1~',
+    groupControlNumber: '000000002',
+  };
+
+  it('matches 999 acknowledgments by group control number', () => {
+    const byGroup = indexAck999ByGroupControlNumber([acceptedAck, rejectedAck]);
+
+    expect(ack999ForSubmission(
+      { group_control_number: '000000002' },
+      [acceptedAck, rejectedAck],
+      byGroup,
+      2,
+    )).toBe(rejectedAck);
+  });
+
+  it('does not assign an ambiguous 999 when multiple submissions are pending', () => {
+    const byGroup = indexAck999ByGroupControlNumber([{ ...acceptedAck, groupControlNumber: undefined }]);
+
+    expect(ack999ForSubmission(
+      { group_control_number: '000000002' },
+      [{ ...acceptedAck, groupControlNumber: undefined }],
+      byGroup,
+      2,
+    )).toBeUndefined();
   });
 });
 
@@ -82,6 +137,46 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+
+  it('rejects patient UUIDs before submitting to NCTracks', async () => {
+    await expect(submitNcClaim({
+      ccn: 'CCN-TEST-UUID',
+      totalCharge: 125.5,
+      patientMedicaidId: '11111111-1111-4111-8111-111111111111',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: ['Z00.00'],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    })).rejects.toThrow('real NC Medicaid recipient ID');
+  });
+
+  it('fails closed when NCTracks returns a rejected inline acknowledgment', async () => {
+    await expect(submitNcClaim({
+      ccn: 'CCN-TEST-REJECT',
+      totalCharge: 125.5,
+      patientMedicaidId: 'NCMD00100001',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: [],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    })).rejects.toThrow('NCTracks rejected');
   });
 });
 

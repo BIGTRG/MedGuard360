@@ -142,6 +142,9 @@ export interface Ack999 {
   accepted: boolean;
   errors: Array<{ segment: string; element?: string; code: string; description: string }>;
   raw: string;
+  functionalIdentifierCode?: string;
+  groupControlNumber?: string;
+  interchangeControlNumber?: string;
 }
 
 export interface Ack277CA {
