@@ -1,5 +1,11 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
-import type { Ack277CA } from '@medguard360/nctracks';
+import * as nctracksPackage from '@medguard360/nctracks';
+import type { Ack277CA, NctracksAdapter, RemittanceFile } from '@medguard360/nctracks';
+import * as repo from './nctracks-repository';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus, pollNctracksRemittances } from './nctracks';
+
+function unusedAdapterMethod(): never {
+  throw new Error('unused adapter method in test');
+}
 
 describe('shouldUseNctracks', () => {
   it('routes NC claims through NCTracks', () => {
@@ -82,6 +88,101 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+});
+
+describe('pollNctracksRemittances', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('applies payable remittances to matched claims and skips duplicates', async () => {
+    const duplicateFile: RemittanceFile = {
+      fileName: 'DUPLICATE.835',
+      receivedAt: '2026-06-15T12:00:00.000Z',
+      checkOrEftNumber: 'CHK-DUP',
+      paymentDate: '2026-06-15',
+      payeeNpi: '1234567890',
+      totalPaid: 25,
+      claims: [],
+      raw835: 'DUPLICATE-RAW-835',
+    };
+    const newFile: RemittanceFile = {
+      fileName: 'NEW.835',
+      receivedAt: '2026-06-16T12:00:00.000Z',
+      checkOrEftNumber: 'CHK-NEW',
+      paymentDate: '2026-06-16',
+      payeeNpi: '1234567890',
+      totalPaid: 205.5,
+      claims: [
+        {
+          patientControlNumber: 'PCN-PAYABLE',
+          payerClaimControlNumber: 'TCN-PAYABLE',
+          chargedAmount: 200,
+          paidAmount: 175.5,
+          claimStatusCode: '1',
+          adjustments: [],
+          remarks: [],
+          serviceLines: [],
+        },
+        {
+          patientControlNumber: 'PCN-DENIED',
+          payerClaimControlNumber: 'TCN-DENIED',
+          chargedAmount: 50,
+          paidAmount: 0,
+          claimStatusCode: '4',
+          adjustments: [],
+          remarks: [],
+          serviceLines: [],
+        },
+        {
+          patientControlNumber: 'PCN-UNMATCHED',
+          payerClaimControlNumber: 'TCN-UNMATCHED',
+          chargedAmount: 30,
+          paidAmount: 30,
+          claimStatusCode: '2',
+          adjustments: [],
+          remarks: [],
+          serviceLines: [],
+        },
+      ],
+      raw835: 'NEW-RAW-835',
+    };
+    const retrieveRemittances = jest
+      .fn<ReturnType<NctracksAdapter['retrieveRemittances']>, Parameters<NctracksAdapter['retrieveRemittances']>>()
+      .mockResolvedValue([duplicateFile, newFile]);
+    const adapter: NctracksAdapter = {
+      mode: 'sftp',
+      checkEligibility: async () => unusedAdapterMethod(),
+      submitClaim: async () => unusedAdapterMethod(),
+      getClaimStatus: async () => unusedAdapterMethod(),
+      retrieveRemittances,
+      pollAcks: async () => ({ ack999: [], ack277CA: [] }),
+      healthCheck: async () => ({ realtimeOk: false, sftpOk: true }),
+    };
+
+    jest.spyOn(nctracksPackage, 'createNctracksAdapter').mockReturnValue(adapter);
+    jest.spyOn(repo, 'getLastRemittanceWatermark').mockResolvedValue('2026-06-01T00:00:00.000Z');
+    jest.spyOn(repo, 'remittanceFileExists').mockImplementation(async (fileName) => fileName === duplicateFile.fileName);
+    jest.spyOn(repo, 'insertRemittanceFile').mockResolvedValue('remit-file-id');
+    jest.spyOn(repo, 'insertX12Audit').mockResolvedValue(undefined);
+    jest.spyOn(repo, 'insertRemittanceClaim').mockImplementation(async (entry) => `row-${entry.patientControlNumber}`);
+    jest.spyOn(repo, 'findClaimIdByControlNumber').mockImplementation(async (pcn) => (
+      pcn === 'PCN-PAYABLE' ? 'claim-uuid' : null
+    ));
+    const applyRemittanceToClaim = jest.spyOn(repo, 'applyRemittanceToClaim').mockResolvedValue(undefined);
+
+    const result = await pollNctracksRemittances();
+
+    expect(result).toEqual({ files: 2, applied: 1 });
+    expect(retrieveRemittances).toHaveBeenCalledWith({ since: '2026-06-01T00:00:00.000Z' });
+    expect(repo.insertRemittanceFile).toHaveBeenCalledTimes(1);
+    expect(repo.insertRemittanceClaim).toHaveBeenCalledTimes(3);
+    expect(repo.findClaimIdByControlNumber).toHaveBeenCalledWith('PCN-PAYABLE');
+    expect(repo.findClaimIdByControlNumber).not.toHaveBeenCalledWith('PCN-DENIED');
+    expect(repo.findClaimIdByControlNumber).toHaveBeenCalledWith('PCN-UNMATCHED');
+    expect(applyRemittanceToClaim).toHaveBeenCalledTimes(1);
+    expect(applyRemittanceToClaim).toHaveBeenCalledWith('row-PCN-PAYABLE', 'claim-uuid', 17550, 'TCN-PAYABLE');
   });
 });
 
