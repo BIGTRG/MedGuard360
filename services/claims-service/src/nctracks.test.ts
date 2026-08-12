@@ -1,15 +1,19 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
-import type { Ack277CA } from '@medguard360/nctracks';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus, assertNctracksSubmissionAccepted } from './nctracks';
+import type { Ack277CA, ClaimSubmitResult } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+  });
+
+  it('skips NC claims for non-Medicaid payers', () => {
+    expect(shouldUseNctracks('NC', 'COMMERCIAL')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
     const prev = process.env.NCTRACKS_MODE;
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
   });
@@ -63,6 +67,7 @@ describe('submitNcClaim', () => {
   it('returns stub submission metadata for NC professional claims', async () => {
     const result = await submitNcClaim({
       ccn: 'CCN-TEST-001',
+      payerId: 'NCXIX',
       totalCharge: 125.5,
       patientMedicaidId: 'NCMD00100001',
       serviceDate: '20260706',
@@ -82,6 +87,64 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+
+  it('rejects placeholder recipient IDs before submitting to NCTracks', async () => {
+    await expect(submitNcClaim({
+      ccn: 'CCN-TEST-002',
+      payerId: 'NCXIX',
+      totalCharge: 125.5,
+      patientMedicaidId: 'UNKNOWN',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: ['Z00.00'],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    })).rejects.toThrow('real NC Medicaid recipient ID');
+  });
+});
+
+describe('assertNctracksSubmissionAccepted', () => {
+  const baseResult: ClaimSubmitResult = {
+    interchangeControlNumber: 'ISA000000001',
+    groupControlNumber: 'GS000000001',
+    transactionSetControlNumber: 'ST000000001',
+    fileName: 'claim.x12',
+    submittedAt: '2026-08-12T00:00:00.000Z',
+  };
+
+  it('throws for rejected 999 acknowledgments', () => {
+    expect(() => assertNctracksSubmissionAccepted({
+      ...baseResult,
+      ack999: {
+        accepted: false,
+        errors: [{ segment: 'CLM', code: '1', description: 'Rejected' }],
+        raw: 'AK9*R~',
+      },
+    })).toThrow('999 acknowledgment');
+  });
+
+  it('throws for rejected 277CA acknowledgments', () => {
+    expect(() => assertNctracksSubmissionAccepted({
+      ...baseResult,
+      ack277CA: {
+        status: 'rejected',
+        perClaim: [{
+          patientControlNumber: 'CCN-TEST-003',
+          status: 'rejected',
+          categoryCode: 'A7',
+          statusCode: '21',
+        }],
+        raw: 'STC*A7:21~',
+      },
+    })).toThrow('277CA acknowledgment');
   });
 });
 

@@ -1,17 +1,20 @@
 import { lookupNctracks, shouldUseNctracks } from './nctracks';
+import { lookupMmis } from './mmis';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC to NCTracks by default', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid and CHIP checks to NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX', 'medicaid')).toBe(true);
+    expect(shouldUseNctracks('NC', 'NCCHIP', 'chip')).toBe(true);
   });
 
-  it('skips non-NC states', () => {
-    expect(shouldUseNctracks('GA')).toBe(false);
+  it('skips non-NC states and non-Medicaid NC payers', () => {
+    expect(shouldUseNctracks('GA', 'NCXIX', 'medicaid')).toBe(false);
+    expect(shouldUseNctracks('NC', 'COMMERCIAL', 'commercial')).toBe(false);
   });
 
   it('respects NCTRACKS_MODE=disabled', () => {
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX', 'medicaid')).toBe(false);
     delete process.env.NCTRACKS_MODE;
   });
 });
@@ -38,5 +41,29 @@ describe('lookupNctracks', () => {
       medicaidId: 'NCMD00100009',
     });
     expect(result.active).toBe(false);
+  });
+
+  it('rejects missing or placeholder recipient IDs before calling the adapter', async () => {
+    await expect(lookupNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+    })).rejects.toThrow('real NC Medicaid recipient ID');
+
+    await expect(lookupNctracks({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      medicaidId: 'UNKNOWN',
+    })).rejects.toThrow('real NC Medicaid recipient ID');
+  });
+});
+
+describe('lookupMmis NCTracks fail-closed behavior', () => {
+  it('does not fall back to generic MMIS when NCTracks-required input is invalid', async () => {
+    await expect(lookupMmis({
+      stateCode: 'NC',
+      payerId: 'NCXIX',
+      coverageType: 'medicaid',
+      medicaidId: 'UNKNOWN',
+    }, '')).rejects.toThrow('real NC Medicaid recipient ID');
   });
 });
