@@ -142,9 +142,7 @@ export interface ClaimListFilters {
   stateCode?: string;
 }
 
-interface QueryClient {
-  query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
-}
+type QueryClient = Pick<typeof pool, 'query'>;
 
 export async function listClaims(
   filters: ClaimListFilters,
