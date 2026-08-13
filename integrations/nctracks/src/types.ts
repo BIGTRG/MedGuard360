@@ -140,6 +140,7 @@ export interface ClaimSubmitResult {
 
 export interface Ack999 {
   accepted: boolean;
+  functionalGroupControlNumber?: string;
   errors: Array<{ segment: string; element?: string; code: string; description: string }>;
   raw: string;
 }

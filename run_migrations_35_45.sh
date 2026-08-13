@@ -4,7 +4,9 @@ cd /opt/medguard360/infrastructure/postgres/migrations
 MIGRATIONS=(
   "0035_notification_templates_overnight_updates.sql"
   "0036_nc_county_lme_routing.sql"
+  "0037_nctracks_integration.sql"
   "0037_evv_tables.sql"
+  "0038_nctracks_remittances.sql"
   "0038_service_verification_tables.sql"
   "0039_fraud_detection_tables.sql"
   "0040_ehr_tables.sql"
@@ -13,10 +15,12 @@ MIGRATIONS=(
   "0043_credentialing_tables.sql"
   "0044_nemt_ems_tables.sql"
   "0045_epic_hub_cfsp_tables.sql"
+  "0046_allow_nctracks_eligibility_source.sql"
 )
 
 APPLIED=0
 FAILED=0
+TOTAL=${#MIGRATIONS[@]}
 
 for migration in "${MIGRATIONS[@]}"; do
   echo -n "  ▪ $migration ... "
@@ -34,7 +38,7 @@ done
 
 echo ""
 echo "=== MIGRATION SUMMARY ==="
-echo "✅ Applied: $APPLIED/11"
+echo "✅ Applied: $APPLIED/$TOTAL"
 if [ $FAILED -gt 0 ]; then
-  echo "❌ Failed:  $FAILED/11"
+  echo "❌ Failed:  $FAILED/$TOTAL"
 fi

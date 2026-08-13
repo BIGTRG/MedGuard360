@@ -24,7 +24,16 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus, getNctracksIntegrationStatus } from './nctracks';
+import {
+  shouldUseNctracks,
+  submitNcClaim,
+  recordNctracksSubmission,
+  pollNctracksAcks,
+  pollNctracksRemittances,
+  lookupNcClaimStatus,
+  getNctracksIntegrationStatus,
+  ensureAcceptedNctracksSubmission,
+} from './nctracks';
 import { archiveNctracksX12Audit } from './nctracks-x12-archive';
 
 const logger = createLogger('claims-service:routes');
@@ -104,9 +113,12 @@ router.post(
     const auth = req.auth!;
     const body = parse(CreateClaimSchema, req.body);
 
+    const billingProviderId = await billingProviderIdForUser(auth.sub);
+    if (!billingProviderId) throw new NotFoundError('Provider profile');
+
     const claim = await repo.createClaim({
       encounter_id: body.encounter_id ?? null,
-      provider_user_id: auth.sub,
+      provider_user_id: billingProviderId,
       patient_id: body.patient_id,
       payer_id: body.payer_id,
       claim_type: body.claim_type,
@@ -220,6 +232,7 @@ router.post(
   ah(async (req, res) => {
     const id = z.string().uuid().parse(req.params.id);
     const auth = req.auth!;
+    const authorization = req.header('authorization') ?? '';
 
     const claim = await repo.findClaim(id);
     if (!claim) throw new NotFoundError('Claim');
@@ -246,7 +259,7 @@ router.post(
       const patientResp = await fetch(
         `${process.env.PATIENT_SERVICE_URL ?? 'http://patient-service:3004'}/api/v1/patients/${claim.patient_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -274,7 +287,7 @@ router.post(
       const provResp = await fetch(
         `${process.env.PROVIDER_SERVICE_URL ?? 'http://provider-service:3002'}/api/v1/providers/${claim.provider_user_id}`,
         {
-          headers: { 'x-service-caller': 'claims-service', authorization: `Bearer ${auth.token ?? ''}` },
+          headers: { 'x-service-caller': 'claims-service', authorization },
           signal: AbortSignal.timeout(8_000),
         },
       );
@@ -344,7 +357,7 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -352,7 +365,15 @@ router.post(
         serviceDate: ediInput.serviceDate,
         billingNpi,
         diagnosisCodes: ediInput.diagnosisCodes,
-        lines: ediInput.claimLines,
+        lines: ediInput.claimLines.map((line) => ({
+          procedure_code: line.procedure_code,
+          modifier_codes: line.modifier_codes ?? [],
+          units: line.units,
+          charge_amount: line.charge_amount,
+          service_date: line.service_date,
+          place_of_service: line.place_of_service ?? '11',
+          diagnosis_pointers: line.diagnosis_pointers ?? [1],
+        })),
       });
       await recordNctracksSubmission(
         id,
@@ -361,6 +382,7 @@ router.post(
         nctracksSubmission.adapterMode,
         ediPayload,
       );
+      ensureAcceptedNctracksSubmission(nctracksSubmission);
     }
 
     // Mark submitted
@@ -387,10 +409,9 @@ router.post(
     await auditLog({
       resource: 'claim',
       resourceId: id,
-      action: 'submit',
+      action: 'update',
       actor: auth,
       outcome: 'success',
-      phiAccessed: true,
       context: {
         ccn: claim.ccn,
         payerId: claim.payer_id,
