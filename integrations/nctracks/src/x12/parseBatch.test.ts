@@ -7,6 +7,7 @@ describe('parse999', () => {
     const raw = 'ISA*00* *00* *ZZ*NCXIX*ZZ*STUB*..*999*ACK~AK1*HC*1~AK9*A*1*1*1~IEA*1*~';
     const parsed = parse999(raw);
     expect(parsed.accepted).toBe(true);
+    expect(parsed.functionalGroupControlNumber).toBe('1');
     expect(parsed.errors).toHaveLength(0);
   });
 

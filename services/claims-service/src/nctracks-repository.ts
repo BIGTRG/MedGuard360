@@ -212,19 +212,11 @@ export async function applyRemittanceToClaim(
   paidCents: number,
   tcn?: string,
 ): Promise<void> {
-  try {
-    await pool.query(
-      `UPDATE claims SET status = 'paid', total_paid_cents = $2, adjudicated_at = now(),
-              paid_at = now(), updated_at = now()
-       WHERE id = $1`,
-      [claimId, paidCents],
-    );
-  } catch {
-    await pool.query(
-      `UPDATE claims SET status = 'paid', paid_at = now(), updated_at = now() WHERE id = $1`,
-      [claimId],
-    );
-  }
+  await pool.query(
+    `UPDATE claims SET status = 'paid', total_paid_cents = $2, adjudicated_at = now(), updated_at = now()
+     WHERE id = $1`,
+    [claimId, paidCents],
+  );
   await pool.query(
     `UPDATE nctracks_remittance_claims SET claim_id = $2, applied_at = now() WHERE id = $1`,
     [remittanceClaimId, claimId],
