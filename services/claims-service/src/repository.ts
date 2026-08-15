@@ -1,4 +1,5 @@
 import { pool, NotFoundError } from '@medguard360/shared';
+import type { QueryResult, QueryResultRow } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 import {
   mapClaimRow,
@@ -19,7 +20,7 @@ const CLAIM_FROM = `
 `;
 
 interface QueryClient {
-  query: <R>(text: string, values?: unknown[]) => Promise<{ rows: R[] }>;
+  query: <R extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]) => Promise<QueryResult<R>>;
 }
 
 // ── CCN generation ────────────────────────────────────────────────────────────
