@@ -1,5 +1,4 @@
 import { pool, NotFoundError } from '@medguard360/shared';
-import type { QueryResult, QueryResultRow } from 'pg';
 import { ClaimRow, ClaimLineInput } from './types';
 import {
   mapClaimRow,
@@ -20,7 +19,7 @@ const CLAIM_FROM = `
 `;
 
 interface QueryClient {
-  query: <R extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]) => Promise<QueryResult<R>>;
+  query: <R>(text: string, values?: unknown[]) => Promise<{ rows: R[] }>;
 }
 
 // ── CCN generation ────────────────────────────────────────────────────────────
@@ -149,8 +148,9 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: QueryClient = pool,
+  client: unknown = pool,
 ): Promise<ClaimRow[]> {
+  const queryClient = client as QueryClient;
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -173,7 +173,7 @@ export async function listClaims(
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await client.query<DbClaimRow>(
+  const result = await queryClient.query<DbClaimRow>(
     `${CLAIM_FROM} ${where} ORDER BY created_at DESC LIMIT 500`,
     params,
   );
