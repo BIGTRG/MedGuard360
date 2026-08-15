@@ -398,7 +398,6 @@ router.post(
       action: 'update',
       actor: auth,
       outcome: 'success',
-      phiAccessed: true,
       context: {
         ccn: claim.ccn,
         payerId: claim.payer_id,
