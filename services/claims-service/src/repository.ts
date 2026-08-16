@@ -18,6 +18,10 @@ const CLAIM_FROM = `
   FROM claims
 `;
 
+interface QueryClient {
+  query: <R>(text: string, values?: unknown[]) => Promise<{ rows: R[] }>;
+}
+
 // ── CCN generation ────────────────────────────────────────────────────────────
 
 /** Generate a Claim Control Number: YYMMDD-NNNNNN from postgres sequence. */
@@ -144,8 +148,9 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: typeof pool = pool,
+  client: unknown = pool,
 ): Promise<ClaimRow[]> {
+  const queryClient = client as QueryClient;
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -168,7 +173,7 @@ export async function listClaims(
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const result = await client.query<DbClaimRow>(
+  const result = await queryClient.query<DbClaimRow>(
     `${CLAIM_FROM} ${where} ORDER BY created_at DESC LIMIT 500`,
     params,
   );
