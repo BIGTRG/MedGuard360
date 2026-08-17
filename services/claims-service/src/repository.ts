@@ -18,6 +18,13 @@ const CLAIM_FROM = `
   FROM claims
 `;
 
+interface QueryClient {
+  query<R extends object = Record<string, unknown>>(
+    text: string,
+    values?: unknown[],
+  ): Promise<{ rows: R[] }>;
+}
+
 // ── CCN generation ────────────────────────────────────────────────────────────
 
 /** Generate a Claim Control Number: YYMMDD-NNNNNN from postgres sequence. */
@@ -144,7 +151,7 @@ export interface ClaimListFilters {
 
 export async function listClaims(
   filters: ClaimListFilters,
-  client: typeof pool = pool,
+  client: QueryClient = pool,
 ): Promise<ClaimRow[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];

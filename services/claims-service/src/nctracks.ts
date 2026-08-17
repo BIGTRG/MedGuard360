@@ -24,9 +24,52 @@ import {
   observeNctracksRealtime,
 } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCMEDPAY',
+  'NCMEDICAID',
+  'NCTRACKS',
+  'NCTRACKSMEDICAID',
+  'NCCHIP',
+  'NCHEALTHCHOICE',
+]);
+
+const PLACEHOLDER_RECIPIENT_IDS = new Set([
+  'UNKNOWN',
+  'MISSING',
+  'NONE',
+  'NULL',
+  'N/A',
+  'NA',
+  'TBD',
+  'TEST',
+]);
+
+function normalizePayerId(payerId: string): string {
+  return payerId.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+}
+
+export function isKnownNcMedicaidPayer(payerId: string): boolean {
+  return NC_MEDICAID_PAYER_IDS.has(normalizePayerId(payerId));
+}
+
+export function hasUsableNcRecipientId(medicaidId: string | undefined): medicaidId is string {
+  const normalized = medicaidId?.trim();
+  if (!normalized) return false;
+  const upper = normalized.toUpperCase();
+  if (PLACEHOLDER_RECIPIENT_IDS.has(upper)) return false;
+  if (/^0+$/.test(normalized)) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    return false;
+  }
+  return /^[A-Z0-9-]{6,}$/i.test(normalized);
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  if (payerId === undefined) return true;
+  return isKnownNcMedicaidPayer(payerId);
 }
 
 export function nctracksPollIntervalMs(): number {
@@ -44,12 +87,12 @@ export interface NcClaimSubmitInput {
   diagnosisCodes: string[];
   lines: Array<{
     procedure_code: string;
-    modifier_codes: string[];
+    modifier_codes?: string[];
     units: number;
     charge_amount: number;
     service_date: string;
-    place_of_service: string;
-    diagnosis_pointers: number[];
+    place_of_service?: string;
+    diagnosis_pointers?: number[];
   }>;
 }
 
@@ -81,6 +124,10 @@ export function isRemittancePayable(statusCode: string): boolean {
 }
 
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {
+  if (!hasUsableNcRecipientId(input.patientMedicaidId)) {
+    throw new Error('NCTracks claim submission requires a real NC Medicaid recipient ID');
+  }
+
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
 
@@ -101,20 +148,29 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
       taxonomy: process.env.NCTRACKS_BILLING_TAXONOMY ?? '261Q00000X',
     },
     diagnoses: input.diagnosisCodes.map((code) => ({ code, system: 'ICD10CM' as const })),
-    lines: input.lines.map((line) => ({
-      procedureCode: line.procedure_code,
-      modifiers: line.modifier_codes.length ? line.modifier_codes : undefined,
-      units: line.units,
-      charge: line.charge_amount,
-      serviceDate: toIsoDate(line.service_date),
-      placeOfService: line.place_of_service,
-      diagnosisPointers: line.diagnosis_pointers,
-    })),
+    lines: input.lines.map((line) => {
+      const modifiers = line.modifier_codes ?? [];
+      return {
+        procedureCode: line.procedure_code,
+        modifiers: modifiers.length ? modifiers : undefined,
+        units: line.units,
+        charge: line.charge_amount,
+        serviceDate: toIsoDate(line.service_date),
+        placeOfService: line.place_of_service ?? '11',
+        diagnosisPointers: line.diagnosis_pointers ?? [1],
+      };
+    }),
   });
 
   nctracksBatchFilesOut.inc({ type: '837P' });
   if (result.ack999 && !result.ack999.accepted) {
     nctracksAck999RejectTotal.inc();
+  }
+  if (result.ack999 && !result.ack999.accepted) {
+    throw new Error(`NCTracks rejected 837P functional acknowledgment for ${input.ccn}`);
+  }
+  if (result.ack277CA && result.ack277CA.status !== 'accepted') {
+    throw new Error(`NCTracks rejected 837P claim acknowledgment for ${input.ccn}`);
   }
 
   logger.info('nctracks claim submit', {
