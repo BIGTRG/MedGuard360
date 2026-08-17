@@ -87,12 +87,12 @@ export interface NcClaimSubmitInput {
   diagnosisCodes: string[];
   lines: Array<{
     procedure_code: string;
-    modifier_codes: string[];
+    modifier_codes?: string[];
     units: number;
     charge_amount: number;
     service_date: string;
-    place_of_service: string;
-    diagnosis_pointers: number[];
+    place_of_service?: string;
+    diagnosis_pointers?: number[];
   }>;
 }
 
@@ -148,15 +148,18 @@ export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSub
       taxonomy: process.env.NCTRACKS_BILLING_TAXONOMY ?? '261Q00000X',
     },
     diagnoses: input.diagnosisCodes.map((code) => ({ code, system: 'ICD10CM' as const })),
-    lines: input.lines.map((line) => ({
-      procedureCode: line.procedure_code,
-      modifiers: line.modifier_codes.length ? line.modifier_codes : undefined,
-      units: line.units,
-      charge: line.charge_amount,
-      serviceDate: toIsoDate(line.service_date),
-      placeOfService: line.place_of_service,
-      diagnosisPointers: line.diagnosis_pointers,
-    })),
+    lines: input.lines.map((line) => {
+      const modifiers = line.modifier_codes ?? [];
+      return {
+        procedureCode: line.procedure_code,
+        modifiers: modifiers.length ? modifiers : undefined,
+        units: line.units,
+        charge: line.charge_amount,
+        serviceDate: toIsoDate(line.service_date),
+        placeOfService: line.place_of_service ?? '11',
+        diagnosisPointers: line.diagnosis_pointers ?? [1],
+      };
+    }),
   });
 
   nctracksBatchFilesOut.inc({ type: '837P' });
