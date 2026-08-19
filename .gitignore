@@ -16,3 +16,7 @@ out/
 frontend/portals/next-env.d.ts
 frontend/portals/tsconfig.tsbuildinfo
 services/**/package-lock.json
+data/
+backups/
+*.bak
+*.sql.gz

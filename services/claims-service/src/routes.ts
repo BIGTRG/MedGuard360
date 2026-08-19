@@ -344,7 +344,7 @@ router.post(
     await repo.updateClaimEdi(id, ediPayload);
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
-    if (shouldUseNctracks(claim.state_code)) {
+    if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
       nctracksSubmission = await submitNcClaim({
         ccn: claim.ccn,
         totalCharge: claim.total_amount,
@@ -352,7 +352,15 @@ router.post(
         serviceDate: ediInput.serviceDate,
         billingNpi,
         diagnosisCodes: ediInput.diagnosisCodes,
-        lines: ediInput.claimLines,
+        lines: ediInput.claimLines.map((line) => ({
+          procedure_code: line.procedure_code,
+          modifier_codes: line.modifier_codes ?? [],
+          units: line.units,
+          charge_amount: line.charge_amount,
+          service_date: line.service_date,
+          place_of_service: line.place_of_service ?? '11',
+          diagnosis_pointers: line.diagnosis_pointers ?? [1],
+        })),
       });
       await recordNctracksSubmission(
         id,
