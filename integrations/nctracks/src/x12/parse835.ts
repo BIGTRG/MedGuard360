@@ -1,9 +1,28 @@
 /** Minimal 835 remittance advice parser for NCTracks batch polling. */
-import type { RemittanceFile } from '../types';
+import type { RemittanceAdjustment, RemittanceFile } from '../types';
 
 function isoFromYmd(raw?: string): string {
   if (!raw || raw.length !== 8) return new Date().toISOString().slice(0, 10);
   return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+}
+
+function isAdjustmentGroupCode(value?: string): value is RemittanceAdjustment['groupCode'] {
+  return value === 'CO' || value === 'PR' || value === 'OA' || value === 'PI';
+}
+
+function parseCasAdjustments(parts: string[]): RemittanceAdjustment[] {
+  const groupCode = parts[1];
+  if (!isAdjustmentGroupCode(groupCode)) return [];
+
+  const adjustments: RemittanceAdjustment[] = [];
+  for (let i = 2; i + 1 < parts.length; i += 3) {
+    const reasonCode = parts[i] ?? '';
+    const amount = Number.parseFloat(parts[i + 1] ?? '0') || 0;
+    if (reasonCode) {
+      adjustments.push({ groupCode, reasonCode, amount });
+    }
+  }
+  return adjustments;
 }
 
 export function parse835(payload: string, fileName: string, receivedAt: string): RemittanceFile {
@@ -37,14 +56,7 @@ export function parse835(payload: string, fileName: string, receivedAt: string):
         serviceLines: [],
       };
     } else if (p[0] === 'CAS' && currentClaim) {
-      for (let i = 1; i + 2 < p.length; i += 3) {
-        const groupCode = p[i] as 'CO' | 'PR' | 'OA' | 'PI';
-        const reasonCode = p[i + 1] ?? '';
-        const amount = Number.parseFloat(p[i + 2] ?? '0') || 0;
-        if (groupCode && reasonCode) {
-          currentClaim.adjustments.push({ groupCode, reasonCode, amount });
-        }
-      }
+      currentClaim.adjustments.push(...parseCasAdjustments(p));
     } else if (p[0] === 'SVC' && currentClaim) {
       const procParts = (p[1] ?? '').split(':');
       currentClaim.serviceLines.push({
