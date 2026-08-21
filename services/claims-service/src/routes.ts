@@ -24,7 +24,17 @@ import {
 } from '@medguard360/shared';
 import * as repo from './repository';
 import { generateEdi837P, Edi837PInput } from './edi837p';
-import { shouldUseNctracks, submitNcClaim, recordNctracksSubmission, pollNctracksAcks, pollNctracksRemittances, lookupNcClaimStatus, getNctracksIntegrationStatus, assertNctracksSubmissionAccepted } from './nctracks';
+import {
+  assertNctracksSubmissionAccepted,
+  findNctracksSubmissionForClaim,
+  getNctracksIntegrationStatus,
+  lookupNcClaimStatus,
+  pollNctracksAcks,
+  pollNctracksRemittances,
+  recordNctracksSubmission,
+  shouldUseNctracks,
+  submitNcClaim,
+} from './nctracks';
 import { archiveNctracksX12Audit } from './nctracks-x12-archive';
 
 const logger = createLogger('claims-service:routes');
@@ -229,12 +239,8 @@ router.post(
     }
     const authorization = req.header('authorization') ?? '';
 
-    // Fetch service lines
-    const linesResult = await pool.query(
-      'SELECT * FROM claim_lines WHERE claim_id = $1 ORDER BY line_number',
-      [id],
-    );
-    const lines = linesResult.rows;
+    // Fetch canonical service lines and map them to the claim API/EDI shape.
+    const lines = await repo.findClaimLines(id);
 
     // Fetch patient demographics for EDI
     let patientFirst = 'Patient';
@@ -346,31 +352,43 @@ router.post(
 
     let nctracksSubmission: Awaited<ReturnType<typeof submitNcClaim>> | undefined;
     if (shouldUseNctracks(claim.state_code, claim.payer_id)) {
-      nctracksSubmission = await submitNcClaim({
-        ccn: claim.ccn,
-        totalCharge: claim.total_amount,
-        patientMedicaidId,
-        serviceDate: ediInput.serviceDate,
-        billingNpi,
-        diagnosisCodes: ediInput.diagnosisCodes,
-        lines: ediInput.claimLines.map((line) => ({
-          procedure_code: line.procedure_code,
-          modifier_codes: line.modifier_codes ?? [],
-          units: line.units,
-          charge_amount: line.charge_amount,
-          service_date: line.service_date,
-          place_of_service: line.place_of_service ?? '11',
-          diagnosis_pointers: line.diagnosis_pointers ?? [1],
-        })),
-      });
-      await recordNctracksSubmission(
-        id,
-        claim.ccn,
-        nctracksSubmission,
-        nctracksSubmission.adapterMode,
-        ediPayload,
-      );
-      assertNctracksSubmissionAccepted(nctracksSubmission);
+      const existingSubmission = await findNctracksSubmissionForClaim(id);
+      if (existingSubmission) {
+        if (existingSubmission.ack999_accepted === false || existingSubmission.ack277ca_status === 'rejected') {
+          throw new ValidationError('NCTracks already rejected this claim submission');
+        }
+        logger.info('nctracks submission already exists; skipping duplicate upload', {
+          claimId: id,
+          ccn: claim.ccn,
+          fileName: existingSubmission.file_name,
+        });
+      } else {
+        nctracksSubmission = await submitNcClaim({
+          ccn: claim.ccn,
+          totalCharge: claim.total_amount,
+          patientMedicaidId,
+          serviceDate: ediInput.serviceDate,
+          billingNpi,
+          diagnosisCodes: ediInput.diagnosisCodes,
+          lines: ediInput.claimLines.map((line) => ({
+            procedure_code: line.procedure_code,
+            modifier_codes: line.modifier_codes ?? [],
+            units: line.units,
+            charge_amount: line.charge_amount,
+            service_date: line.service_date,
+            place_of_service: line.place_of_service ?? '11',
+            diagnosis_pointers: line.diagnosis_pointers ?? [1],
+          })),
+        });
+        await recordNctracksSubmission(
+          id,
+          claim.ccn,
+          nctracksSubmission,
+          nctracksSubmission.adapterMode,
+          ediPayload,
+        );
+        assertNctracksSubmissionAccepted(nctracksSubmission);
+      }
     }
 
     // Mark submitted

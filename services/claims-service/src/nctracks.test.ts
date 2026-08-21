@@ -1,5 +1,5 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus, assertValidNctracksRecipientId, assertNctracksSubmissionAccepted } from './nctracks';
-import type { Ack277CA, ClaimSubmitResult } from '@medguard360/nctracks';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus, assertValidNctracksRecipientId, assertNctracksSubmissionAccepted, ack999ForSubmission } from './nctracks';
+import type { Ack277CA, Ack999, ClaimSubmitResult } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
   it('routes NC Medicaid claims through NCTracks', () => {
@@ -35,6 +35,37 @@ describe('indexAck277ByPcn', () => {
     }];
     const map = indexAck277ByPcn(acks);
     expect(map.get('PCN-1')?.status).toBe('accepted');
+  });
+});
+
+describe('ack999ForSubmission', () => {
+  const acceptedAck: Ack999 = {
+    accepted: true,
+    errors: [],
+    interchangeControlNumber: '000000001',
+    functionalGroupControlNumber: '100',
+    raw: 'AK9*A*1*1*1~',
+  };
+  const rejectedAck: Ack999 = {
+    accepted: false,
+    errors: [{ segment: 'AK9', code: 'R', description: 'Rejected' }],
+    interchangeControlNumber: '000000002',
+    functionalGroupControlNumber: '200',
+    raw: 'AK9*R*1*0*1~',
+  };
+
+  it('matches 999 acknowledgments by interchange or group control number', () => {
+    expect(ack999ForSubmission([acceptedAck, rejectedAck], 2, {
+      interchange_control_number: '000000002',
+      group_control_number: '200',
+    })).toBe(rejectedAck);
+  });
+
+  it('does not assign an uncorrelated first 999 when multiple submissions are pending', () => {
+    expect(ack999ForSubmission([acceptedAck, rejectedAck], 2, {
+      interchange_control_number: '000000003',
+      group_control_number: '300',
+    })).toBeUndefined();
   });
 });
 

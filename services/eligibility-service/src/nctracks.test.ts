@@ -1,3 +1,7 @@
+jest.mock('./nctracks-audit', () => ({
+  recordEligibilityX12Audit: jest.fn(),
+}));
+
 import { assertValidNctracksRecipientId, lookupNctracks, shouldUseNctracks } from './nctracks';
 
 describe('shouldUseNctracks', () => {

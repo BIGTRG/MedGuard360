@@ -2,6 +2,9 @@
 -- CMS Rule 42 CFR § 441.1(c) — 6 federal data elements + server-side immutable timestamps
 -- Claims blocked until EVV confirmation OR auto-released after 30 days
 
+CREATE EXTENSION IF NOT EXISTS cube;
+CREATE EXTENSION IF NOT EXISTS earthdistance;
+
 CREATE TABLE IF NOT EXISTS evv_visits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   visit_id VARCHAR(255) NOT NULL UNIQUE,
@@ -32,8 +35,12 @@ CREATE TABLE IF NOT EXISTS evv_visits (
 
 -- Row-level security for EVV visits
 ALTER TABLE evv_visits ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS evv_visits_read_all ON evv_visits;
 CREATE POLICY evv_visits_read_all ON evv_visits FOR SELECT USING (TRUE);
-CREATE POLICY evv_visits_insert_own ON evv_visits FOR INSERT WITH CHECK (created_by = current_user_id());
+DROP POLICY IF EXISTS evv_visits_insert_own ON evv_visits;
+CREATE POLICY evv_visits_insert_own ON evv_visits FOR INSERT WITH CHECK (
+  created_by = app_current_user_id() OR app_role_is_cross_state()
+);
 
 -- Indexes for EVV performance
 CREATE INDEX idx_evv_visits_worker_id ON evv_visits(worker_id);
@@ -61,7 +68,8 @@ CREATE TABLE IF NOT EXISTS geofence_locations (
 );
 
 CREATE INDEX idx_geofence_service_code ON geofence_locations(service_code);
-CREATE INDEX idx_geofence_coordinates ON geofence_locations USING gist (ll_to_earth(latitude, longitude));
+CREATE INDEX idx_geofence_coordinates ON geofence_locations
+  USING gist (ll_to_earth(latitude::double precision, longitude::double precision));
 
 -- EVV analytics table for HHAeXchange compliance reporting
 CREATE TABLE IF NOT EXISTS evv_compliance_report (
@@ -92,10 +100,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Audit trigger for EVV visits (immutability proof)
+DROP TRIGGER IF EXISTS evv_visits_updated_at ON evv_visits;
 CREATE TRIGGER evv_visits_updated_at
 BEFORE UPDATE ON evv_visits
 FOR EACH ROW
-EXECUTE FUNCTION update_timestamp();
+EXECUTE FUNCTION set_updated_at();
 
 -- Seed initial geofence locations for NC services (example)
 INSERT INTO geofence_locations (location_name, latitude, longitude, radius_meters, service_code, state_code, created_by)

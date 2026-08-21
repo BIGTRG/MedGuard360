@@ -4,9 +4,11 @@ import { parse999 } from './parse999';
 
 describe('parse999', () => {
   it('parses accepted functional ack', () => {
-    const raw = 'ISA*00* *00* *ZZ*NCXIX*ZZ*STUB*..*999*ACK~AK1*HC*1~AK9*A*1*1*1~IEA*1*~';
+    const raw = 'ISA*00*          *00*          *ZZ*NCXIX         *ZZ*STUB          *260821*1110*^*00501*000000123*0*T*:~AK1*HC*456~AK9*A*1*1*1~IEA*1*000000123~';
     const parsed = parse999(raw);
     expect(parsed.accepted).toBe(true);
+    expect(parsed.interchangeControlNumber).toBe('000000123');
+    expect(parsed.functionalGroupControlNumber).toBe('456');
     expect(parsed.errors).toHaveLength(0);
   });
 

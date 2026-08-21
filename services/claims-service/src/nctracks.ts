@@ -118,6 +118,30 @@ export function indexAck277ByPcn(acks: Ack277CA[]): Map<string, Ack277CA> {
   return out;
 }
 
+export function indexAck999ByControlNumber(acks: Ack999[]): Map<string, Ack999> {
+  const out = new Map<string, Ack999>();
+  for (const ack of acks) {
+    if (ack.interchangeControlNumber) {
+      out.set(`isa:${ack.interchangeControlNumber}`, ack);
+    }
+    if (ack.functionalGroupControlNumber) {
+      out.set(`gs:${ack.functionalGroupControlNumber}`, ack);
+    }
+  }
+  return out;
+}
+
+export function ack999ForSubmission(
+  acks: Ack999[],
+  pendingCount: number,
+  submission: { interchange_control_number: string; group_control_number: string },
+): Ack999 | undefined {
+  const byControlNumber = indexAck999ByControlNumber(acks);
+  return byControlNumber.get(`isa:${submission.interchange_control_number}`)
+    ?? byControlNumber.get(`gs:${submission.group_control_number}`)
+    ?? (pendingCount === 1 && acks.length === 1 ? acks[0] : undefined);
+}
+
 export function dollarsToCents(amount: number): number {
   return Math.round(amount * 100);
 }
@@ -234,6 +258,12 @@ export async function recordNctracksSubmission(
   }
 }
 
+export async function findNctracksSubmissionForClaim(
+  claimId: string,
+): Promise<repo.NctracksSubmissionRow | null> {
+  return repo.findSubmissionByClaimId(claimId);
+}
+
 export async function pollNctracksAcks(): Promise<{ polled: number; updated: number }> {
   const adapter = createNctracksAdapter();
   if (adapter.mode !== 'sftp' && adapter.mode !== 'live') {
@@ -256,8 +286,9 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
   for (const sub of pending) {
     const ack277 = byPcn.get(sub.patient_control_number);
     if (!ack277) continue;
+    const ack999ForSub = ack999ForSubmission(ack999, pending.length, sub);
 
-    await repo.updateSubmissionAcks(sub.id, ack999[0], ack277);
+    await repo.updateSubmissionAcks(sub.id, ack999ForSub, ack277);
     if (ack277?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
@@ -268,13 +299,13 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
         adapterMode: adapter.mode,
       });
     }
-    if (ack999[0]?.raw) {
+    if (ack999ForSub?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
         direction: 'inbound',
         transactionType: '999',
         patientControlNumber: sub.patient_control_number,
-        payload: ack999[0].raw,
+        payload: ack999ForSub.raw,
         adapterMode: adapter.mode,
       });
     }
@@ -297,9 +328,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
   let applied = 0;
 
   for (const file of files) {
-    if (await repo.remittanceFileExists(file.fileName).catch(() => false)) continue;
-
-    const fileId = await repo.insertRemittanceFile({
+    const remittanceFile = await repo.upsertRemittanceFile({
       fileName: file.fileName,
       checkOrEftNumber: file.checkOrEftNumber,
       paymentDate: file.paymentDate,
@@ -309,6 +338,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
       adapterMode: adapter.mode,
       receivedAt: file.receivedAt,
     });
+    if (remittanceFile.processed_at) continue;
 
     await repo.insertX12Audit({
       direction: 'inbound',
@@ -320,7 +350,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
 
     for (const cl of file.claims) {
       const rowId = await repo.insertRemittanceClaim({
-        remittanceFileId: fileId,
+        remittanceFileId: remittanceFile.id,
         patientControlNumber: cl.patientControlNumber,
         payerClaimControlNumber: cl.payerClaimControlNumber,
         chargedAmount: cl.chargedAmount,
@@ -340,6 +370,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
       );
       applied += 1;
     }
+    await repo.markRemittanceFileProcessed(remittanceFile.id);
   }
 
   logger.info('nctracks remittance poll complete', { files: files.length, applied });
