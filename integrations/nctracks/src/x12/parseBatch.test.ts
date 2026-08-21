@@ -49,4 +49,48 @@ describe('parse835', () => {
     expect(parsed.claims[0]?.paidAmount).toBe(175.5);
     expect(parsed.claims[0]?.adjustments[0]?.reasonCode).toBe('45');
   });
+
+  it('parses payment metadata and service-line modifiers', () => {
+    const raw = [
+      'ST*835*0001~',
+      'BPR*I*175.50*C*ACH*CCP*01*021000021*DA*123456789*999999999*01*021000021*DA*987654321*20260615~',
+      'TRN*1*EFT-20260615*1234567890~',
+      'N1*PE*MEDGUARD CLINIC*XX*1234567893~',
+      'CLP*PCN-1*1*200.00*175.50**MC*TCN-1*11*1~',
+      'SVC*HC:99213:25:GT*200.00*175.50~',
+      'SE*6*0001~',
+    ].join('');
+
+    const parsed = parse835(raw, 'RA_20260615.835', '2026-06-15T12:00:00.000Z');
+
+    expect(parsed.paymentDate).toBe('2026-06-15');
+    expect(parsed.payeeNpi).toBe('1234567893');
+    expect(parsed.totalPaid).toBe(175.5);
+    expect(parsed.claims[0]?.payerClaimControlNumber).toBe('TCN-1');
+    expect(parsed.claims[0]?.serviceLines).toEqual([
+      {
+        procedureCode: '99213',
+        modifiers: ['25', 'GT'],
+        chargedAmount: 200,
+        paidAmount: 175.5,
+        adjustments: [],
+      },
+    ]);
+  });
+
+  it('falls back to claim paid totals when the BPR amount is absent', () => {
+    const raw = [
+      'ST*835*0001~',
+      'TRN*1*CHK-FALLBACK*1234567890~',
+      'CLP*PCN-1*1*100.00*80.00**MC*TCN-1*11*1~',
+      'CLP*PCN-2*2*50.00*40.25**MC*TCN-2*11*1~',
+      'SE*5*0001~',
+    ].join('');
+
+    const parsed = parse835(raw, 'RA_fallback.835', '2026-06-15T12:00:00.000Z');
+
+    expect(parsed.checkOrEftNumber).toBe('CHK-FALLBACK');
+    expect(parsed.claims.map((claim) => claim.patientControlNumber)).toEqual(['PCN-1', 'PCN-2']);
+    expect(parsed.totalPaid).toBe(120.25);
+  });
 });
