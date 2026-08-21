@@ -5,10 +5,16 @@ export function parse999(payload: string): Ack999 {
   const segments = payload.split(/[~\n\r]+/).filter(Boolean);
   let accepted = true;
   const errors: Ack999['errors'] = [];
+  let interchangeControlNumber: string | undefined;
+  let functionalGroupControlNumber: string | undefined;
 
   for (const seg of segments) {
     const p = seg.split('*');
-    if (p[0] === 'AK9') {
+    if (p[0] === 'ISA') {
+      interchangeControlNumber = p[13]?.trim();
+    } else if (p[0] === 'AK1') {
+      functionalGroupControlNumber = p[2]?.trim();
+    } else if (p[0] === 'AK9') {
       accepted = p[1] === 'A';
     } else if (p[0] === 'IK3' || p[0] === 'IK4') {
       errors.push({
@@ -24,5 +30,5 @@ export function parse999(payload: string): Ack999 {
     errors.push({ segment: 'AK9', code: 'R', description: 'Functional acknowledgment rejected' });
   }
 
-  return { accepted, errors, raw: payload };
+  return { accepted, errors, interchangeControlNumber, functionalGroupControlNumber, raw: payload };
 }

@@ -5,21 +5,76 @@
  */
 
 import { createNctracksAdapter } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import type { MmisLookupInput, MmisLookupResult } from './mmis';
 import { recordEligibilityX12Audit } from './nctracks-audit';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCCHIP',
+  'NCMEDICAID',
+  'NCMEDPAY',
+  'NCTRACKS',
+]);
+
+const PLACEHOLDER_RECIPIENT_IDS = new Set([
+  'UNKNOWN',
+  'PENDING',
+  'TBD',
+  'TBA',
+  'TEST',
+  'DEMO',
+  'NONE',
+  'NULL',
+  'NA',
+  'N/A',
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizePayerId(payerId: string): string {
+  return payerId.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+function isNcMedicaidCoverage(coverageType?: string): boolean {
+  if (!coverageType) return true;
+  const normalized = coverageType.toLowerCase();
+  return normalized === 'medicaid' || normalized === 'chip';
+}
+
+export function isKnownNctracksPayer(payerId: string): boolean {
+  return NC_MEDICAID_PAYER_IDS.has(normalizePayerId(payerId));
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string, coverageType?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  if (!isNcMedicaidCoverage(coverageType)) return false;
+  return payerId === undefined ? true : isKnownNctracksPayer(payerId);
+}
+
+export function assertValidNctracksRecipientId(raw?: string): string {
+  const recipientId = raw?.trim();
+  const normalized = recipientId?.toUpperCase();
+  if (
+    !recipientId
+    || !normalized
+    || PLACEHOLDER_RECIPIENT_IDS.has(normalized)
+    || /^0+$/.test(recipientId)
+    || UUID_PATTERN.test(recipientId)
+  ) {
+    throw new ValidationError('NCTracks eligibility requires a real NC Medicaid recipient ID');
+  }
+  return recipientId;
 }
 
 export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookupResult> {
   const adapter = createNctracksAdapter();
   const dateOfService = new Date().toISOString().slice(0, 10);
+  const subscriberId = assertValidNctracksRecipientId(input.medicaidId);
 
   const resp = await adapter.checkEligibility({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     dateOfService,
     firstName: input.patientFirstName,
     lastName: input.patientLastName,
@@ -36,7 +91,7 @@ export async function lookupNctracks(input: MmisLookupInput): Promise<MmisLookup
   });
 
   await recordEligibilityX12Audit({
-    subscriberId: input.medicaidId ?? 'UNKNOWN',
+    subscriberId,
     traceId: resp.traceId,
     adapterMode: adapter.mode,
     raw271: resp.raw271,

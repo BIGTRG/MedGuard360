@@ -1,17 +1,28 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
-import type { Ack277CA } from '@medguard360/nctracks';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus, assertValidNctracksRecipientId, assertNctracksSubmissionAccepted, ack999ForSubmission } from './nctracks';
+import type { Ack277CA, Ack999, ClaimSubmitResult } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+  });
+
+  it('skips NC claims for non-Medicaid payers', () => {
+    expect(shouldUseNctracks('NC', 'COMMERCIAL')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
     const prev = process.env.NCTRACKS_MODE;
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
+  });
+});
+
+describe('assertValidNctracksRecipientId', () => {
+  it('rejects placeholders and patient UUID fallbacks before claim submission', () => {
+    expect(() => assertValidNctracksRecipientId('UNKNOWN')).toThrow(/recipient ID/);
+    expect(() => assertValidNctracksRecipientId('00000000-0000-4000-8000-000000000001')).toThrow(/recipient ID/);
   });
 });
 
@@ -24,6 +35,37 @@ describe('indexAck277ByPcn', () => {
     }];
     const map = indexAck277ByPcn(acks);
     expect(map.get('PCN-1')?.status).toBe('accepted');
+  });
+});
+
+describe('ack999ForSubmission', () => {
+  const acceptedAck: Ack999 = {
+    accepted: true,
+    errors: [],
+    interchangeControlNumber: '000000001',
+    functionalGroupControlNumber: '100',
+    raw: 'AK9*A*1*1*1~',
+  };
+  const rejectedAck: Ack999 = {
+    accepted: false,
+    errors: [{ segment: 'AK9', code: 'R', description: 'Rejected' }],
+    interchangeControlNumber: '000000002',
+    functionalGroupControlNumber: '200',
+    raw: 'AK9*R*1*0*1~',
+  };
+
+  it('matches 999 acknowledgments by interchange or group control number', () => {
+    expect(ack999ForSubmission([acceptedAck, rejectedAck], 2, {
+      interchange_control_number: '000000002',
+      group_control_number: '200',
+    })).toBe(rejectedAck);
+  });
+
+  it('does not assign an uncorrelated first 999 when multiple submissions are pending', () => {
+    expect(ack999ForSubmission([acceptedAck, rejectedAck], 2, {
+      interchange_control_number: '000000003',
+      group_control_number: '300',
+    })).toBeUndefined();
   });
 });
 
@@ -45,6 +87,38 @@ describe('remittance helpers', () => {
   it('detects payable CLP02 codes', () => {
     expect(isRemittancePayable('1')).toBe(true);
     expect(isRemittancePayable('4')).toBe(false);
+  });
+});
+
+describe('assertNctracksSubmissionAccepted', () => {
+  const acceptedResult: ClaimSubmitResult = {
+    interchangeControlNumber: 'ISA000001',
+    groupControlNumber: 'GS000001',
+    transactionSetControlNumber: 'ST000001',
+    fileName: 'claim.x12',
+    submittedAt: '2026-08-21T00:00:00.000Z',
+  };
+
+  it('rejects inline 999 failures before the claim is marked submitted', () => {
+    expect(() => assertNctracksSubmissionAccepted({
+      ...acceptedResult,
+      ack999: {
+        accepted: false,
+        errors: [{ segment: 'CLM', code: '1', description: 'Rejected' }],
+        raw: 'AK9*R*1*0*1~',
+      },
+    })).toThrow(/999/);
+  });
+
+  it('rejects inline 277CA claim rejections before the claim is marked submitted', () => {
+    expect(() => assertNctracksSubmissionAccepted({
+      ...acceptedResult,
+      ack277CA: {
+        status: 'rejected',
+        perClaim: [{ patientControlNumber: 'CCN-1', status: 'rejected', categoryCode: 'A7', statusCode: '21' }],
+        raw: 'STC*A7:21*20260821*WQ*CCN-1~',
+      },
+    })).toThrow(/277CA/);
   });
 });
 

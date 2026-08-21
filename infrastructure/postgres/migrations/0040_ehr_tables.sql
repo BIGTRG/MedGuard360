@@ -221,8 +221,8 @@ CREATE TABLE IF NOT EXISTS sud_protected_records (
 ALTER TABLE sud_protected_records ENABLE ROW LEVEL SECURITY;
 CREATE POLICY sud_records_access ON sud_protected_records
   FOR SELECT USING (
-    provider_id = current_user_id() OR patient_id = current_user_id() OR
-    (current_user_role() = 'compliance_officer')
+    provider_id = app_current_user_id() OR patient_id = app_current_user_id() OR
+    (app_current_role() = 'compliance_officer')
   );
 
 CREATE INDEX idx_sud_protected_records_patient ON sud_protected_records(patient_id);

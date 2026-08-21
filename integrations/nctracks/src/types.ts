@@ -141,6 +141,8 @@ export interface ClaimSubmitResult {
 export interface Ack999 {
   accepted: boolean;
   errors: Array<{ segment: string; element?: string; code: string; description: string }>;
+  interchangeControlNumber?: string;
+  functionalGroupControlNumber?: string;
   raw: string;
 }
 

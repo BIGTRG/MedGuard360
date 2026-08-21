@@ -31,6 +31,18 @@ describe('build270', () => {
     const payload = build270({ ...baseInput, hetsSubmitterUid: 'HETSUID123456' });
     expect(payload.split('~')[0]).toContain('HETSUID123456');
   });
+
+  it('sets SE01 to the ST-through-SE transaction segment count', () => {
+    const payload = build270(baseInput);
+    const segments = payload.split(/[~\n\r]+/).filter(Boolean);
+    const stIndex = segments.findIndex((segment) => segment.startsWith('ST*'));
+    const seIndex = segments.findIndex((segment) => segment.startsWith('SE*'));
+    const se01 = Number.parseInt(segments[seIndex]?.split('*')[1] ?? '', 10);
+
+    expect(stIndex).toBeGreaterThanOrEqual(0);
+    expect(seIndex).toBeGreaterThan(stIndex);
+    expect(se01).toBe(seIndex - stIndex + 1);
+  });
 });
 
 describe('parse271', () => {
@@ -45,5 +57,11 @@ describe('parse271', () => {
     expect(parsed.requiresHetsAttestation).toBe(true);
     expect(parsed.aaaCodes).toContain('41');
     expect(parsed.active).toBe(false);
+  });
+
+  it('keeps AAA rejections inactive even when later EB segments are active', () => {
+    const parsed = parse271('AAA*N**75*C~EB*1*IND*30*INS*Plan Name~');
+    expect(parsed.active).toBe(false);
+    expect(parsed.aaaCodes).toContain('75');
   });
 });

@@ -11,7 +11,7 @@ import {
   type ClaimStatusResponse,
   type ClaimSubmitResult,
 } from '@medguard360/nctracks';
-import { logger } from '@medguard360/shared';
+import { logger, ValidationError } from '@medguard360/shared';
 import * as repo from './nctracks-repository';
 import {
   nctracksX12ArchiveIntervalMs,
@@ -24,9 +24,56 @@ import {
   observeNctracksRealtime,
 } from '@medguard360/shared';
 
-export function shouldUseNctracks(stateCode: string): boolean {
+const NC_MEDICAID_PAYER_IDS = new Set([
+  'NCXIX',
+  'NCCHIP',
+  'NCMEDICAID',
+  'NCMEDPAY',
+  'NCTRACKS',
+]);
+
+const PLACEHOLDER_RECIPIENT_IDS = new Set([
+  'UNKNOWN',
+  'PENDING',
+  'TBD',
+  'TBA',
+  'TEST',
+  'DEMO',
+  'NONE',
+  'NULL',
+  'NA',
+  'N/A',
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizePayerId(payerId: string): string {
+  return payerId.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+export function isKnownNctracksPayer(payerId: string): boolean {
+  return NC_MEDICAID_PAYER_IDS.has(normalizePayerId(payerId));
+}
+
+export function shouldUseNctracks(stateCode: string, payerId?: string): boolean {
   const mode = (process.env.NCTRACKS_MODE ?? 'stub').toLowerCase();
-  return stateCode.toUpperCase() === 'NC' && mode !== 'disabled';
+  if (stateCode.toUpperCase() !== 'NC' || mode === 'disabled') return false;
+  return payerId === undefined ? true : isKnownNctracksPayer(payerId);
+}
+
+export function assertValidNctracksRecipientId(raw?: string): string {
+  const recipientId = raw?.trim();
+  const normalized = recipientId?.toUpperCase();
+  if (
+    !recipientId
+    || !normalized
+    || PLACEHOLDER_RECIPIENT_IDS.has(normalized)
+    || /^0+$/.test(recipientId)
+    || UUID_PATTERN.test(recipientId)
+  ) {
+    throw new ValidationError('NCTracks claim submission requires a real NC Medicaid recipient ID');
+  }
+  return recipientId;
 }
 
 export function nctracksPollIntervalMs(): number {
@@ -71,6 +118,30 @@ export function indexAck277ByPcn(acks: Ack277CA[]): Map<string, Ack277CA> {
   return out;
 }
 
+export function indexAck999ByControlNumber(acks: Ack999[]): Map<string, Ack999> {
+  const out = new Map<string, Ack999>();
+  for (const ack of acks) {
+    if (ack.interchangeControlNumber) {
+      out.set(`isa:${ack.interchangeControlNumber}`, ack);
+    }
+    if (ack.functionalGroupControlNumber) {
+      out.set(`gs:${ack.functionalGroupControlNumber}`, ack);
+    }
+  }
+  return out;
+}
+
+export function ack999ForSubmission(
+  acks: Ack999[],
+  pendingCount: number,
+  submission: { interchange_control_number: string; group_control_number: string },
+): Ack999 | undefined {
+  const byControlNumber = indexAck999ByControlNumber(acks);
+  return byControlNumber.get(`isa:${submission.interchange_control_number}`)
+    ?? byControlNumber.get(`gs:${submission.group_control_number}`)
+    ?? (pendingCount === 1 && acks.length === 1 ? acks[0] : undefined);
+}
+
 export function dollarsToCents(amount: number): number {
   return Math.round(amount * 100);
 }
@@ -80,15 +151,25 @@ export function isRemittancePayable(statusCode: string): boolean {
   return ['1', '2', '3', '19', '20', '21'].includes(statusCode);
 }
 
+export function assertNctracksSubmissionAccepted(result: ClaimSubmitResult): void {
+  if (result.ack999 && !result.ack999.accepted) {
+    throw new ValidationError('NCTracks rejected the 837 transaction in the inline 999 acknowledgment');
+  }
+  if (result.ack277CA?.status === 'rejected') {
+    throw new ValidationError('NCTracks rejected the claim in the inline 277CA acknowledgment');
+  }
+}
+
 export async function submitNcClaim(input: NcClaimSubmitInput): Promise<ClaimSubmitResult & { adapterMode: string }> {
   const adapter = createNctracksAdapter();
   const serviceIso = toIsoDate(input.serviceDate);
+  const subscriberId = assertValidNctracksRecipientId(input.patientMedicaidId);
 
   const result = await adapter.submitClaim({
     claimType: 'professional',
     patientControlNumber: input.ccn,
     totalCharge: input.totalCharge,
-    subscriberId: input.patientMedicaidId,
+    subscriberId,
     serviceDateFrom: serviceIso,
     serviceDateTo: serviceIso,
     billingProvider: {
@@ -177,6 +258,12 @@ export async function recordNctracksSubmission(
   }
 }
 
+export async function findNctracksSubmissionForClaim(
+  claimId: string,
+): Promise<repo.NctracksSubmissionRow | null> {
+  return repo.findSubmissionByClaimId(claimId);
+}
+
 export async function pollNctracksAcks(): Promise<{ polled: number; updated: number }> {
   const adapter = createNctracksAdapter();
   if (adapter.mode !== 'sftp' && adapter.mode !== 'live') {
@@ -199,8 +286,9 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
   for (const sub of pending) {
     const ack277 = byPcn.get(sub.patient_control_number);
     if (!ack277) continue;
+    const ack999ForSub = ack999ForSubmission(ack999, pending.length, sub);
 
-    await repo.updateSubmissionAcks(sub.id, ack999[0], ack277);
+    await repo.updateSubmissionAcks(sub.id, ack999ForSub, ack277);
     if (ack277?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
@@ -211,13 +299,13 @@ export async function pollNctracksAcks(): Promise<{ polled: number; updated: num
         adapterMode: adapter.mode,
       });
     }
-    if (ack999[0]?.raw) {
+    if (ack999ForSub?.raw) {
       await repo.insertX12Audit({
         claimId: sub.claim_id,
         direction: 'inbound',
         transactionType: '999',
         patientControlNumber: sub.patient_control_number,
-        payload: ack999[0].raw,
+        payload: ack999ForSub.raw,
         adapterMode: adapter.mode,
       });
     }
@@ -240,9 +328,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
   let applied = 0;
 
   for (const file of files) {
-    if (await repo.remittanceFileExists(file.fileName).catch(() => false)) continue;
-
-    const fileId = await repo.insertRemittanceFile({
+    const remittanceFile = await repo.upsertRemittanceFile({
       fileName: file.fileName,
       checkOrEftNumber: file.checkOrEftNumber,
       paymentDate: file.paymentDate,
@@ -252,6 +338,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
       adapterMode: adapter.mode,
       receivedAt: file.receivedAt,
     });
+    if (remittanceFile.processed_at) continue;
 
     await repo.insertX12Audit({
       direction: 'inbound',
@@ -263,7 +350,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
 
     for (const cl of file.claims) {
       const rowId = await repo.insertRemittanceClaim({
-        remittanceFileId: fileId,
+        remittanceFileId: remittanceFile.id,
         patientControlNumber: cl.patientControlNumber,
         payerClaimControlNumber: cl.payerClaimControlNumber,
         chargedAmount: cl.chargedAmount,
@@ -283,6 +370,7 @@ export async function pollNctracksRemittances(): Promise<{ files: number; applie
       );
       applied += 1;
     }
+    await repo.markRemittanceFileProcessed(remittanceFile.id);
   }
 
   logger.info('nctracks remittance poll complete', { files: files.length, applied });

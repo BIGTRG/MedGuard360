@@ -116,7 +116,8 @@ export function build270(input: Build270Input): string {
   out.push(['EQ', serviceTypeCode].join(ELE) + SEG);
 
   // ---- closers ----
-  out.push(['SE', String(out.length + 1), '0001'].join(ELE) + SEG);
+  const transactionSetSegmentCount = out.length - 2 + 1;
+  out.push(['SE', String(transactionSetSegmentCount), '0001'].join(ELE) + SEG);
   out.push(['GE', '1', input.groupControlNumber].join(ELE) + SEG);
   out.push(['IEA', '1', input.interchangeControlNumber.padStart(9, '0')].join(ELE) + SEG);
 
@@ -155,6 +156,7 @@ export function parse271(payload: string): Parsed271 {
     active: false, benefits: [], aaaCodes: [], requiresHetsAttestation: false,
     raw: { rawSegmentCount: segments.length },
   };
+  let hasAaaRejection = false;
 
   for (const seg of segments) {
     const parts = seg.split('*');
@@ -167,6 +169,7 @@ export function parse271(payload: string): Parsed271 {
       // AAA03: reject reason code (business) — '41' = HETS submitter not authorized for NPI
       // AAA04: follow-up action code
       out.active = false;
+      hasAaaRejection = true;
       const reject = parts[3] ?? 'unknown';
       out.aaaCodes.push(reject);
       out.rejectReason = `AAA reject code ${reject}`;
@@ -188,7 +191,7 @@ export function parse271(payload: string): Parsed271 {
       // EB09: quantity qualifier
       // EB12: in-network indicator (Y/N)
       const status = parts[1];
-      if (status === '1') out.active = true;
+      if (status === '1' && !hasAaaRejection) out.active = true;
       if (parts[5] && !out.planName) out.planName = parts[5];
 
       const amountStr = parts[7];

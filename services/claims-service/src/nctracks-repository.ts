@@ -52,6 +52,17 @@ export async function insertNctracksSubmission(
   return row.rows[0];
 }
 
+export async function findSubmissionByClaimId(claimId: string): Promise<NctracksSubmissionRow | null> {
+  const row = await pool.query<NctracksSubmissionRow>(
+    `SELECT * FROM nctracks_submissions
+     WHERE claim_id = $1
+     ORDER BY submitted_at DESC
+     LIMIT 1`,
+    [claimId],
+  );
+  return row.rows[0] ?? null;
+}
+
 export async function listSubmissionsPendingAck(limit = 100): Promise<NctracksSubmissionRow[]> {
   const row = await pool.query<NctracksSubmissionRow>(
     `SELECT * FROM nctracks_submissions
@@ -117,15 +128,12 @@ export async function insertX12Audit(entry: {
 
 // ── Remittances (835) ───────────────────────────────────────────────────────
 
-export async function remittanceFileExists(fileName: string): Promise<boolean> {
-  const r = await pool.query<{ exists: boolean }>(
-    'SELECT EXISTS(SELECT 1 FROM nctracks_remittance_files WHERE file_name = $1) AS exists',
-    [fileName],
-  );
-  return Boolean(r.rows[0]?.exists);
+export interface RemittanceFileRecord {
+  id: string;
+  processed_at: Date | null;
 }
 
-export async function insertRemittanceFile(entry: {
+export async function upsertRemittanceFile(entry: {
   fileName: string;
   checkOrEftNumber: string;
   paymentDate: string;
@@ -134,13 +142,21 @@ export async function insertRemittanceFile(entry: {
   raw835: string;
   adapterMode: string;
   receivedAt: string;
-}): Promise<string> {
-  const r = await pool.query<{ id: string }>(
+}): Promise<RemittanceFileRecord> {
+  const r = await pool.query<RemittanceFileRecord>(
     `INSERT INTO nctracks_remittance_files (
        file_name, check_or_eft_number, payment_date, payee_npi,
        total_paid, raw835, adapter_mode, received_at
      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-     RETURNING id`,
+     ON CONFLICT (file_name) DO UPDATE SET
+       check_or_eft_number = EXCLUDED.check_or_eft_number,
+       payment_date = EXCLUDED.payment_date,
+       payee_npi = EXCLUDED.payee_npi,
+       total_paid = EXCLUDED.total_paid,
+       raw835 = EXCLUDED.raw835,
+       adapter_mode = EXCLUDED.adapter_mode,
+       received_at = LEAST(nctracks_remittance_files.received_at, EXCLUDED.received_at)
+     RETURNING id, processed_at`,
     [
       entry.fileName,
       entry.checkOrEftNumber,
@@ -152,7 +168,7 @@ export async function insertRemittanceFile(entry: {
       entry.receivedAt,
     ],
   );
-  return r.rows[0].id;
+  return r.rows[0];
 }
 
 export async function insertRemittanceClaim(entry: {
@@ -236,16 +252,18 @@ export async function applyRemittanceToClaim(
       [claimId, tcn],
     ).catch(() => undefined);
   }
+}
+
+export async function markRemittanceFileProcessed(fileId: string): Promise<void> {
   await pool.query(
-    `UPDATE nctracks_remittance_files SET processed_at = now()
-     WHERE id = (SELECT remittance_file_id FROM nctracks_remittance_claims WHERE id = $1)`,
-    [remittanceClaimId],
+    'UPDATE nctracks_remittance_files SET processed_at = now() WHERE id = $1',
+    [fileId],
   );
 }
 
 export async function getLastRemittanceWatermark(): Promise<string | undefined> {
   const r = await pool.query<{ received_at: Date }>(
-    'SELECT received_at FROM nctracks_remittance_files ORDER BY received_at DESC LIMIT 1',
+    'SELECT received_at FROM nctracks_remittance_files WHERE processed_at IS NOT NULL ORDER BY received_at DESC LIMIT 1',
   );
   return r.rows[0]?.received_at?.toISOString();
 }

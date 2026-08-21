@@ -14,9 +14,10 @@ export async function recordEligibilityX12Audit(entry: {
       [entry.subscriberId, entry.raw271, entry.adapterMode],
     );
   } catch (err) {
-    logger.warn('nctracks eligibility audit failed (non-fatal)', {
+    logger.error('nctracks eligibility audit failed', {
       traceId: entry.traceId,
       error: err instanceof Error ? err.message : String(err),
     });
+    throw err;
   }
 }
