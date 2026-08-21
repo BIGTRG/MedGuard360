@@ -306,8 +306,10 @@ router.post(
     // Build diagnosis codes from lines if not on claim
     const diagnosisCodes: string[] = [];
     for (const line of lines) {
-      if (line.diagnosis_codes) {
-        for (const code of line.diagnosis_codes) {
+      const lineDiagnosisCodes = line.diagnosis_codes;
+      if (Array.isArray(lineDiagnosisCodes)) {
+        for (const code of lineDiagnosisCodes) {
+          if (typeof code !== 'string') continue;
           if (!diagnosisCodes.includes(code)) diagnosisCodes.push(code);
         }
       }
