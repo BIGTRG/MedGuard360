@@ -32,6 +32,7 @@ const NC_MEDICAID_PAYER_IDS = new Set([
   'NCMEDICAID',
   'NC_MEDICAID',
   'NC-MEDICAID',
+  'NCMEDPAY',
   'NCMMIS',
 ]);
 

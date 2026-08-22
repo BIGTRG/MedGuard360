@@ -4,6 +4,7 @@ describe('shouldUseNctracks', () => {
   it('routes NC Medicaid and CHIP payers to NCTracks by default', () => {
     expect(shouldUseNctracks('NC', 'NCXIX', 'medicaid')).toBe(true);
     expect(shouldUseNctracks('NC', 'NCCHIP', 'chip')).toBe(true);
+    expect(shouldUseNctracks('NC', 'NCMEDPAY', 'medicaid')).toBe(true);
   });
 
   it('skips non-NC states', () => {

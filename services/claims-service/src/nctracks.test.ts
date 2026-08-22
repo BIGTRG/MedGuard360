@@ -5,6 +5,7 @@ describe('shouldUseNctracks', () => {
   it('routes NC Medicaid and CHIP claims through NCTracks', () => {
     expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
     expect(shouldUseNctracks('NC', 'NCCHIP')).toBe(true);
+    expect(shouldUseNctracks('NC', 'NCMEDPAY')).toBe(true);
   });
 
   it('does not route NC commercial claims through NCTracks', () => {
