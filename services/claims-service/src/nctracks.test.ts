@@ -1,5 +1,86 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
-import type { Ack277CA } from '@medguard360/nctracks';
+import {
+  shouldUseNctracks,
+  submitNcClaim,
+  indexAck277ByPcn,
+  nctracksPollIntervalMs,
+  dollarsToCents,
+  isRemittancePayable,
+  getNctracksIntegrationStatus,
+  pollNctracksRemittances,
+} from './nctracks';
+import {
+  createNctracksAdapter,
+  type Ack277CA,
+  type NctracksAdapter,
+  type NctracksMode,
+  type RemittanceFile,
+  type RemittanceQuery,
+} from '@medguard360/nctracks';
+import * as repo from './nctracks-repository';
+
+jest.mock('@medguard360/nctracks', () => {
+  const actual = jest.requireActual<typeof import('@medguard360/nctracks')>('@medguard360/nctracks');
+  return {
+    ...actual,
+    createNctracksAdapter: jest.fn(actual.createNctracksAdapter),
+  };
+});
+
+jest.mock('./nctracks-repository', () => ({
+  getLastRemittanceWatermark: jest.fn(),
+  remittanceFileExists: jest.fn(),
+  insertRemittanceFile: jest.fn(),
+  insertX12Audit: jest.fn(),
+  insertRemittanceClaim: jest.fn(),
+  findClaimIdByControlNumber: jest.fn(),
+  applyRemittanceToClaim: jest.fn(),
+  getNctracksIntegrationStats: jest.fn(),
+}));
+
+const actualNctracks = jest.requireActual<typeof import('@medguard360/nctracks')>('@medguard360/nctracks');
+const mockedCreateNctracksAdapter = jest.mocked(createNctracksAdapter);
+const mockedRepo = jest.mocked(repo);
+
+function makeRemittanceFile(overrides: Partial<RemittanceFile> = {}): RemittanceFile {
+  return {
+    fileName: 'RA_20260822.835',
+    receivedAt: '2026-08-22T10:00:00.000Z',
+    checkOrEftNumber: 'CHK-20260822',
+    paymentDate: '2026-08-22',
+    payeeNpi: '1234567890',
+    totalPaid: 123.45,
+    claims: [],
+    raw835: 'ISA*00*REMITS~',
+    ...overrides,
+  };
+}
+
+function makeAdapter(mode: NctracksMode, files: RemittanceFile[] = []): NctracksAdapter {
+  const unsupported = async (): Promise<never> => {
+    throw new Error('not used by this test');
+  };
+
+  return {
+    mode,
+    checkEligibility: unsupported,
+    submitClaim: unsupported,
+    getClaimStatus: unsupported,
+    retrieveRemittances: jest.fn<Promise<RemittanceFile[]>, [RemittanceQuery?]>().mockResolvedValue(files),
+    pollAcks: async () => ({ ack999: [], ack277CA: [] }),
+    healthCheck: async () => ({ realtimeOk: true, sftpOk: true }),
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockedCreateNctracksAdapter.mockImplementation(actualNctracks.createNctracksAdapter);
+  mockedRepo.getNctracksIntegrationStats.mockResolvedValue({
+    submissions: 0,
+    pendingAcks: 0,
+    remittanceFiles: 0,
+    x12AuditRows: 0,
+  });
+});
 
 describe('shouldUseNctracks', () => {
   it('routes NC claims through NCTracks', () => {
@@ -45,6 +126,91 @@ describe('remittance helpers', () => {
   it('detects payable CLP02 codes', () => {
     expect(isRemittancePayable('1')).toBe(true);
     expect(isRemittancePayable('4')).toBe(false);
+  });
+});
+
+describe('pollNctracksRemittances', () => {
+  it('skips duplicate files and only applies payable matched claims', async () => {
+    const watermark = new Date('2026-08-21T09:30:00.000Z');
+    const duplicate = makeRemittanceFile({ fileName: 'RA_DUPLICATE.835' });
+    const incoming = makeRemittanceFile({
+      fileName: 'RA_NEW.835',
+      claims: [
+        {
+          patientControlNumber: 'PCN-PAID',
+          payerClaimControlNumber: 'TCN-PAID',
+          chargedAmount: 125,
+          paidAmount: 123.45,
+          claimStatusCode: '1',
+          adjustments: [],
+          remarks: [],
+          serviceLines: [],
+        },
+        {
+          patientControlNumber: 'PCN-DENIED',
+          payerClaimControlNumber: 'TCN-DENIED',
+          chargedAmount: 80,
+          paidAmount: 0,
+          claimStatusCode: '4',
+          adjustments: [],
+          remarks: [],
+          serviceLines: [],
+        },
+        {
+          patientControlNumber: 'PCN-UNMATCHED',
+          payerClaimControlNumber: 'TCN-UNMATCHED',
+          chargedAmount: 50,
+          paidAmount: 25,
+          claimStatusCode: '2',
+          adjustments: [],
+          remarks: [],
+          serviceLines: [],
+        },
+      ],
+    });
+    const adapter = makeAdapter('sftp', [duplicate, incoming]);
+    mockedCreateNctracksAdapter.mockReturnValue(adapter);
+    mockedRepo.getLastRemittanceWatermark.mockResolvedValue(watermark.toISOString());
+    mockedRepo.remittanceFileExists.mockImplementation(async (fileName) => fileName === duplicate.fileName);
+    mockedRepo.insertRemittanceFile.mockResolvedValue('remit-file-id');
+    mockedRepo.insertRemittanceClaim.mockImplementation(async (entry) => `row-${entry.patientControlNumber}`);
+    mockedRepo.findClaimIdByControlNumber.mockImplementation(async (pcn) => (
+      pcn === 'PCN-PAID' ? 'claim-id-paid' : null
+    ));
+
+    const result = await pollNctracksRemittances();
+
+    expect(result).toEqual({ files: 2, applied: 1 });
+    expect(adapter.retrieveRemittances).toHaveBeenCalledWith({ since: watermark.toISOString() });
+    expect(mockedRepo.insertRemittanceFile).toHaveBeenCalledTimes(1);
+    expect(mockedRepo.insertRemittanceFile).toHaveBeenCalledWith(expect.objectContaining({
+      fileName: incoming.fileName,
+      raw835: incoming.raw835,
+      adapterMode: 'sftp',
+    }));
+    expect(mockedRepo.insertX12Audit).toHaveBeenCalledTimes(1);
+    expect(mockedRepo.insertRemittanceClaim).toHaveBeenCalledTimes(3);
+    expect(mockedRepo.findClaimIdByControlNumber).toHaveBeenCalledTimes(2);
+    expect(mockedRepo.findClaimIdByControlNumber).toHaveBeenCalledWith('PCN-PAID');
+    expect(mockedRepo.findClaimIdByControlNumber).toHaveBeenCalledWith('PCN-UNMATCHED');
+    expect(mockedRepo.findClaimIdByControlNumber).not.toHaveBeenCalledWith('PCN-DENIED');
+    expect(mockedRepo.applyRemittanceToClaim).toHaveBeenCalledTimes(1);
+    expect(mockedRepo.applyRemittanceToClaim).toHaveBeenCalledWith(
+      'row-PCN-PAID',
+      'claim-id-paid',
+      12345,
+      'TCN-PAID',
+    );
+  });
+
+  it('does not retrieve 835 remittances in soap-only mode', async () => {
+    const adapter = makeAdapter('soap');
+    mockedCreateNctracksAdapter.mockReturnValue(adapter);
+
+    await expect(pollNctracksRemittances()).resolves.toEqual({ files: 0, applied: 0 });
+
+    expect(adapter.retrieveRemittances).not.toHaveBeenCalled();
+    expect(mockedRepo.getLastRemittanceWatermark).not.toHaveBeenCalled();
   });
 });
 
