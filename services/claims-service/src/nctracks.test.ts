@@ -1,15 +1,20 @@
-import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
-import type { Ack277CA } from '@medguard360/nctracks';
+import { shouldUseNctracks, submitNcClaim, indexAck277ByPcn, indexAck999ByGroupControlNumber, nctracksPollIntervalMs, dollarsToCents, isRemittancePayable, getNctracksIntegrationStatus } from './nctracks';
+import type { Ack277CA, Ack999 } from '@medguard360/nctracks';
 
 describe('shouldUseNctracks', () => {
-  it('routes NC claims through NCTracks', () => {
-    expect(shouldUseNctracks('NC')).toBe(true);
+  it('routes NC Medicaid and CHIP claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(true);
+    expect(shouldUseNctracks('NC', 'NCCHIP')).toBe(true);
+  });
+
+  it('does not route NC commercial claims through NCTracks', () => {
+    expect(shouldUseNctracks('NC', 'AETNA')).toBe(false);
   });
 
   it('returns false when mode is disabled', () => {
     const prev = process.env.NCTRACKS_MODE;
     process.env.NCTRACKS_MODE = 'disabled';
-    expect(shouldUseNctracks('NC')).toBe(false);
+    expect(shouldUseNctracks('NC', 'NCXIX')).toBe(false);
     if (prev === undefined) delete process.env.NCTRACKS_MODE;
     else process.env.NCTRACKS_MODE = prev;
   });
@@ -24,6 +29,18 @@ describe('indexAck277ByPcn', () => {
     }];
     const map = indexAck277ByPcn(acks);
     expect(map.get('PCN-1')?.status).toBe('accepted');
+  });
+});
+
+describe('indexAck999ByGroupControlNumber', () => {
+  it('indexes functional acknowledgments by AK1 group control number', () => {
+    const acks: Ack999[] = [
+      { accepted: true, errors: [], raw: 'ST*999*1~AK1*HC*GS000001~AK9*A*1*1*1~' },
+      { accepted: false, errors: [{ segment: 'AK9', code: 'R', description: 'Rejected' }], raw: 'ST*999*2~AK1*HC*GS000002~AK9*R*1*1*0~' },
+    ];
+    const map = indexAck999ByGroupControlNumber(acks);
+    expect(map.get('GS000001')?.accepted).toBe(true);
+    expect(map.get('GS000002')?.accepted).toBe(false);
   });
 });
 
@@ -82,6 +99,26 @@ describe('submitNcClaim', () => {
     expect(result.interchangeControlNumber).toBeTruthy();
     expect(result.ack999?.accepted).toBe(true);
     expect(result.adapterMode).toBe('stub');
+  });
+
+  it('rejects missing or placeholder NC Medicaid recipient IDs before adapter submission', async () => {
+    await expect(submitNcClaim({
+      ccn: 'CCN-TEST-002',
+      totalCharge: 125.5,
+      patientMedicaidId: '11111111-1111-4111-8111-111111111111',
+      serviceDate: '20260706',
+      billingNpi: '1234567890',
+      diagnosisCodes: ['Z00.00'],
+      lines: [{
+        procedure_code: '99213',
+        modifier_codes: [],
+        units: 1,
+        charge_amount: 125.5,
+        service_date: '20260706',
+        place_of_service: '11',
+        diagnosis_pointers: [1],
+      }],
+    })).rejects.toThrow('NCTracks claim submission requires a real NC Medicaid/CHIP recipient ID');
   });
 });
 
